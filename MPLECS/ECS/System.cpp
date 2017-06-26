@@ -21,10 +21,16 @@ System::~System()
 {
 }
 
-void System::Operate(s64 microseconds, std::vector<Entity> entities)
+[[gsl::suppress(type.4)]]
+bool System::Operate(timeuS microseconds, std::vector<Entity> entities)
 {
-	for (auto&& entity : entities)
+	
+	for (auto& entity : entities)
 	{
-		Operate(microseconds, entity);
+		if (!OperateSingle(microseconds, entity))
+		{
+			return false;
+		}
 	}
+	return true;
 }

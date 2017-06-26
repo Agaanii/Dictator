@@ -22,6 +22,6 @@ public:
 	System();
 	~System();
 
-	void Operate(s64 microseconds, std::vector<Entity> entities);
-	virtual void Operate(s64 microseconds, Entity& entity) = 0;
+	bool Operate(timeuS microseconds, std::vector<Entity> entities);
+	virtual bool OperateSingle(timeuS microseconds, Entity& entity) = 0;
 };

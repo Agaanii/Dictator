@@ -9,20 +9,34 @@
 
 #include <iostream>
 
+#include "ECS/Entity.h"
+#include "ECS/System.h"
+
 #include "Core/typedef.h"
+
+#include <chrono>
+#include <vector>
 
 using namespace std;
 
+vector<Entity> s_entities;
+vector<System> s_systems;
+
 int main()
 {
-	cout << "Size of u8  = " << sizeof(u8) << endl;
-	cout << "Size of s8  = " << sizeof(s8) << endl;
-	cout << "Size of u16 = " << sizeof(u16) << endl;
-	cout << "Size of s16 = " << sizeof(s16) << endl;
-	cout << "Size of u32 = " << sizeof(u32) << endl;
-	cout << "Size of s32 = " << sizeof(s32) << endl;
-	cout << "Size of u64 = " << sizeof(u64) << endl;
-	cout << "Size of s64 = " << sizeof(s64) << endl;
-	cin.ignore();
-	return 0;
+	auto loopStart = chrono::high_resolution_clock::now();
+	bool shouldTerminate = false;
+	while(true)
+	{
+		auto now = chrono::high_resolution_clock::now();
+		auto loopDuration = now - loopStart;
+		for (auto& system : s_systems)
+		{
+			if (!system.Operate(loopDuration, s_entities))
+			{
+				return 0;
+			}
+		}
+		loopStart = now;
+	}
 }

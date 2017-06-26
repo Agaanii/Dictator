@@ -24,5 +24,5 @@ public:
 	~Entity();
 
 private:
-	std::unique_ptr<Component> m_components[(s64)ComponentTypes::_COUNT];
+	Component* m_components[(s64)ComponentTypes::_COUNT];
 };
