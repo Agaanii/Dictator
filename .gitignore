@@ -73,3 +73,22 @@ Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+MPLECS/x64/Debug/component.nativecodeanalysis.xml
+MPLECS/x64/Debug/vc141.pdb
+MPLECS/x64/Debug/entity.nativecodeanalysis.xml
+MPLECS/x64/Debug/main.nativecodeanalysis.xml
+MPLECS/x64/Debug/MPLECS.Build.CppClean.log
+MPLECS/x64/Debug/MPLECS.exe.lastcodeanalysissucceeded
+MPLECS/x64/Debug/MPLECS.ilk
+MPLECS/x64/Debug/MPLECS.log
+MPLECS/x64/Debug/MPLECS.pdb
+MPLECS/x64/Debug/MPLECS.tlog/CL.command.1.tlog
+MPLECS/x64/Debug/MPLECS.tlog/CL.read.1.tlog
+MPLECS/x64/Debug/MPLECS.tlog/CL.write.1.tlog
+MPLECS/x64/Debug/MPLECS.tlog/link.command.1.tlog
+MPLECS/x64/Debug/MPLECS.tlog/link.read.1.tlog
+MPLECS/x64/Debug/MPLECS.tlog/link.write.1.tlog
+MPLECS/x64/Debug/MPLECS.tlog/MPLECS.lastbuildstate
+*.tlog
+*.xml
+*.idb
