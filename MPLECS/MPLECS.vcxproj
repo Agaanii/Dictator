@@ -117,17 +117,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ECS\Component.cpp" />
-    <ClCompile Include="ECS\Entity.cpp" />
-    <ClCompile Include="ECS\System.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Movement.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\ComponentTypes.h" />
     <ClInclude Include="Core\typedef.h" />
-    <ClInclude Include="ECS\Component.h" />
-    <ClInclude Include="ECS\Entity.h" />
-    <ClInclude Include="ECS\System.h" />
+    <ClInclude Include="ECS.h" />
+    <ClInclude Include="ECS\ecs.hpp" />
+    <ClInclude Include="ECS\MPL\All.hpp" />
+    <ClInclude Include="ECS\MPL\Concat.hpp" />
+    <ClInclude Include="ECS\MPL\ContainsAll.hpp" />
+    <ClInclude Include="ECS\MPL\Count.hpp" />
+    <ClInclude Include="ECS\MPL\Filter.hpp" />
+    <ClInclude Include="ECS\MPL\IndexOf.hpp" />
+    <ClInclude Include="ECS\MPL\Interface.hpp" />
+    <ClInclude Include="ECS\MPL\Map.hpp" />
+    <ClInclude Include="ECS\MPL\MetaFor.hpp" />
+    <ClInclude Include="ECS\MPL\MPL.hpp" />
+    <ClInclude Include="ECS\MPL\Rename.hpp" />
+    <ClInclude Include="ECS\MPL\Repeat.hpp" />
+    <ClInclude Include="ECS\MPL\StrongTypedef.hpp" />
+    <ClInclude Include="ECS\MPL\Tests.hpp" />
+    <ClInclude Include="ECS\MPL\Type.hpp" />
+    <ClInclude Include="ECS\MPL\TypeList.hpp" />
+    <ClInclude Include="ECS\MPL\TypeListOps.hpp" />
+    <ClInclude Include="ECS\MPL\Unique.hpp" />
+    <ClInclude Include="System.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

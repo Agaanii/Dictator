@@ -9,34 +9,48 @@
 
 #include <iostream>
 
-#include "ECS/Entity.h"
-#include "ECS/System.h"
-
+#include "System.h"
+#include "ECS.h"
 #include "Core/typedef.h"
 
 #include <chrono>
+#include <memory>
+#include <set>
 #include <vector>
 
 using namespace std;
 
-vector<Entity> s_entities;
-vector<System> s_systems;
+ECS_Core::Manager s_manager;
+
+std::vector<std::unique_ptr<SystemBase>> s_systems;
+
+SystemBase::SystemBase()
+	: m_managerRef(s_manager)
+{
+
+}
+
+void RegisterSystem(GameLoopPhase phase, unique_ptr<SystemBase>&& system)
+{
+	s_systems.emplace_back(move(system));
+}
 
 int main()
 {
 	auto loopStart = chrono::high_resolution_clock::now();
-	bool shouldTerminate = false;
 	while(true)
 	{
 		auto now = chrono::high_resolution_clock::now();
-		auto loopDuration = now - loopStart;
+		auto loopDuration = chrono::duration_cast<chrono::microseconds>(now - loopStart).count();
 		for (auto& system : s_systems)
 		{
-			if (!system.Operate(loopDuration, s_entities))
+			system->Operate(loopDuration);
+			if (system->ShouldExit())
 			{
 				return 0;
 			}
 		}
+		s_manager.refresh();
 		loopStart = now;
 	}
 }

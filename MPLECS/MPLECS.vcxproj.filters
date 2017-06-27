@@ -13,9 +13,6 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Source Files\ECS">
-      <UniqueIdentifier>{df19acc0-0b2a-489d-bedb-b7c68a909bea}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Components">
       <UniqueIdentifier>{6a55792c-f733-49f5-bb71-5c578d7f7fe3}</UniqueIdentifier>
     </Filter>
@@ -31,19 +28,19 @@
     <Filter Include="Header Files\Core">
       <UniqueIdentifier>{a6224294-6805-49c6-927e-04d43514525e}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ECS\MPL">
+      <UniqueIdentifier>{f97c0a33-12f3-4b4d-84fc-39e8537457eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Systems">
+      <UniqueIdentifier>{319bcfac-fbda-41f0-ac1e-9c421f051122}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ECS\Component.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="ECS\Entity.cpp">
-      <Filter>Source Files\ECS</Filter>
-    </ClCompile>
-    <ClCompile Include="ECS\System.cpp">
-      <Filter>Source Files\ECS</Filter>
+    <ClCompile Include="Movement.cpp">
+      <Filter>Source Files\Systems</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -53,14 +50,68 @@
     <ClInclude Include="Core\typedef.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
-    <ClInclude Include="ECS\Component.h">
+    <ClInclude Include="ECS\ecs.hpp">
       <Filter>Header Files\ECS</Filter>
     </ClInclude>
-    <ClInclude Include="ECS\Entity.h">
-      <Filter>Header Files\ECS</Filter>
+    <ClInclude Include="ECS\MPL\All.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
     </ClInclude>
-    <ClInclude Include="ECS\System.h">
-      <Filter>Header Files\ECS</Filter>
+    <ClInclude Include="ECS\MPL\Concat.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\ContainsAll.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Count.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Filter.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\IndexOf.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Interface.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Map.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\MetaFor.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\MPL.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Rename.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Repeat.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\StrongTypedef.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Tests.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Type.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\TypeList.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\TypeListOps.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS\MPL\Unique.hpp">
+      <Filter>Header Files\ECS\MPL</Filter>
+    </ClInclude>
+    <ClInclude Include="System.h">
+      <Filter>Header Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="ECS.h">
+      <Filter>Header Files\Core</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
