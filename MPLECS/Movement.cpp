@@ -7,8 +7,13 @@ namespace Experiment
 	public:
 		NewtonianMovement() : SystemBase() { }
 		virtual ~NewtonianMovement() {}
-		virtual void Operate(const timeuS& frameDuration) override
+		virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override
 		{
+			if (phase != GameLoopPhase::ACTION)
+			{
+				// We only act during the action phase
+				return;
+			}
 			f64 frameSeconds = (1. * frameDuration / 1000000);
 			m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_ApplyConstantMotion>(
 				[&frameSeconds](
@@ -34,5 +39,5 @@ namespace Experiment
 		}
 	};
 
-	SystemRegistrar<NewtonianMovement, GameLoopPhase::ACTION> registration;
+	SystemRegistrar<NewtonianMovement> registration;
 }

@@ -30,7 +30,7 @@ SystemBase::SystemBase()
 
 }
 
-void RegisterSystem(GameLoopPhase phase, unique_ptr<SystemBase>&& system)
+void RegisterSystem(unique_ptr<SystemBase>&& system)
 {
 	s_systems.emplace_back(move(system));
 }
@@ -42,12 +42,22 @@ int main()
 	{
 		auto now = chrono::high_resolution_clock::now();
 		auto loopDuration = chrono::duration_cast<chrono::microseconds>(now - loopStart).count();
-		for (auto& system : s_systems)
+		static const vector<GameLoopPhase> c_phaseOrder = {
+			GameLoopPhase::PREPARATION,
+			GameLoopPhase::INPUT,
+			GameLoopPhase::ACTION,
+			GameLoopPhase::RENDER,
+			GameLoopPhase::CLEANUP
+		};
+		for (auto&& phase : c_phaseOrder)
 		{
-			system->Operate(loopDuration);
-			if (system->ShouldExit())
+			for (auto& system : s_systems)
 			{
-				return 0;
+				system->Operate(phase, loopDuration);
+				if (system->ShouldExit())
+				{
+					return 0;
+				}
 			}
 		}
 		s_manager.refresh();

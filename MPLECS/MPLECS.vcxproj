@@ -88,7 +88,17 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <EnablePREfast>true</EnablePREfast>
+      <AdditionalIncludeDirectories>D:\Libraries\SFML\SFML-2.4.2\include</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>D:\Libraries\SFML\SFML-2.4.2\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>sfml-graphics-d.lib;sfml-window-d.lib;sfml-system-d.lib;opengl32.lib;freetype.lib;jpeg.lib;winmm.lib;gdi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <PostBuildEvent>
+      <Command>Copy /Y "$(SolutionDir)Contrib\SFML-2.4.2\bin\sfml-graphics-d-2.dll" "$(OutDir)sfml-graphics-d-2.dll" &amp;
+ Copy /Y "$(SolutionDir)Contrib\SFML-2.4.2\bin\sfml-window-d-2.dll" "$(OutDir)sfml-window-d-2.dll" &amp;
+ Copy /Y "$(SolutionDir)Contrib\SFML-2.4.2\bin\sfml-system-d-2.dll" "$(OutDir)sfml-system-d-2.dll"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -119,6 +129,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Movement.cpp" />
+    <ClCompile Include="SFMLManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\ComponentTypes.h" />

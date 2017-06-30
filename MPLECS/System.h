@@ -15,17 +15,6 @@
 
 #include <memory>
 
-class SystemBase
-{
-public:
-	SystemBase();
-	virtual ~SystemBase() {}
-
-	virtual void Operate(const timeuS& frameDuration) = 0;
-	virtual bool ShouldExit() = 0;
-protected:
-	ECS_Core::Manager& m_managerRef;
-};
 
 enum class GameLoopPhase
 {
@@ -36,13 +25,25 @@ enum class GameLoopPhase
 	CLEANUP
 };
 
-void RegisterSystem(GameLoopPhase phase, std::unique_ptr<SystemBase>&& system);
+class SystemBase
+{
+public:
+	SystemBase();
+	virtual ~SystemBase() {}
 
-template<typename System, GameLoopPhase phase, typename... Ts>
+	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) = 0;
+	virtual bool ShouldExit() = 0;
+protected:
+	ECS_Core::Manager& m_managerRef;
+};
+
+void RegisterSystem(std::unique_ptr<SystemBase>&& system);
+
+template<typename System, typename... Ts>
 struct SystemRegistrar
 {
 	SystemRegistrar(Ts&&... args) 
 	{
-		RegisterSystem(phase, std::make_unique<System>(args...));
+		RegisterSystem(static_cast<std::unique_ptr<SystemBase>>(std::make_unique<System>(args...)));
 	}
 };

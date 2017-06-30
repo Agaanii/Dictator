@@ -51,7 +51,7 @@ namespace ecs {
             using Settings = TSettings;
             using Bitset = typename Settings::Bitset;
 
-            DataIndex dataIndex;
+			DataIndex dataIndex;
             HandleDataIndex handleDataIndex;
             Bitset bitset;
             bool alive;
