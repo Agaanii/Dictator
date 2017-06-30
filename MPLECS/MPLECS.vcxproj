@@ -129,6 +129,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Movement.cpp" />
+    <ClCompile Include="ObjectSpammer.cpp" />
     <ClCompile Include="SFMLManager.cpp" />
     <ClCompile Include="SystemTemplate.cpp" />
   </ItemGroup>

@@ -41,7 +41,7 @@ namespace ECS_Core
 	{
 		using S_ApplyConstantMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Tags::T_NoAcceleration>;
 		using S_ApplyNewtonianMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Components::C_AccelerationCartesian>;
-		using S_Drawable = ecs::Signature<Components::C_SFMLShape>;
+		using S_Drawable = ecs::Signature<Components::C_PositionCartesian, Components::C_SFMLShape>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<

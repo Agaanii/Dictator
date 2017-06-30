@@ -48,6 +48,9 @@
     <ClCompile Include="SystemTemplate.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="ObjectSpammer.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\ComponentTypes.h">

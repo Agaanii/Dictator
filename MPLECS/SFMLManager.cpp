@@ -63,10 +63,12 @@ namespace Graphics
 			m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
 				[](
 					ecs::EntityIndex mI,
-					const ECS_Core::Components::C_SFMLShape& shape)
+					const ECS_Core::Components::C_PositionCartesian& position,
+					ECS_Core::Components::C_SFMLShape& shape)
 			{
 				if (shape.m_shape)
 				{
+					shape.m_shape->setPosition({ static_cast<float>(position.m_position.m_x), static_cast<float>(position.m_position.m_y) });
 					s_window.draw(*shape.m_shape);
 				}
 			});
