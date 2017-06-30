@@ -130,6 +130,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Movement.cpp" />
     <ClCompile Include="SFMLManager.cpp" />
+    <ClCompile Include="SystemTemplate.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\ComponentTypes.h" />

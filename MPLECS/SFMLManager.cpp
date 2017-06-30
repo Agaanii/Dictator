@@ -4,8 +4,8 @@
 // Or to discuss ideas
 // (c) 2017
 
-// Systems/Draw2D.cpp
-// Manages the drawing of all 2D objects
+// Systems/SFMLManager.cpp
+// Manages the drawing of all objects, and the SFML window in which the game lives.
 // Future: Split into layers?
 
 #include "System.h"
