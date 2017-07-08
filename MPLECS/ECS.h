@@ -64,6 +64,11 @@ namespace ECS_Core
 			};
 			std::vector<DamageOverTime> m_dots;
 		};
+
+		struct C_UserInputs
+		{
+
+		};
 	}
 
 	namespace Tags
