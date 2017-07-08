@@ -35,32 +35,32 @@ namespace ECS_Core
 		{
 			C_Health() {}
 			C_Health(int maxHealth) : m_maxHealth(maxHealth), m_currentHealth(maxHealth) {}
-			int m_maxHealth{ 0 };
-			int m_currentHealth{ 0 };
+			f64 m_maxHealth{ 0 };
+			f64 m_currentHealth{ 0 };
 		};
 
 		struct C_Healable
 		{
-			int m_healingThisFrame;
+			f64 m_healingThisFrame;
 			struct HealOverTime
 			{
-				int m_framesRemaining;
-				int m_healingPerFrame;
+				f64 m_secondsRemaining;
+				f64 m_healingPerFrame;
 			};
 			std::vector<HealOverTime> m_hots;
 		};
 
 		struct C_Damageable
 		{
-			int m_damageThisFrame;
+			f64 m_damageThisFrame;
 			struct DamageOverTime
 			{
-				DamageOverTime(int frames, int damagePerFrame)
-					: m_framesRemaining(frames)
+				DamageOverTime(f64 frames, f64 damagePerFrame)
+					: m_secondsRemaining(frames)
 					, m_damagePerFrame(damagePerFrame)
 				{ }
-				int m_framesRemaining;
-				int m_damagePerFrame;
+				f64 m_secondsRemaining;
+				f64 m_damagePerFrame;
 			};
 			std::vector<DamageOverTime> m_dots;
 		};

@@ -45,18 +45,18 @@ void ObjectSpammer::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			usSinceLastSpawn = 0;
 			auto newObject = m_managerRef.createIndex();
 			auto& position = m_managerRef.addComponent<ECS_Core::Components::C_PositionCartesian>(newObject);
-			position.m_position.m_x = 800;
-			position.m_position.m_y = 450;
+			position.m_position.m_x = 650;
+			position.m_position.m_y = 300;
 			auto& velocity = m_managerRef.addComponent<ECS_Core::Components::C_VelocityCartesian>(newObject);
-			velocity.m_velocity.m_x = (rand() % 51) - 25;
-			velocity.m_velocity.m_y = (rand() % 51) - 25;
+			velocity.m_velocity.m_x = (rand() % 101) - 50;
+			velocity.m_velocity.m_y = (rand() % 101) - 50;
 			auto& shape = m_managerRef.addComponent<ECS_Core::Components::C_SFMLShape>(newObject);
 			shape.m_shape = std::make_unique<sf::RectangleShape>(sf::Vector2f(300, 300));
 			m_managerRef.addTag<ECS_Core::Tags::T_NoAcceleration>(newObject);
-			m_managerRef.addComponent<ECS_Core::Components::C_Health>(newObject, 100);
+			m_managerRef.addComponent<ECS_Core::Components::C_Health>(newObject, 5);
 			m_managerRef.addComponent<ECS_Core::Components::C_Healable>(newObject);
 			auto& damage = m_managerRef.addComponent<ECS_Core::Components::C_Damageable>(newObject);
-			damage.m_dots.push_back({ 100, 1 });
+			damage.m_dots.push_back({ 5, 1 });
 		}
 		break;
 	}
