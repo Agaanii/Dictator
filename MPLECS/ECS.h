@@ -30,6 +30,40 @@ namespace ECS_Core
 		{
 			std::unique_ptr<sf::Shape> m_shape;
 		};
+
+		struct C_Health
+		{
+			C_Health() {}
+			C_Health(int maxHealth) : m_maxHealth(maxHealth), m_currentHealth(maxHealth) {}
+			int m_maxHealth{ 0 };
+			int m_currentHealth{ 0 };
+		};
+
+		struct C_Healable
+		{
+			int m_healingThisFrame;
+			struct HealOverTime
+			{
+				int m_framesRemaining;
+				int m_healingPerFrame;
+			};
+			std::vector<HealOverTime> m_hots;
+		};
+
+		struct C_Damageable
+		{
+			int m_damageThisFrame;
+			struct DamageOverTime
+			{
+				DamageOverTime(int frames, int damagePerFrame)
+					: m_framesRemaining(frames)
+					, m_damagePerFrame(damagePerFrame)
+				{ }
+				int m_framesRemaining;
+				int m_damagePerFrame;
+			};
+			std::vector<DamageOverTime> m_dots;
+		};
 	}
 
 	namespace Tags
@@ -42,13 +76,18 @@ namespace ECS_Core
 		using S_ApplyConstantMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Tags::T_NoAcceleration>;
 		using S_ApplyNewtonianMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Components::C_AccelerationCartesian>;
 		using S_Drawable = ecs::Signature<Components::C_PositionCartesian, Components::C_SFMLShape>;
+		using S_Living = ecs::Signature<Components::C_Health>;
+		using S_Health = ecs::Signature<Components::C_Health, Components::C_Healable, Components::C_Damageable>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
 		Components::C_PositionCartesian,
 		Components::C_VelocityCartesian,
 		Components::C_AccelerationCartesian,
-		Components::C_SFMLShape
+		Components::C_SFMLShape,
+		Components::C_Health,
+		Components::C_Healable,
+		Components::C_Damageable
 	>;
 
 	using MasterTagList = ecs::TagList<Tags::T_NoAcceleration>;
@@ -56,7 +95,9 @@ namespace ECS_Core
 	using MasterSignatureList = ecs::SignatureList<
 		Signatures::S_ApplyConstantMotion,
 		Signatures::S_ApplyNewtonianMotion,
-		Signatures::S_Drawable
+		Signatures::S_Drawable,
+		Signatures::S_Living,
+		Signatures::S_Health
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

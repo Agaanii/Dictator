@@ -127,11 +127,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DamageApplication.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Movement.cpp" />
     <ClCompile Include="ObjectSpammer.cpp" />
     <ClCompile Include="SFMLManager.cpp" />
     <ClCompile Include="SystemTemplate.cpp" />
+    <ClCompile Include="UnitDeath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\ComponentTypes.h" />
@@ -157,6 +159,7 @@
     <ClInclude Include="ECS\MPL\TypeListOps.hpp" />
     <ClInclude Include="ECS\MPL\Unique.hpp" />
     <ClInclude Include="System.h" />
+    <ClInclude Include="Systems.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

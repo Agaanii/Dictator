@@ -21,6 +21,7 @@ enum class GameLoopPhase
 	PREPARATION,
 	INPUT,
 	ACTION,
+	ACTION_RESPONSE,
 	RENDER,
 	CLEANUP
 };
@@ -35,15 +36,4 @@ public:
 	virtual bool ShouldExit() = 0;
 protected:
 	ECS_Core::Manager& m_managerRef;
-};
-
-void RegisterSystem(std::unique_ptr<SystemBase>&& system);
-
-template<typename System, typename... Ts>
-struct SystemRegistrar
-{
-	SystemRegistrar(Ts&&... args) 
-	{
-		RegisterSystem(static_cast<std::unique_ptr<SystemBase>>(std::make_unique<System>(args...)));
-	}
 };

@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "System.h"
+#include "Systems.h"
 #include "ECS.h"
 #include "Core/typedef.h"
 
@@ -30,13 +31,19 @@ SystemBase::SystemBase()
 
 }
 
-void RegisterSystem(unique_ptr<SystemBase>&& system)
+template <typename SYSTEM>
+void RegisterSystem()
 {
-	s_systems.emplace_back(move(system));
+	s_systems.emplace_back(std::move(InstantiateSystem<SYSTEM>()));
 }
 
 int main()
 {
+	RegisterSystem<DamageApplication>();
+	RegisterSystem<NewtonianMovement>();
+	RegisterSystem<ObjectSpammer>();
+	RegisterSystem<SFMLManager>();
+	RegisterSystem<UnitDeath>();
 	auto loopStart = chrono::high_resolution_clock::now();
 	while(true)
 	{
@@ -46,6 +53,7 @@ int main()
 			GameLoopPhase::PREPARATION,
 			GameLoopPhase::INPUT,
 			GameLoopPhase::ACTION,
+			GameLoopPhase::ACTION_RESPONSE,
 			GameLoopPhase::RENDER,
 			GameLoopPhase::CLEANUP
 		};

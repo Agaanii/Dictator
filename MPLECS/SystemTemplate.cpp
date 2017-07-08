@@ -8,35 +8,27 @@
 // The boilerplate system code, to ease new system creation
 
 #include "System.h"
+#include "Systems.h"
 
 #include "ECS.h"
 
-namespace Graphics
+void SystemTemplate::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
-	class SystemTemplate : public SystemBase
+	switch (phase)
 	{
-	public:
-		SystemTemplate() : SystemBase() { }
-		virtual ~SystemTemplate() {}
-		virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override
-		{
-			switch (phase)
-			{
-			case GameLoopPhase::PREPARATION:
-			case GameLoopPhase::ACTION:
-			case GameLoopPhase::INPUT:
-			case GameLoopPhase::RENDER:
-			case GameLoopPhase::CLEANUP:
-				return;
-			}
-		}
-
-		virtual bool ShouldExit() override
-		{
-			return false;
-		}
-	};
-
-	// Uncomment to have the system created at program startup and registered in the main system registry
-	// SystemRegistrar<SystemTemplate> registration;
+	case GameLoopPhase::PREPARATION:
+	case GameLoopPhase::INPUT:
+	case GameLoopPhase::ACTION:
+	case GameLoopPhase::ACTION_RESPONSE:
+	case GameLoopPhase::RENDER:
+	case GameLoopPhase::CLEANUP:
+		return;
+	}
 }
+
+bool SystemTemplate::ShouldExit()
+{
+	return false;
+}
+
+DEFINE_SYSTEM_INSTANTIATION(SystemTemplate);
