@@ -21,6 +21,7 @@ sf::RenderWindow s_window(sf::VideoMode(1600, 900), "Loesby is good at this shit
 bool closingTriggered = false;
 bool close = false;
 std::optional<sf::Font> s_font;
+sf::Vector2u s_mostRecentWindowSize;
 
 void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
 void ReceiveInput(ECS_Core::Manager& manager);
@@ -303,8 +304,27 @@ std::string GetInputKeyString(ECS_Core::Components::InputKeys key)
 	}
 }
 
-void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
+namespace sf
 {
+	Vector2f operator/(const Vector2f& vector, int divisor)
+	{
+		auto returnVal = vector;
+		returnVal.x /= divisor;
+		returnVal.y /= divisor;
+		return returnVal;
+	}
+}
+
+void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
+{ 
+	auto& currentView = s_window.getView();
+	auto& currentViewSize = currentView.getSize();
+	auto newViewSize = currentViewSize;
+	newViewSize.x *= 1.f * size.width / s_mostRecentWindowSize.x;
+	newViewSize.y *= 1.f * size.height / s_mostRecentWindowSize.y;
+
+	auto currentViewOrigin = currentView.getCenter() - (currentViewSize / 2);
+	s_window.setView(sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y}));
 }
 
 void EventResponse::OnLoseFocus()
@@ -440,6 +460,7 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	}
 		break;
 	}
+	s_mostRecentWindowSize = s_window.getSize();
 }
 
 void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
