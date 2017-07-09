@@ -23,6 +23,7 @@ bool close = false;
 std::optional<sf::Font> s_font;
 
 void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
+void ReceiveInput(ECS_Core::Manager& manager);
 void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration);
 
 namespace EventResponse
@@ -370,6 +371,9 @@ void EventResponse::OnMouseWheelMove(ECS_Core::Components::C_UserInputs& input, 
 
 void EventResponse::OnMouseWheelScroll(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseWheelScrollEvent& scroll)
 {
+	auto view = s_window.getView();
+	view.zoom(1 - (scroll.delta / 20));
+	s_window.setView(view);
 }
 
 void EventResponse::OnTouchBegin(const sf::Event::TouchEvent& touch)
@@ -418,11 +422,12 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	switch (phase)
 	{
 	case GameLoopPhase::PREPARATION:
+		ReadSFMLInput(m_managerRef, frameDuration);
 	case GameLoopPhase::ACTION:
 	case GameLoopPhase::ACTION_RESPONSE:
 		return;
 	case GameLoopPhase::INPUT:
-		ReadSFMLInput(m_managerRef, frameDuration);
+		ReceiveInput(m_managerRef);
 		break;
 	case GameLoopPhase::RENDER:
 		RenderWorld(m_managerRef, frameDuration);
@@ -517,6 +522,29 @@ void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			break;
 		}
 	}
+}
+
+void ReceiveInput(ECS_Core::Manager& manager)
+{
+	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
+	auto view = s_window.getView();
+	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
+	{
+		view.move({ 0, 1 });
+	}
+	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
+	{
+		view.move({ 0, -1 });
+	}
+	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
+	{
+		view.move({ -1, 0 });
+	}
+	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
+	{
+		view.move({ 1, 0 });
+	}
+	s_window.setView(view);
 }
 
 void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent)
