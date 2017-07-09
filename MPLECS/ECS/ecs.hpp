@@ -312,7 +312,7 @@ namespace ecs {
 
             template <typename T, typename... TArgs>
             auto& addComponent(EntityIndex mI, TArgs&&... mXs) noexcept {
-                static_assert(Settings::template isComponent<T>(), "");
+                static_assert(Settings::template isComponent<T>(), "Component not recognized");
 
                 auto& e(getEntity(mI));
                 e.bitset[Settings::template componentBit<T>()] = true;

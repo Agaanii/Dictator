@@ -34,6 +34,9 @@
     <Filter Include="Source Files\Systems">
       <UniqueIdentifier>{319bcfac-fbda-41f0-ac1e-9c421f051122}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{0c0b80d0-e548-4f19-9e93-b003bebba932}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -131,5 +134,19 @@
     <ClInclude Include="Systems.h">
       <Filter>Source Files\Systems</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="Assets\cour.ttf">
+      <Filter>Assets</Filter>
+    </Font>
+    <Font Include="Assets\courbd.ttf">
+      <Filter>Assets</Filter>
+    </Font>
+    <Font Include="Assets\courbi.ttf">
+      <Filter>Assets</Filter>
+    </Font>
+    <Font Include="Assets\couri.ttf">
+      <Filter>Assets</Filter>
+    </Font>
   </ItemGroup>
 </Project>

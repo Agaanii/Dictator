@@ -6,6 +6,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include <set>
 
 namespace ECS_Core
 {
@@ -65,9 +66,157 @@ namespace ECS_Core
 			std::vector<DamageOverTime> m_dots;
 		};
 
+		enum class Modifiers
+		{
+			CTRL = 1 << 0,
+			ALT = 1 << 1,
+			SHIFT = 1 << 2
+		};
+
+		enum class InputKeys
+		{
+			GRAVE,
+			ONE,
+			TWO,
+			THREE,
+			FOUR,
+			FIVE,
+			SIX,
+			SEVEN,
+			EIGHT,
+			NINE,
+			ZERO,
+			DASH,
+			EQUAL,
+			A,
+			B,
+			C,
+			D,
+			E,
+			F,
+			G,
+			H,
+			I,
+			J,
+			K,
+			L,
+			M,
+			N,
+			O,
+			P,
+			Q,
+			R,
+			S,
+			T,
+			U,
+			V,
+			W,
+			X,
+			Y,
+			Z,
+			BACKSPACE,
+			LEFT_SQUARE,
+			RIGHT_SQUARE,
+			BACKSLASH,
+			PERIOD,
+			COMMA,
+			SLASH,
+			TAB,
+			CAPS_LOCK,
+			ENTER,
+			SPACE,
+			QUOTE,
+			COLON,
+			ESCAPE,
+			F1,
+			F2,
+			F3,
+			F4,
+			F5,
+			F6,
+			F7,
+			F8,
+			F9,
+			F10,
+			F11,
+			F12,
+			F13,
+			F14,
+			F15,
+			PRINT_SCREEN,
+			SCROLL_LOCK,
+			PAUSE_BREAK,
+			INSERT,
+			DELETE,
+			HOME,
+			END,
+			PAGE_UP,
+			PAGE_DOWN,
+			ARROW_LEFT,
+			ARROW_RIGHT,
+			ARROW_UP,
+			ARROW_DOWN,
+			NUM_LOCK,
+			NUM_SLASH,
+			NUM_STAR,
+			NUM_DASH,
+			NUM_PLUS,
+			NUM_ENTER,
+			NUM_0,
+			NUM_1,
+			NUM_2,
+			NUM_3,
+			NUM_4,
+			NUM_5,
+			NUM_6,
+			NUM_7,
+			NUM_8,
+			NUM_9,
+			NUM_PERIOD,
+			WINDOWS,
+			MENU,
+
+			__COUNT // Keep last
+		};
 		struct C_UserInputs
 		{
+			u8 m_activeModifiers;
+			std::set<InputKeys> m_unprocessedCurrentKeys;
+			std::set<InputKeys> m_newKeyDown;
+			std::set<InputKeys> m_newKeyUp;
 
+			void ActivateModifier(Modifiers modifier)
+			{
+				m_activeModifiers |= static_cast<u8>(modifier);
+			}
+
+			void DeactivateModifier(Modifiers modifier)
+			{
+				m_activeModifiers &= ~static_cast<u8>(modifier);
+			}
+
+			void ProcessKey(InputKeys key)
+			{
+				if (!m_unprocessedCurrentKeys.erase(key))
+				{
+					return;
+				}
+				m_processedCurrentKeys.emplace(key);
+			}
+
+			void Reset()
+			{
+				m_newKeyDown.clear();
+				m_newKeyUp.clear();
+				for (auto& key : m_processedCurrentKeys)
+				{
+					m_unprocessedCurrentKeys.emplace(key);
+				}
+				m_processedCurrentKeys.clear();
+			}
+
+		private:
+			std::set<InputKeys> m_processedCurrentKeys;
 		};
 	}
 
@@ -92,7 +241,8 @@ namespace ECS_Core
 		Components::C_SFMLShape,
 		Components::C_Health,
 		Components::C_Healable,
-		Components::C_Damageable
+		Components::C_Damageable,
+		Components::C_UserInputs
 	>;
 
 	using MasterTagList = ecs::TagList<Tags::T_NoAcceleration>;
