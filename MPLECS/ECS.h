@@ -27,9 +27,31 @@ namespace ECS_Core
 			CartesianVector m_acceleration;
 		};
 
-		struct C_SFMLShape
+		enum class DrawLayer
 		{
-			std::unique_ptr<sf::Shape> m_shape;
+			BACKGROUND,
+			TERRAIN,
+			UNIT,
+			EFFECT,
+			MENU,
+
+			__COUNT
+		};
+		struct C_SFMLDrawable
+		{
+			C_SFMLDrawable() { }
+			C_SFMLDrawable(
+				std::unique_ptr<sf::Drawable>&& drawable,
+				DrawLayer layer,
+				u64 priority)
+				: m_drawable(std::move(drawable))
+				, m_drawLayer(layer)
+				, m_priority(priority)
+			{ }
+
+			std::unique_ptr<sf::Drawable> m_drawable;
+			DrawLayer m_drawLayer{ DrawLayer::BACKGROUND };
+			u64 m_priority{ 0 };
 		};
 
 		struct C_Health
@@ -229,7 +251,7 @@ namespace ECS_Core
 	{
 		using S_ApplyConstantMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Tags::T_NoAcceleration>;
 		using S_ApplyNewtonianMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Components::C_AccelerationCartesian>;
-		using S_Drawable = ecs::Signature<Components::C_PositionCartesian, Components::C_SFMLShape>;
+		using S_Drawable = ecs::Signature<Components::C_PositionCartesian, Components::C_SFMLDrawable>;
 		using S_Living = ecs::Signature<Components::C_Health>;
 		using S_Health = ecs::Signature<Components::C_Health, Components::C_Healable, Components::C_Damageable>;
 	}
@@ -238,7 +260,7 @@ namespace ECS_Core
 		Components::C_PositionCartesian,
 		Components::C_VelocityCartesian,
 		Components::C_AccelerationCartesian,
-		Components::C_SFMLShape,
+		Components::C_SFMLDrawable,
 		Components::C_Health,
 		Components::C_Healable,
 		Components::C_Damageable,

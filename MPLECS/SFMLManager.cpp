@@ -552,18 +552,22 @@ void ReceiveInput(ECS_Core::Manager& manager)
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 	{
 		view.move({ 0, 1 });
+		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
 	{
 		view.move({ 0, -1 });
+		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
 	{
 		view.move({ -1, 0 });
+		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
 	{
 		view.move({ 1, 0 });
+		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 	}
 	s_window.setView(view);
 }
@@ -628,20 +632,40 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	s_window.clear();
-	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
+
+	std::map<u64, std::vector<sf::Drawable*>> drawablesByLayer[(size_t)ECS_Core::Components::DrawLayer::__COUNT];
+
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
-		[](
+		[&drawablesByLayer](
 			ecs::EntityIndex mI,
 			const ECS_Core::Components::C_PositionCartesian& position,
-			ECS_Core::Components::C_SFMLShape& shape)
+			ECS_Core::Components::C_SFMLDrawable& shape)
 	{
-		if (shape.m_shape)
+		if (shape.m_drawable)
 		{
-			shape.m_shape->setPosition({ static_cast<float>(position.m_position.m_x), static_cast<float>(position.m_position.m_y) });
-			s_window.draw(*shape.m_shape);
+			auto* transform = dynamic_cast<sf::Transformable*>(shape.m_drawable.get());
+			if (transform)
+			{
+				transform->setPosition({
+					static_cast<float>(position.m_position.m_x),
+					static_cast<float>(position.m_position.m_y) });
+			}
+			drawablesByLayer[(size_t)shape.m_drawLayer][shape.m_priority].emplace_back(shape.m_drawable.get());
 		}
 	});
-	DisplayCurrentInputs(inputComponent);
+
+	for (auto& map : drawablesByLayer)
+	{
+		for (auto& vector : map)
+		{
+			for (auto& drawable : vector.second)
+			{
+				s_window.draw(*drawable);
+			}
+		}
+	}
+
+	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject));
 	s_window.display();
 }
 
