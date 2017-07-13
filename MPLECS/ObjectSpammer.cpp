@@ -57,7 +57,7 @@ void ObjectSpammer::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			auto& shape = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(
 				newObject,
 				std::move(rect),
-				ECS_Core::Components::DrawLayer::MENU,
+				ECS_Core::Components::DrawLayer::TERRAIN,
 				rand());
 			m_managerRef.addTag<ECS_Core::Tags::T_NoAcceleration>(newObject);
 			m_managerRef.addComponent<ECS_Core::Components::C_Health>(newObject, 10);

@@ -23,6 +23,9 @@ bool close = false;
 std::optional<sf::Font> s_font;
 sf::Vector2u s_mostRecentWindowSize;
 
+sf::View s_worldView({ 0, 0, 1600, 900 });
+sf::View s_UIView({ 0, 0, 1600, 900 });
+
 void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
 void ReceiveInput(ECS_Core::Manager& manager);
 void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration);
@@ -317,14 +320,13 @@ namespace sf
 
 void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
 { 
-	auto& currentView = s_window.getView();
-	auto& currentViewSize = currentView.getSize();
+	auto& currentViewSize = s_worldView.getSize();
 	auto newViewSize = currentViewSize;
 	newViewSize.x *= 1.f * size.width / s_mostRecentWindowSize.x;
 	newViewSize.y *= 1.f * size.height / s_mostRecentWindowSize.y;
 
-	auto currentViewOrigin = currentView.getCenter() - (currentViewSize / 2);
-	s_window.setView(sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y}));
+	auto currentViewOrigin = s_worldView.getCenter() - (currentViewSize / 2);
+	s_worldView = sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y});
 }
 
 void EventResponse::OnLoseFocus()
@@ -391,9 +393,7 @@ void EventResponse::OnMouseWheelMove(ECS_Core::Components::C_UserInputs& input, 
 
 void EventResponse::OnMouseWheelScroll(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseWheelScrollEvent& scroll)
 {
-	auto view = s_window.getView();
-	view.zoom(1 - (scroll.delta / 20));
-	s_window.setView(view);
+	s_worldView.zoom(1 - (scroll.delta / 20));
 }
 
 void EventResponse::OnTouchBegin(const sf::Event::TouchEvent& touch)
@@ -548,28 +548,26 @@ void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 void ReceiveInput(ECS_Core::Manager& manager)
 {
 	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
-	auto view = s_window.getView();
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 	{
-		view.move({ 0, 1 });
+		s_worldView.move({ 0, 1 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
 	{
-		view.move({ 0, -1 });
+		s_worldView.move({ 0, -1 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
 	{
-		view.move({ -1, 0 });
+		s_worldView.move({ -1, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
 	{
-		view.move({ 1, 0 });
+		s_worldView.move({ 1, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 	}
-	s_window.setView(view);
 }
 
 void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent)
@@ -633,7 +631,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	s_window.clear();
 
-	std::map<u64, std::vector<sf::Drawable*>> drawablesByLayer[(size_t)ECS_Core::Components::DrawLayer::__COUNT];
+	std::map<ECS_Core::Components::DrawLayer, std::map<u64, std::vector<sf::Drawable*>>> drawablesByLayer;
 
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
 		[&drawablesByLayer](
@@ -650,13 +648,21 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 					static_cast<float>(position.m_position.m_x),
 					static_cast<float>(position.m_position.m_y) });
 			}
-			drawablesByLayer[(size_t)shape.m_drawLayer][shape.m_priority].emplace_back(shape.m_drawable.get());
+			drawablesByLayer[shape.m_drawLayer][shape.m_priority].emplace_back(shape.m_drawable.get());
 		}
 	});
 
 	for (auto& map : drawablesByLayer)
 	{
-		for (auto& vector : map)
+		if (map.first == ECS_Core::Components::DrawLayer::MENU)
+		{
+			s_window.setView(s_UIView);
+		}
+		else
+		{
+			s_window.setView(s_worldView);
+		}
+		for (auto& vector : map.second)
 		{
 			for (auto& drawable : vector.second)
 			{
@@ -665,6 +671,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		}
 	}
 
+	s_window.setView(s_UIView);
 	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject));
 	s_window.display();
 }
