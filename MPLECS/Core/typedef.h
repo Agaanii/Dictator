@@ -25,13 +25,13 @@ using f64 = double;
 
 using timeuS = s64;
 
-struct CartesianVector
+struct CartesianVector3
 {
 	f64 m_x{ 0 };
 	f64 m_y{ 0 };
 	f64 m_z{ 0 };
 
-	CartesianVector& operator+=(const CartesianVector& other)
+	CartesianVector3& operator+=(const CartesianVector3& other)
 	{
 		m_x += other.m_x;
 		m_y += other.m_y;
@@ -39,19 +39,43 @@ struct CartesianVector
 		return *this;
 	}
 
-	CartesianVector operator+(const CartesianVector& other) const
+	CartesianVector3 operator+(const CartesianVector3& other) const
 	{
-		CartesianVector copy(*this);
-		copy += other;
-		return copy;
+		return CartesianVector3(*this) += other;
 	}
 
-	CartesianVector operator*(f64 factor) const
+	CartesianVector3 operator*(f64 factor) const
 	{
-		CartesianVector copy(*this);
+		auto copy(*this);
 		copy.m_x *= factor;
 		copy.m_y *= factor;
 		copy.m_z *= factor;
+		return copy;
+	}
+};
+
+struct CartesianVector2
+{
+	f64 m_x{ 0 };
+	f64 m_y{ 0 };
+
+	CartesianVector2& operator +=(const CartesianVector2& other)
+	{
+		m_x += other.m_x;
+		m_y += other.m_y;
+		return *this;
+	}
+
+	CartesianVector2 operator+(const CartesianVector2& other) const
+	{
+		return CartesianVector2(*this) += other;
+	}
+
+	CartesianVector2 operator*(f64 factor) const
+	{
+		auto copy(*this);
+		copy.m_x *= factor;
+		copy.m_y *= factor;
 		return copy;
 	}
 };

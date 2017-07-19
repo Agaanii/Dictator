@@ -14,17 +14,17 @@ namespace ECS_Core
 	{
 		struct C_PositionCartesian
 		{
-			CartesianVector m_position;
+			CartesianVector3 m_position;
 		};
 
 		struct C_VelocityCartesian
 		{
-			CartesianVector m_velocity;
+			CartesianVector3 m_velocity;
 		};
 
 		struct C_AccelerationCartesian
 		{
-			CartesianVector m_acceleration;
+			CartesianVector3 m_acceleration;
 		};
 
 		enum class DrawLayer
@@ -206,6 +206,8 @@ namespace ECS_Core
 			std::set<InputKeys> m_unprocessedCurrentKeys;
 			std::set<InputKeys> m_newKeyDown;
 			std::set<InputKeys> m_newKeyUp;
+
+			std::optional<
 
 			void ActivateModifier(Modifiers modifier)
 			{
