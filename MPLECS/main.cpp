@@ -9,9 +9,9 @@
 
 #include <iostream>
 
-#include "System.h"
-#include "Systems.h"
-#include "ECS.h"
+#include "Systems/Systems.h"
+#include "ECS/System.h"
+#include "ECS/ECS.h"
 #include "Core/typedef.h"
 
 #include <chrono>
@@ -41,6 +41,7 @@ int main()
 {
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
+	RegisterSystem<WorldTile>();
 	RegisterSystem<ObjectSpammer>();
 	RegisterSystem<SFMLManager>();
 	RegisterSystem<UnitDeath>();

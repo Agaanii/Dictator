@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "System.h"
+#include "../ECS/System.h"
 
 template<typename SystemType>
 std::unique_ptr<SystemType> InstantiateSystem();
@@ -31,6 +31,7 @@ DECLARE_SYSTEM(NewtonianMovement);
 DECLARE_SYSTEM(ObjectSpammer);
 DECLARE_SYSTEM(SFMLManager);
 DECLARE_SYSTEM(UnitDeath);
+DECLARE_SYSTEM(WorldTile);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\

@@ -7,10 +7,12 @@
 // Systems/UnitDeath.cpp
 // Runs through units that have health, kills the ones that don't have any left.
 
-#include "System.h"
+#include "../Core/typedef.h"
+
 #include "Systems.h"
 
-#include "ECS.h"
+#include "../ECS/System.h"
+#include "../ECS/ECS.h"
 
 void KillDyingUnits(ECS_Core::Manager& manager);
 

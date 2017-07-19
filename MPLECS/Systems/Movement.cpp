@@ -1,5 +1,18 @@
-#include "System.h"
+//-----------------------------------------------------------------------------
+// All code is property of Matthew Loesby
+// Contact at Loesby.dev@gmail.com for permission to use
+// Or to discuss ideas
+// (c) 2017
+
+// Systems/SystemTemplate.cpp
+// Moves all entities that can move and have a velocity
+
+#include "../Core/typedef.h"
+
 #include "Systems.h"
+
+#include "../ECS/System.h"
+#include "../ECS/ECS.h"
 
 void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration) 
 {

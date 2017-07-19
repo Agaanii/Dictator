@@ -4,13 +4,17 @@
 // Or to discuss ideas
 // (c) 2017
 
-// Systems/SystemTemplate.cpp
-// The boilerplate system code, to ease new system creation
+// Systems/DamageApplication.cpp
+// Reads pending damage on all units that have health
+// During the Action_Response phase, applies the damage to the units
+// During the cleanup phase, clears any pending damage that should go away
 
-#include "System.h"
 #include "Systems.h"
 
-#include "ECS.h"
+#include "../ECS/System.h"
+#include "../ECS/ECS.h"
+
+#include "../Core/typedef.h"
 
 void TakeDamage(ECS_Core::Manager& manager, const timeuS& frameDuration);
 void ClearPendingDamage(ECS_Core::Manager& manager, const timeuS& frameDuration);

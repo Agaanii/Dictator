@@ -4,15 +4,18 @@
 // Or to discuss ideas
 // (c) 2017
 
-// Systems/SystemTemplate.cpp
-// The boilerplate system code, to ease new system creation
+// Systems/WorldTile.cpp
+// Creates and updates all tiles in the world
+// When interactions extend to a new set of tiles, creates those and starts updating them
 
-#include "System.h"
+#include "../Core/typedef.h"
+
 #include "Systems.h"
 
-#include "ECS.h"
+#include "../ECS/System.h"
+#include "../ECS/ECS.h"
 
-void SystemTemplate::Operate(GameLoopPhase phase, const timeuS& frameDuration)
+void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
@@ -26,9 +29,9 @@ void SystemTemplate::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	}
 }
 
-bool SystemTemplate::ShouldExit()
+bool WorldTile::ShouldExit()
 {
 	return false;
 }
 
-DEFINE_SYSTEM_INSTANTIATION(SystemTemplate);
+DEFINE_SYSTEM_INSTANTIATION(WorldTile);

@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "Core/typedef.h"
+#include "../Core/typedef.h"
 #include "ECS.h"
 
 #include <memory>

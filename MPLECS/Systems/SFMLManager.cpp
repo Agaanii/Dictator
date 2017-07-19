@@ -7,12 +7,13 @@
 // Systems/SFMLManager.cpp
 // Manages the drawing of all objects, and the SFML window in which the game lives.
 // Also responsible for recording the SFML inputs for other modules to use.
-// Future: Split into layers?
 
-#include "System.h"
+#include "../Core/typedef.h"
+
 #include "Systems.h"
 
-#include "ECS.h"
+#include "../ECS/System.h"
+#include "../ECS/ECS.h"
 
 #include <SFML/Graphics.hpp>
 #include <optional>

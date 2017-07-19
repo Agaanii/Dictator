@@ -7,10 +7,12 @@
 // Systems/SystemTemplate.cpp
 // System to spawn a bunch of squares, for testing rendering.
 
-#include "System.h"
+#include "../Core/typedef.h"
+
 #include "Systems.h"
 
-#include "ECS.h"
+#include "../ECS/System.h"
+#include "../ECS/ECS.h"
 
 #include <SFML/Graphics.hpp>
 #include <random>

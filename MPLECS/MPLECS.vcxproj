@@ -130,18 +130,18 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="DamageApplication.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Movement.cpp" />
-    <ClCompile Include="ObjectSpammer.cpp" />
-    <ClCompile Include="SFMLManager.cpp" />
-    <ClCompile Include="SystemTemplate.cpp" />
-    <ClCompile Include="UnitDeath.cpp" />
+    <ClCompile Include="Systems\DamageApplication.cpp" />
+    <ClCompile Include="Systems\Movement.cpp" />
+    <ClCompile Include="Systems\ObjectSpammer.cpp" />
+    <ClCompile Include="Systems\SFMLManager.cpp" />
+    <ClCompile Include="Systems\SystemTemplate.cpp" />
+    <ClCompile Include="Systems\UnitDeath.cpp" />
+    <ClCompile Include="Systems\WorldTile.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Components\ComponentTypes.h" />
+    <ClInclude Include="Components\GraphicsComponents.h" />
     <ClInclude Include="Core\typedef.h" />
-    <ClInclude Include="ECS.h" />
     <ClInclude Include="ECS\ecs.hpp" />
     <ClInclude Include="ECS\MPL\All.hpp" />
     <ClInclude Include="ECS\MPL\Concat.hpp" />
@@ -161,8 +161,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClInclude Include="ECS\MPL\TypeList.hpp" />
     <ClInclude Include="ECS\MPL\TypeListOps.hpp" />
     <ClInclude Include="ECS\MPL\Unique.hpp" />
-    <ClInclude Include="System.h" />
-    <ClInclude Include="Systems.h" />
+    <ClInclude Include="Systems\Systems.h" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\cour.ttf" />

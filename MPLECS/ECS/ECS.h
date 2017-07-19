@@ -1,8 +1,10 @@
 #pragma once
 
-#include "ecs/ecs.hpp"
+#include "../ecs/ecs.hpp"
 
-#include "Core/typedef.h"
+#include "../Core/typedef.h"
+
+#include "../Components/GraphicsComponents.h"
 
 #include <SFML/Graphics.hpp>
 #include <memory>
@@ -28,34 +30,6 @@ namespace ECS_Core
 		{
 			CartesianVector3 m_acceleration;
 		};
-
-		enum class DrawLayer
-		{
-			BACKGROUND,
-			TERRAIN,
-			UNIT,
-			EFFECT,
-			MENU,
-
-			__COUNT
-		};
-		struct C_SFMLDrawable
-		{
-			C_SFMLDrawable() { }
-			C_SFMLDrawable(
-				std::unique_ptr<sf::Drawable>&& drawable,
-				DrawLayer layer,
-				u64 priority)
-				: m_drawable(std::move(drawable))
-				, m_drawLayer(layer)
-				, m_priority(priority)
-			{ }
-
-			std::unique_ptr<sf::Drawable> m_drawable;
-			DrawLayer m_drawLayer{ DrawLayer::BACKGROUND };
-			u64 m_priority{ 0 };
-		};
-
 		struct C_Health
 		{
 			C_Health() {}

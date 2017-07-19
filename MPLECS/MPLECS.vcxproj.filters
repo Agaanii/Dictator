@@ -42,29 +42,29 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Movement.cpp">
+    <ClCompile Include="Systems\Movement.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="SFMLManager.cpp">
+    <ClCompile Include="Systems\ObjectSpammer.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="SystemTemplate.cpp">
+    <ClCompile Include="Systems\SFMLManager.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="ObjectSpammer.cpp">
+    <ClCompile Include="Systems\SystemTemplate.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="UnitDeath.cpp">
+    <ClCompile Include="Systems\UnitDeath.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="DamageApplication.cpp">
+    <ClCompile Include="Systems\WorldTile.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Systems\DamageApplication.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Components\ComponentTypes.h">
-      <Filter>Header Files\Components</Filter>
-    </ClInclude>
     <ClInclude Include="Core\typedef.h">
       <Filter>Header Files\Core</Filter>
     </ClInclude>
@@ -125,14 +125,11 @@
     <ClInclude Include="ECS\MPL\Unique.hpp">
       <Filter>Header Files\ECS\MPL</Filter>
     </ClInclude>
-    <ClInclude Include="System.h">
-      <Filter>Header Files\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="ECS.h">
-      <Filter>Header Files\Core</Filter>
-    </ClInclude>
-    <ClInclude Include="Systems.h">
+    <ClInclude Include="Systems\Systems.h">
       <Filter>Source Files\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\GraphicsComponents.h">
+      <Filter>Header Files\Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
