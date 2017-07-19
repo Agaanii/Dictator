@@ -24,27 +24,27 @@
             return value;                                                       \
         }                                                                       \
         inline constexpr operator mUnderlying&() noexcept { return value; }     \
-        inline constexpr decltype(auto) operator==(const mName& rhs) noexcept   \
+        inline constexpr bool operator==(const mName& rhs) noexcept             \
         {                                                                       \
             return value == rhs.value;                                          \
         }                                                                       \
-        inline constexpr decltype(auto) operator!=(const mName& rhs) noexcept   \
+        inline constexpr bool operator!=(const mName& rhs) noexcept             \
         {                                                                       \
             return value != rhs.value;                                          \
         }                                                                       \
-        inline constexpr decltype(auto) operator<(const mName& rhs) noexcept    \
+        inline constexpr bool operator<(const mName& rhs) noexcept              \
         {                                                                       \
             return value < rhs.value;                                           \
         }                                                                       \
-        inline constexpr decltype(auto) operator>(const mName& rhs) noexcept    \
+        inline constexpr bool operator>(const mName& rhs) noexcept              \
         {                                                                       \
             return value > rhs.value;                                           \
         }                                                                       \
-        inline constexpr decltype(auto) operator<=(const mName& rhs) noexcept   \
+        inline constexpr bool operator<=(const mName& rhs) noexcept             \
         {                                                                       \
             return value <= rhs.value;                                          \
         }                                                                       \
-        inline constexpr decltype(auto) operator>=(const mName& rhs) noexcept   \
+        inline constexpr bool operator>=(const mName& rhs) noexcept             \
         {                                                                       \
             return value >= rhs.value;                                          \
         }                                                                       \

@@ -35,7 +35,7 @@ namespace EventResponse
 	using namespace sf;
 	void OnWindowResize(const Event::SizeEvent& size);
 
-	void OnLoseFocus();
+	void OnLoseFocus(ECS_Core::Components::C_UserInputs& input);
 	void OnGainFocus();
 	
 	void OnKeyDown(ECS_Core::Components::C_UserInputs& input, const Event::KeyEvent& key);
@@ -45,8 +45,10 @@ namespace EventResponse
 	
 	void OnMouseMove(ECS_Core::Components::C_UserInputs& input, const Event::MouseMoveEvent& move);
 
+	void UpdateMouseWorldPosition(ECS_Core::Components::C_UserInputs & input);
+
 	void OnMouseEnter();
-	void OnMouseLeave();
+	void OnMouseLeave(ECS_Core::Components::C_UserInputs& input);
 	
 	void OnMouseButtonDown(ECS_Core::Components::C_UserInputs& input, const Event::MouseButtonEvent& button);
 	void OnMouseButtonUp(ECS_Core::Components::C_UserInputs& input, const Event::MouseButtonEvent& button);
@@ -307,6 +309,18 @@ std::string GetInputKeyString(ECS_Core::Components::InputKeys key)
 	}
 }
 
+ECS_Core::Components::MouseButtons GetMouseButton(sf::Mouse::Button button)
+{
+	switch (button)
+	{
+	case sf::Mouse::Button::Left: return ECS_Core::Components::MouseButtons::LEFT;
+	case sf::Mouse::Button::Right: return ECS_Core::Components::MouseButtons::RIGHT;
+	case sf::Mouse::Button::Middle: return ECS_Core::Components::MouseButtons::MIDDLE;
+	case sf::Mouse::Button::XButton1: return ECS_Core::Components::MouseButtons::FOUR;
+	case sf::Mouse::Button::XButton2: return ECS_Core::Components::MouseButtons::FIVE;
+	}
+}
+
 namespace sf
 {
 	Vector2f operator/(const Vector2f& vector, int divisor)
@@ -329,15 +343,20 @@ void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
 	s_worldView = sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y});
 }
 
-void EventResponse::OnLoseFocus()
+void EventResponse::OnLoseFocus(ECS_Core::Components::C_UserInputs& input)
 {
+	input.m_activeModifiers = 0;
+	input.m_newKeyUp = input.m_unprocessedCurrentKeys;
+	input.m_unprocessedCurrentKeys.clear();
 }
 
 void EventResponse::OnGainFocus()
 {
 }
 
-void EventResponse::OnKeyDown(ECS_Core::Components::C_UserInputs& input, const sf::Event::KeyEvent& key)
+void EventResponse::OnKeyDown(
+	ECS_Core::Components::C_UserInputs& input,
+	const sf::Event::KeyEvent& key)
 {
 	auto modifier = GetInputModifier(key.code);
 	if (modifier)
@@ -350,7 +369,9 @@ void EventResponse::OnKeyDown(ECS_Core::Components::C_UserInputs& input, const s
 	input.m_unprocessedCurrentKeys.emplace(*inputKey);
 }
 
-void EventResponse::OnKeyUp(ECS_Core::Components::C_UserInputs& input, const sf::Event::KeyEvent& key)
+void EventResponse::OnKeyUp(
+	ECS_Core::Components::C_UserInputs& input,
+	const sf::Event::KeyEvent& key)
 {
 	auto modifier = GetInputModifier(key.code);
 	if (modifier)
@@ -367,31 +388,78 @@ void EventResponse::OnTextEntered(const sf::Event::TextEvent& text)
 {
 }
 
-void EventResponse::OnMouseMove(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseMoveEvent& move)
+void EventResponse::OnMouseMove(
+	ECS_Core::Components::C_UserInputs& input, 
+	const sf::Event::MouseMoveEvent& move)
 {
+	input.m_currentMousePosition.m_screenPosition.m_x = move.x;
+	input.m_currentMousePosition.m_screenPosition.m_y = move.y;
+
+	UpdateMouseWorldPosition(input);
+}
+
+void EventResponse::UpdateMouseWorldPosition(ECS_Core::Components::C_UserInputs & input)
+{
+	auto worldViewCenter = s_worldView.getCenter();
+	auto worldViewSize = s_worldView.getSize();
+
+	// UI view matches window size in pixels
+	auto xPercent = 1.0 * input.m_currentMousePosition.m_screenPosition.m_x / s_UIView.getSize().x;
+	auto yPercent = 1.0 * input.m_currentMousePosition.m_screenPosition.m_y / s_UIView.getSize().y;
+	input.m_currentMousePosition.m_worldPosition.m_x = ((xPercent - 0.5f) * worldViewSize.x) + worldViewCenter.x;
+	input.m_currentMousePosition.m_worldPosition.m_y = ((yPercent - 0.5f) * worldViewSize.y) + worldViewCenter.y;
 }
 
 void EventResponse::OnMouseEnter()
 {
 }
 
-void EventResponse::OnMouseLeave()
+void EventResponse::OnMouseLeave(
+	ECS_Core::Components::C_UserInputs& input)
+{
+	// When mouse leaves the window, treat all mouse buttons as lifting
+	// This will avoid annoying snapping for anything that uses mouse position change
+	// And replace it with annoying "god dammit I accidentally left the screen"
+	// I should probably implement fullscreen and mouse bounding
+	for (auto& mouseButton : input.m_heldMouseButtonInitialPositions)
+	{
+		input.m_unprocessedThisFrameUpMouseButtonFlags |=
+			static_cast<u8>(mouseButton.first);
+	}
+}
+
+void EventResponse::OnMouseButtonDown(
+	ECS_Core::Components::C_UserInputs& input,
+	const sf::Event::MouseButtonEvent& button)
+{
+	// Position and Active Modifiers technically have a race condition here
+	// Since we don't know which order the events will come in
+	// But it's not noticeable to the user
+	// Since we clear mouse inputs when the mouse leaves the screen
+	auto mouseButton = GetMouseButton(button.button);
+	input.m_unprocessedThisFrameDownMouseButtonFlags |= static_cast<u8>(mouseButton);
+	auto& initialPosition = input.m_heldMouseButtonInitialPositions[mouseButton];
+	initialPosition.m_position = input.m_currentMousePosition;
+	initialPosition.m_initialActiveModifiers = input.m_activeModifiers;
+}
+
+void EventResponse::OnMouseButtonUp(
+	ECS_Core::Components::C_UserInputs& input,
+	const sf::Event::MouseButtonEvent& button)
+{
+	auto mouseButton = GetMouseButton(button.button);
+	input.m_unprocessedThisFrameUpMouseButtonFlags |= static_cast<u8>(mouseButton);
+}
+
+void EventResponse::OnMouseWheelMove(
+	ECS_Core::Components::C_UserInputs& input,
+	const sf::Event::MouseWheelEvent& wheel)
 {
 }
 
-void EventResponse::OnMouseButtonDown(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseButtonEvent& button)
-{
-}
-
-void EventResponse::OnMouseButtonUp(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseButtonEvent& button)
-{
-}
-
-void EventResponse::OnMouseWheelMove(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseWheelEvent& wheel)
-{
-}
-
-void EventResponse::OnMouseWheelScroll(ECS_Core::Components::C_UserInputs& input, const sf::Event::MouseWheelScrollEvent& scroll)
+void EventResponse::OnMouseWheelScroll(
+	ECS_Core::Components::C_UserInputs& input,
+	const sf::Event::MouseWheelScrollEvent& scroll)
 {
 	s_worldView.zoom(1 - (scroll.delta / 20));
 }
@@ -488,7 +556,7 @@ void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		case sf::Event::Resized:
 			EventResponse::OnWindowResize(event.size); break;
 		case sf::Event::LostFocus:
-			EventResponse::OnLoseFocus(); break;
+			EventResponse::OnLoseFocus(inputComponent); break;
 		case sf::Event::GainedFocus:
 			EventResponse::OnGainFocus(); break;
 
@@ -515,7 +583,7 @@ void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		case sf::Event::MouseEntered:
 			EventResponse::OnMouseEnter(); break;
 		case sf::Event::MouseLeft:
-			EventResponse::OnMouseLeave(); break;
+			EventResponse::OnMouseLeave(inputComponent); break;
 
 		case sf::Event::TouchBegan:
 			EventResponse::OnTouchBegin(event.touch); break;
@@ -568,14 +636,21 @@ void ReceiveInput(ECS_Core::Manager& manager)
 		s_worldView.move({ 1, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 	}
+	EventResponse::UpdateMouseWorldPosition(inputComponent);
 }
 
 void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent)
 {
 	if (s_font)
 	{
-		sf::Text modifierText, newDownText, newUpText, currentDepressedText;
-		std::vector<sf::Text*> texts{ &modifierText, &newDownText, &newUpText, &currentDepressedText };
+		sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText;
+		std::vector<sf::Text*> texts{ 
+			&modifierText, 
+			&newDownText, 
+			&newUpText, 
+			&currentDepressedText, 
+			&windowPositionText, 
+			&worldPositionText};
 		std::string modifierString = "";
 		if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::CTRL)
 		{
@@ -614,6 +689,16 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 			currentDepressedStr += GetInputKeyString(inputKey);
 		}
 		currentDepressedText.setString(currentDepressedStr);
+
+		std::string windowMousePosStr = 
+			"Window: X=" + std::to_string(inputComponent.m_currentMousePosition.m_screenPosition.m_x) + 
+			", Y=" + std::to_string(inputComponent.m_currentMousePosition.m_screenPosition.m_y);
+		windowPositionText.setString(windowMousePosStr);
+
+		std::string worldMousePosStr = 
+			"World: X=" + std::to_string(inputComponent.m_currentMousePosition.m_worldPosition.m_x) + 
+			", Y=" + std::to_string(inputComponent.m_currentMousePosition.m_worldPosition.m_y);
+		worldPositionText.setString(worldMousePosStr);
 
 		int row = 0;
 		for (auto* text : texts)
