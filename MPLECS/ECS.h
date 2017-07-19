@@ -207,7 +207,7 @@ namespace ECS_Core
 			std::set<InputKeys> m_newKeyDown;
 			std::set<InputKeys> m_newKeyUp;
 
-			std::optional<
+			// std::optional<
 
 			void ActivateModifier(Modifiers modifier)
 			{
