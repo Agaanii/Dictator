@@ -19,8 +19,8 @@
 // * Tile: Unit of the world terrain
 //         It has a position in a sector
 //         At standard zoom, it's 5px square
-// * Sector: A 100 x 100 grid of Tiles.
-// * Quadrant: A 4x4 Grid of Sectors
+// * Sector: A 20 x 20 grid of Tiles.
+// * Quadrant: A 2x2 Grid of Sectors
 // A world position is a combination of Quadrant X, Y
 //    Sector X, Y
 //    Tile X, Y
