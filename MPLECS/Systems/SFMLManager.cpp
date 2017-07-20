@@ -342,6 +342,8 @@ void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
 
 	auto currentViewOrigin = s_worldView.getCenter() - (currentViewSize / 2);
 	s_worldView = sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y});
+
+	s_UIView = sf::View({ 0, 0, static_cast<float>(size.width), static_cast<float>(size.height) });
 }
 
 void EventResponse::OnLoseFocus(ECS_Core::Components::C_UserInputs& input)
