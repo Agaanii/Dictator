@@ -15,7 +15,6 @@
 
 #include <memory>
 
-
 enum class GameLoopPhase
 {
 	PREPARATION,

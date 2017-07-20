@@ -18,6 +18,8 @@ namespace ECS_Core
 	{
 		struct C_PositionCartesian
 		{
+			C_PositionCartesian() {}
+			C_PositionCartesian(f64 X, f64 Y, f64 Z) : m_position({ X, Y, Z }) {}
 			CartesianVector3 m_position;
 		};
 
@@ -276,6 +278,56 @@ namespace ECS_Core
 			u8 m_processedThisFrameDownMouseButtonFlags{ 0 };
 			u8 m_processedThisFrameUpMouseButtonFlags{ 0 };
 		};
+
+		struct C_QuadrantPosition
+		{
+			int m_quadrantX{ 0 };
+			int m_quadrantY{ 0 };
+		};
+
+		struct C_SectorPosition
+		{
+			// Quadrant parent
+			int m_quadrantX{ 0 };
+			int m_quadrantY{ 0 };
+
+			int m_x{ 1 };
+			int m_y{ 1 };
+		};
+
+		struct C_TilePosition 
+		{
+			C_TilePosition() {}
+			C_TilePosition(int qx, int qy, int sx, int sy, int x, int y)
+				: m_quadrantX(qx)
+				, m_quadrantY(qy)
+				, m_sectorX(sx)
+				, m_sectorY(sy)
+				, m_x(x)
+				, m_y(y)
+			{
+
+			}
+
+			// Default values are the center of the world
+			// Quadrant parent
+			int m_quadrantX{ 0 };
+			int m_quadrantY{ 0 };
+
+			// Sector within quadrant
+			int m_sectorX{ 1 };
+			int m_sectorY{ 1 };
+
+			// Position within sector
+			int m_x{ 0 };
+			int m_y{ 0 };
+		};
+
+		struct C_TileProperties
+		{
+			int m_tileType;
+			std::optional<int> m_movementCost; // If notset, unpathable
+		};
 	}
 
 	namespace Tags
@@ -300,7 +352,9 @@ namespace ECS_Core
 		Components::C_Health,
 		Components::C_Healable,
 		Components::C_Damageable,
-		Components::C_UserInputs
+		Components::C_UserInputs,
+		Components::C_TilePosition,
+		Components::C_TileProperties
 	>;
 
 	using MasterTagList = ecs::TagList<Tags::T_NoAcceleration>;

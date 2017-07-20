@@ -42,7 +42,7 @@ int main()
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
 	RegisterSystem<WorldTile>();
-	RegisterSystem<ObjectSpammer>();
+	// RegisterSystem<ObjectSpammer>();
 	RegisterSystem<SFMLManager>();
 	RegisterSystem<UnitDeath>();
 	auto loopStart = chrono::high_resolution_clock::now();

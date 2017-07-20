@@ -56,7 +56,7 @@ void ObjectSpammer::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			rect->setFillColor({ (sf::Uint8)rand(), (sf::Uint8)rand(), (sf::Uint8)rand() });
 			rect->setOutlineColor({ (sf::Uint8)rand(), (sf::Uint8)rand(), (sf::Uint8)rand() });
 			rect->setOutlineThickness(4);
-			auto& shape = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(
+			m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(
 				newObject,
 				std::move(rect),
 				ECS_Core::Components::DrawLayer::TERRAIN,
