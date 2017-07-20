@@ -719,6 +719,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	s_window.clear();
 
+	// TODO: Cache this map, add a marker for "still active", draw still active, remove inactive, add new.
 	std::map<ECS_Core::Components::DrawLayer, std::map<u64, std::vector<sf::Drawable*>>> drawablesByLayer;
 
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
@@ -739,7 +740,6 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			drawablesByLayer[shape.m_drawLayer][shape.m_priority].emplace_back(shape.m_drawable.get());
 		}
 	});
-
 	for (auto& map : drawablesByLayer)
 	{
 		if (map.first == ECS_Core::Components::DrawLayer::MENU)
