@@ -35,8 +35,8 @@
 namespace TileConstants
 {
 	constexpr int TILE_SIDE_LENGTH = 5;
-	constexpr int SECTOR_SIDE_LENGTH = 20;
-	constexpr int QUADRANT_SIDE_LENGTH = 2;
+	constexpr int SECTOR_SIDE_LENGTH = 100;
+	constexpr int QUADRANT_SIDE_LENGTH = 4;
 
 	constexpr int BASE_QUADRANT_ORIGIN_COORDINATE =
 		-TILE_SIDE_LENGTH *

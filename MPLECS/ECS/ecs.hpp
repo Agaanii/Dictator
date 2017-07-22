@@ -465,6 +465,14 @@ namespace ecs {
                 mOSS << "\n\n";
             }*/
 
+				auto& getHandleData(EntityIndex mI) noexcept {
+					return getHandleData(getEntity(mI).handleDataIndex);
+				}
+
+				const auto& getHandleData(EntityIndex mI) const noexcept {
+					return getHandleData(getEntity(mI).handleDataIndex);
+				}
+
         private:
             using Settings = TSettings;
             using ThisType = Manager<Settings>;
@@ -528,14 +536,6 @@ namespace ecs {
             const auto& getHandleData(HandleDataIndex mI) const noexcept {
                 assert(handleData.size() > mI);
                 return handleData[mI];
-            }
-
-            auto& getHandleData(EntityIndex mI) noexcept {
-                return getHandleData(getEntity(mI).handleDataIndex);
-            }
-
-            const auto& getHandleData(EntityIndex mI) const noexcept {
-                return getHandleData(getEntity(mI).handleDataIndex);
             }
 
             auto& getHandleData(const Handle& mX) noexcept {

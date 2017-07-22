@@ -123,11 +123,22 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>$(SolutionDir)Contrib\SFML-2.4.2\include</AdditionalIncludeDirectories>
+      <AdditionalOptions>/std:c++latest %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)Contrib\SFML-2.4.2\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>sfml-graphics.lib;sfml-window.lib;sfml-system.lib;opengl32.lib;freetype.lib;jpeg.lib;winmm.lib;gdi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>Copy /Y "$(SolutionDir)Contrib\SFML-2.4.2\bin\sfml-graphics-2.dll" "$(OutDir)sfml-graphics-2.dll" &amp; 
+Copy /Y "$(SolutionDir)Contrib\SFML-2.4.2\bin\sfml-window-2.dll" "$(OutDir)sfml-window-2.dll" &amp; 
+Copy /Y "$(SolutionDir)Contrib\SFML-2.4.2\bin\sfml-system-2.dll" "$(OutDir)sfml-system-2.dll" &amp;
+mkdir "$(OutDir)Assets" &amp;
+Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

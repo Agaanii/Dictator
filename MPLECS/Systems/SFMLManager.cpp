@@ -715,19 +715,38 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 	}
 }
 
+struct TaggedDrawable
+{
+	bool m_drawnThisFrame;
+	sf::Drawable* m_drawable;
+};
+
+namespace std
+{
+	bool operator<(const ecs::Impl::HandleData& left, const ecs::Impl::HandleData& right)
+	{
+		if (left.entityIndex < right.entityIndex) return true;
+		if (right.entityIndex < left.entityIndex) return false;
+
+		if (left.counter < right.counter) return true;
+		return false;
+	}
+}
+
+std::map<ECS_Core::Components::DrawLayer, std::map<u64, std::map<ecs::Impl::HandleData, TaggedDrawable>>> drawablesByLayer;
 void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	s_window.clear();
 
 	// TODO: Cache this map, add a marker for "still active", draw still active, remove inactive, add new.
-	std::map<ECS_Core::Components::DrawLayer, std::map<u64, std::vector<sf::Drawable*>>> drawablesByLayer;
 
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
-		[&drawablesByLayer](
+		[&manager](
 			ecs::EntityIndex mI,
 			const ECS_Core::Components::C_PositionCartesian& position,
 			ECS_Core::Components::C_SFMLDrawable& shape)
 	{
+		auto handle = manager.getHandleData(mI);
 		if (shape.m_drawable)
 		{
 			auto* transform = dynamic_cast<sf::Transformable*>(shape.m_drawable.get());
@@ -737,12 +756,14 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 					static_cast<float>(position.m_position.m_x),
 					static_cast<float>(position.m_position.m_y) });
 			}
-			drawablesByLayer[shape.m_drawLayer][shape.m_priority].emplace_back(shape.m_drawable.get());
+			auto& taggedDrawable = drawablesByLayer[shape.m_drawLayer][shape.m_priority][handle];
+			taggedDrawable.m_drawable = shape.m_drawable.get();
+			taggedDrawable.m_drawnThisFrame = true;
 		}
 	});
-	for (auto& map : drawablesByLayer)
+	for (auto& layerMap : drawablesByLayer)
 	{
-		if (map.first == ECS_Core::Components::DrawLayer::MENU)
+		if (layerMap.first == ECS_Core::Components::DrawLayer::MENU)
 		{
 			s_window.setView(s_UIView);
 		}
@@ -750,11 +771,24 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		{
 			s_window.setView(s_worldView);
 		}
-		for (auto& vector : map.second)
+		for (auto& handleMap : layerMap.second)
 		{
-			for (auto& drawable : vector.second)
+			std::vector<ecs::Impl::HandleData> handlesToRemove;
+			for (auto& drawable : handleMap.second)
 			{
-				s_window.draw(*drawable);
+				if (drawable.second.m_drawnThisFrame)
+				{
+					s_window.draw(*drawable.second.m_drawable);
+					drawable.second.m_drawnThisFrame = false;
+				}
+				else
+				{
+					handlesToRemove.push_back(drawable.first);
+				}
+			}
+			for (auto& handle : handlesToRemove)
+			{
+				handleMap.second.erase(handle);
 			}
 		}
 	}
