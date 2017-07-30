@@ -14,7 +14,6 @@
 
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
-#include "WorldTile.h"
 
 // Terms:
 // * Tile: Unit of the world terrain
