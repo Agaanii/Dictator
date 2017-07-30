@@ -28,7 +28,7 @@ sf::View s_worldView({ 0, 0, 1600, 900 });
 sf::View s_UIView({ 0, 0, 1600, 900 });
 
 void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
-void ReceiveInput(ECS_Core::Manager& manager);
+void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
 void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration);
 
 namespace EventResponse
@@ -518,7 +518,7 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION_RESPONSE:
 		return;
 	case GameLoopPhase::INPUT:
-		ReceiveInput(m_managerRef);
+		ReceiveInput(m_managerRef, frameDuration);
 		break;
 	case GameLoopPhase::RENDER:
 		RenderWorld(m_managerRef, frameDuration);
@@ -616,27 +616,27 @@ void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	}
 }
 
-void ReceiveInput(ECS_Core::Manager& manager)
+void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 	{
-		s_worldView.move({ 0, 1 });
+		s_worldView.move({ 0, 150.f * frameDuration / 1000000 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
 	{
-		s_worldView.move({ 0, -1 });
+		s_worldView.move({ 0, -150.f * frameDuration / 1000000 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
 	{
-		s_worldView.move({ -1, 0 });
+		s_worldView.move({ -150.f * frameDuration / 1000000, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
 	{
-		s_worldView.move({ 1, 0 });
+		s_worldView.move({ 150.f * frameDuration / 1000000, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 	}
 	EventResponse::UpdateMouseWorldPosition(inputComponent);

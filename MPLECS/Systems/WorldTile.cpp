@@ -14,6 +14,7 @@
 
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
+#include "WorldTile.h"
 
 // Terms:
 // * Tile: Unit of the world terrain
@@ -51,10 +52,20 @@ namespace TileConstants
 namespace TileNED
 {
 	using QuadrantId = std::pair<int, int>;
+	using namespace TileConstants;
+
+	struct Tile
+	{
+		int m_tileType;
+		std::optional<int> m_movementCost; // If notset, unpathable
+
+		// Each 1 pixel is 4 components: RGBA
+		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
+	};
 
 	struct Sector
 	{
-		ecs::EntityIndex m_tiles
+		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
 			[TileConstants::SECTOR_SIDE_LENGTH];
 	};
@@ -63,66 +74,41 @@ namespace TileNED
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
 			[TileConstants::QUADRANT_SIDE_LENGTH];
+
+		sf::Texture m_texture;
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 	SpawnedQuadrantMap s_spawnedQuadrants;
 	bool baseQuadrantSpawned{ false };
 }
 
-ecs::EntityIndex SpawnTile(
-	int quadX, int quadY, 
-	int secX, int secY,
-	int X, int Y,
-	ECS_Core::Manager& manager)
-{
-	auto index = manager.createIndex();
-	manager.addComponent<ECS_Core::Components::C_TilePosition>(
-		index,
-		quadX, quadY,
-		secX, secY,
-		X, Y);
-	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(
-		index,
-		TileConstants::BASE_QUADRANT_ORIGIN_COORDINATE +
-			(TileConstants::QUADRANT_SIDE_LENGTH * TileConstants::SECTOR_SIDE_LENGTH * TileConstants::TILE_SIDE_LENGTH * quadX) +
-			(TileConstants::SECTOR_SIDE_LENGTH * TileConstants::TILE_SIDE_LENGTH * secX) +
-			(TileConstants::TILE_SIDE_LENGTH * X),
-		TileConstants::BASE_QUADRANT_ORIGIN_COORDINATE +
-			(TileConstants::QUADRANT_SIDE_LENGTH * TileConstants::SECTOR_SIDE_LENGTH * TileConstants::TILE_SIDE_LENGTH * quadY) +
-			(TileConstants::SECTOR_SIDE_LENGTH * TileConstants::TILE_SIDE_LENGTH * secY) +
-			(TileConstants::TILE_SIDE_LENGTH * Y),
-		0);
-	auto& props = manager.addComponent<ECS_Core::Components::C_TileProperties>(index);
-	// Later this will be based on all sorts of fun terrain generation
-	// But that's later
-	props.m_tileType = rand() % TileConstants::TILE_TYPE_COUNT;
-	int moveCost = rand() % 6;
-	if (moveCost) props.m_movementCost = moveCost;
-
-	auto rect = std::make_unique<sf::RectangleShape>(sf::Vector2f(
-		static_cast<float>(TileConstants::TILE_SIDE_LENGTH),
-		static_cast<float>(TileConstants::TILE_SIDE_LENGTH)));
-	rect->setFillColor({
-		(sf::Uint8)((props.m_tileType & 1) ? 255 : 0),
-		(sf::Uint8)((props.m_tileType & 2) ? 255 : 0),
-		(sf::Uint8)((props.m_tileType & 4) ? 255 : 0) });
-	manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(
-		index,
-		std::move(rect),
-		ECS_Core::Components::DrawLayer::TERRAIN,
-		0);
-	return index;
-}
-
 void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 {
+	using namespace TileConstants;
 	if (TileNED::s_spawnedQuadrants.find({ X,Y }) 
 		!= TileNED::s_spawnedQuadrants.end())
 	{
 		// Tile is already here
 		return;
 	}
+	auto index = manager.createIndex();
+	auto quadrantSideLength = QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH;
+	manager.addComponent<ECS_Core::Components::C_QuadrantPosition>(
+		index,
+		X, Y);
+	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(
+		index,
+		BASE_QUADRANT_ORIGIN_COORDINATE +
+		(quadrantSideLength * X),
+		BASE_QUADRANT_ORIGIN_COORDINATE +
+		(quadrantSideLength * Y),
+		0);
+
+	auto rect = std::make_unique<sf::RectangleShape>(sf::Vector2f(
+		static_cast<float>(quadrantSideLength),
+		static_cast<float>(quadrantSideLength)));
 	auto& quadrant = TileNED::s_spawnedQuadrants[{X, Y}];
+	quadrant.m_texture.create(quadrantSideLength, quadrantSideLength);
 	for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
 	{
 		for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
@@ -132,11 +118,35 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 			{
 				for (auto tileY = 0; tileY < TileConstants::SECTOR_SIDE_LENGTH; ++tileY)
 				{
-					sector.m_tiles[tileX][tileY] = SpawnTile(X, Y, secX, secY, tileX, tileY, manager);
+					auto& tile = sector.m_tiles[tileX][tileY];
+					// Later this will be based on all sorts of fun terrain generation
+					// But that's later
+					tile.m_tileType = rand() % TileConstants::TILE_TYPE_COUNT;
+					tile.m_movementCost = rand() % 6;
+					for (auto& pixel : tile.m_tilePixels)
+					{
+						pixel = 
+							(((tile.m_tileType & 1) ? 255 : 0) << 0) + // R
+							(((tile.m_tileType & 2) ? 255 : 0) << 8) + // G
+							(((tile.m_tileType & 4) ? 255 : 0) << 16)  + // B
+							+ (0xFF << 24); // A
+					}
+					quadrant.m_texture.update(
+						reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels),
+						TILE_SIDE_LENGTH,
+						TILE_SIDE_LENGTH,
+						((secX * SECTOR_SIDE_LENGTH) + tileX) * TILE_SIDE_LENGTH,
+						((secY * SECTOR_SIDE_LENGTH) + tileY) * TILE_SIDE_LENGTH);
 				}
 			}
 		}
 	}
+	rect->setTexture(&quadrant.m_texture);
+	manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(
+		index,
+		std::move(rect),
+		ECS_Core::Components::DrawLayer::TERRAIN,
+		0);
 }
 
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)

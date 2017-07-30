@@ -281,12 +281,24 @@ namespace ECS_Core
 
 		struct C_QuadrantPosition
 		{
+			C_QuadrantPosition() {}
+			C_QuadrantPosition(int x, int y)
+				: m_quadrantX(x)
+				, m_quadrantY(y)
+			{}
 			int m_quadrantX{ 0 };
 			int m_quadrantY{ 0 };
 		};
 
 		struct C_SectorPosition
 		{
+			C_SectorPosition() {}
+			C_SectorPosition(int qx, int qy, int x, int y)
+				: m_quadrantX(qx)
+				, m_quadrantY(qy)
+				, m_x(x)
+				, m_y(y)
+			{}
 			// Quadrant parent
 			int m_quadrantX{ 0 };
 			int m_quadrantY{ 0 };
@@ -322,12 +334,6 @@ namespace ECS_Core
 			int m_x{ 0 };
 			int m_y{ 0 };
 		};
-
-		struct C_TileProperties
-		{
-			int m_tileType;
-			std::optional<int> m_movementCost; // If notset, unpathable
-		};
 	}
 
 	namespace Tags
@@ -354,7 +360,9 @@ namespace ECS_Core
 		Components::C_Damageable,
 		Components::C_UserInputs,
 		Components::C_TilePosition,
-		Components::C_TileProperties
+		Components::C_QuadrantPosition,
+		Components::C_SectorPosition,
+		Components::C_TilePosition
 	>;
 
 	using MasterTagList = ecs::TagList<Tags::T_NoAcceleration>;
