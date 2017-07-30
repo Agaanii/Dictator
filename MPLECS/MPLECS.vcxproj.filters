@@ -37,6 +37,12 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{0c0b80d0-e548-4f19-9e93-b003bebba932}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Util">
+      <UniqueIdentifier>{66ba7eeb-93ca-4786-8028-ea10d6e94231}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Util">
+      <UniqueIdentifier>{c190eb0e-8078-48ff-ac0e-38c536433742}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -62,6 +68,9 @@
     </ClCompile>
     <ClCompile Include="Systems\DamageApplication.cpp">
       <Filter>Source Files\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="Util\Pathing.cpp">
+      <Filter>Source Files\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -130,6 +139,9 @@
     </ClInclude>
     <ClInclude Include="Components\GraphicsComponents.h">
       <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Util\Pathing.h">
+      <Filter>Header Files\Util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -149,6 +149,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClCompile Include="Systems\SystemTemplate.cpp" />
     <ClCompile Include="Systems\UnitDeath.cpp" />
     <ClCompile Include="Systems\WorldTile.cpp" />
+    <ClCompile Include="Util\Pathing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\GraphicsComponents.h" />
@@ -173,6 +174,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClInclude Include="ECS\MPL\TypeListOps.hpp" />
     <ClInclude Include="ECS\MPL\Unique.hpp" />
     <ClInclude Include="Systems\Systems.h" />
+    <ClInclude Include="Util\Pathing.h" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\cour.ttf" />

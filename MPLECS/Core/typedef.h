@@ -56,6 +56,9 @@ struct CartesianVector3
 
 struct CartesianVector2
 {
+	CartesianVector2() {}
+	constexpr CartesianVector2(f64 x, f64 y) : m_x(x), m_y(y) {}
+	constexpr CartesianVector2(int x, int y) : m_x(static_cast<f64>(x)), m_y(static_cast<f64>(y)){}
 	f64 m_x{ 0 };
 	f64 m_y{ 0 };
 
@@ -69,6 +72,18 @@ struct CartesianVector2
 	CartesianVector2 operator+(const CartesianVector2& other) const
 	{
 		return CartesianVector2(*this) += other;
+	}
+
+	CartesianVector2& operator -=(const CartesianVector2& other)
+	{
+		m_x -= other.m_x;
+		m_y -= other.m_y;
+		return *this;
+	}
+
+	CartesianVector2 operator-(const CartesianVector2& other) const
+	{
+		return CartesianVector2(*this) -= other;
 	}
 
 	CartesianVector2 operator*(f64 factor) const

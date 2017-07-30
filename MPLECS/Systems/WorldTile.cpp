@@ -15,6 +15,8 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+#include "../Util/Pathing.h"
+
 // Terms:
 // * Tile: Unit of the world terrain
 //         It has a position in a sector
@@ -62,14 +64,19 @@ namespace TileNED
 		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
 	};
 
+	using Pathability = bool[Pathing::PathingSide::_COUNT][Pathing::PathingSide::_COUNT];
+
 	struct Sector
 	{
-		Tile m_tiles
+		Pathability m_pathability;
+		Tile m_tiles 
 			[TileConstants::SECTOR_SIDE_LENGTH]
 			[TileConstants::SECTOR_SIDE_LENGTH];
+
 	};
 	struct Quadrant
 	{
+		Pathability m_pathability;
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
 			[TileConstants::QUADRANT_SIDE_LENGTH];
@@ -79,6 +86,19 @@ namespace TileNED
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 	SpawnedQuadrantMap s_spawnedQuadrants;
 	bool baseQuadrantSpawned{ false };
+
+	struct WorldCoordinates
+	{
+		WorldCoordinates() { }
+		WorldCoordinates(CartesianVector2&& quad, CartesianVector2&& sec, CartesianVector2&& tile)
+			: m_quadrant(quad)
+			, m_sector(sec)
+			, m_tile(tile)
+		{}
+		CartesianVector2 m_quadrant;
+		CartesianVector2 m_sector;
+		CartesianVector2 m_tile;
+	};
 }
 
 void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
@@ -87,7 +107,7 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 	if (TileNED::s_spawnedQuadrants.find({ X,Y }) 
 		!= TileNED::s_spawnedQuadrants.end())
 	{
-		// Tile is already here
+		// Quadrant is already here
 		return;
 	}
 	auto index = manager.createIndex();
@@ -121,7 +141,8 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 					// Later this will be based on all sorts of fun terrain generation
 					// But that's later
 					tile.m_tileType = rand() % TileConstants::TILE_TYPE_COUNT;
-					tile.m_movementCost = rand() % 6;
+					if (tile.m_tileType) // Make type 0 unpathable for testing
+						tile.m_movementCost = rand() % 6;
 					for (auto& pixel : tile.m_tilePixels)
 					{
 						pixel = 
@@ -138,6 +159,60 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 						((secY * SECTOR_SIDE_LENGTH) + tileY) * TILE_SIDE_LENGTH);
 				}
 			}
+
+			using namespace Pathing::PathingSide;
+			bool nwPathable = false;
+			if (sector.m_tiles[0][0].m_movementCost)
+			{
+				nwPathable = true;
+			}
+			else
+			{
+				//  Start at top and left edge, other than corner, start trying to find paths
+				auto isPathable = [](const TileNED::Tile& tile) -> bool {
+					return (bool)tile.m_movementCost;
+				};
+				for (auto&& tileRow : sector.m_tiles)
+				{
+					for (auto&& tile : tileRow)
+					{
+						bool pathable = isPathable(tile);
+					}
+				}
+			}
+			sector.m_pathability[NORTH][WEST] = nwPathable;
+			sector.m_pathability[WEST][NORTH] = nwPathable;
+			
+			bool nePathable = false;
+			if (sector.m_tiles[TILE_SIDE_LENGTH - 1][0].m_movementCost)
+			{
+				nePathable = true;
+			}
+			else
+			{
+			}
+			sector.m_pathability[NORTH][EAST] = nePathable;
+			sector.m_pathability[EAST][NORTH] = nePathable;
+
+			bool sePathable = false;
+			if (sector.m_tiles[TILE_SIDE_LENGTH - 1][TILE_SIDE_LENGTH - 1].m_movementCost)
+			{
+				sePathable = true;
+				sector.m_pathability[SOUTH][EAST] = true;
+				sector.m_pathability[EAST][SOUTH] = true;
+			}
+
+			bool swPathable = false;
+			if (sector.m_tiles[0][TILE_SIDE_LENGTH - 1].m_movementCost)
+			{
+				swPathable = true;
+			}
+			else
+			{
+
+			}
+			sector.m_pathability[SOUTH][WEST] = swPathable;
+			sector.m_pathability[WEST][SOUTH] = swPathable;
 		}
 	}
 	rect->setTexture(&quadrant.m_texture);
@@ -148,15 +223,75 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 		0);
 }
 
+TileNED::WorldCoordinates WorldPositionToCoordinates(const CartesianVector2& worldPos)
+{
+	using namespace TileConstants;
+	auto offsetFromQuadrantOrigin = worldPos - CartesianVector2(
+		BASE_QUADRANT_ORIGIN_COORDINATE,
+		BASE_QUADRANT_ORIGIN_COORDINATE);
+	return {
+		{ (int)(offsetFromQuadrantOrigin.m_x / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
+		  (int)(offsetFromQuadrantOrigin.m_y / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH))},
+
+		{ ((int)(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
+		  ((int)(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)},
+
+		{ ((int)(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
+		  ((int)(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH}
+	};
+}
+
+CartesianVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& worldCoords)
+{
+	using namespace TileConstants;
+	return {
+		BASE_QUADRANT_ORIGIN_COORDINATE +
+		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrant.m_x)
+			+ worldCoords.m_sector.m_x) * SECTOR_SIDE_LENGTH)
+			+ worldCoords.m_tile.m_x) * TILE_SIDE_LENGTH),
+
+		BASE_QUADRANT_ORIGIN_COORDINATE +
+		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrant.m_y)
+			+ worldCoords.m_sector.m_y) * SECTOR_SIDE_LENGTH)
+			+ worldCoords.m_tile.m_y) * TILE_SIDE_LENGTH)
+	};
+}
+
+
+void CheckWorldClick(ECS_Core::Manager& manager)
+{
+	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
+	if (inputEntities.size() == 0) return;
+	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
+	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
+	{
+		auto mouseWorldCoords = WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition);
+		
+		if (TileNED::s_spawnedQuadrants.find({ (int)mouseWorldCoords.m_quadrant.m_x, (int)mouseWorldCoords.m_quadrant.m_y }) == TileNED::s_spawnedQuadrants.end())
+		{
+			SpawnQuadrant((int)mouseWorldCoords.m_quadrant.m_x, (int)mouseWorldCoords.m_quadrant.m_y, manager);
+		}
+
+		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
+	}
+}
+
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
 	case GameLoopPhase::PREPARATION:
-		if (!TileNED::baseQuadrantSpawned) SpawnQuadrant(0, 0, m_managerRef);
+		if (!TileNED::baseQuadrantSpawned)
+		{
+			SpawnQuadrant(0, 0, m_managerRef);
+			TileNED::baseQuadrantSpawned = true;
+		}
 		break;
-	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION:
+		CheckWorldClick(m_managerRef);
+		break;
+
+	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:

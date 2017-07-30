@@ -348,6 +348,7 @@ namespace ECS_Core
 		using S_Drawable = ecs::Signature<Components::C_PositionCartesian, Components::C_SFMLDrawable>;
 		using S_Living = ecs::Signature<Components::C_Health>;
 		using S_Health = ecs::Signature<Components::C_Health, Components::C_Healable, Components::C_Damageable>;
+		using S_Input = ecs::Signature<Components::C_UserInputs>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -372,7 +373,8 @@ namespace ECS_Core
 		Signatures::S_ApplyNewtonianMotion,
 		Signatures::S_Drawable,
 		Signatures::S_Living,
-		Signatures::S_Health
+		Signatures::S_Health,
+		Signatures::S_Input
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;
