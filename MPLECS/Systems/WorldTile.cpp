@@ -17,6 +17,8 @@
 
 #include "../Util/Pathing.h"
 
+#include <limits>
+
 // Terms:
 // * Tile: Unit of the world terrain
 //         It has a position in a sector
@@ -99,6 +101,14 @@ namespace TileNED
 		CartesianVector2 m_sector;
 		CartesianVector2 m_tile;
 	};
+
+	void CheckWorldClick(ECS_Core::Manager& manager);
+	void SpawnBetween(
+		int originX,
+		int originY,
+		int targetX,
+		int targetY,
+		ECS_Core::Manager& manager);
 }
 
 void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
@@ -224,9 +234,9 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 }
 
 template<class T>
-int sign(T x)
+inline int sign(T x)
 {
-	return x < 0 ? -1 : 1;
+	return (x < 0) ? -1 : ((x > 0) ? 1 : 0);
 }
 
 template<class T, class U>
@@ -270,8 +280,40 @@ CartesianVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& wor
 	};
 }
 
+void TileNED::SpawnBetween(
+	int originX,
+	int originY,
+	int targetX,
+	int targetY,
+	ECS_Core::Manager& manager)
+{
+	// Base case: Spawn between a place and itself
+	if (targetX == originX && targetY == originY)
+	{
+		// Spawn just in case, will return immediately in most cases.
+		SpawnQuadrant(targetX, targetY, manager);
+		return;
+	}
 
-void CheckWorldClick(ECS_Core::Manager& manager)
+	SpawnQuadrant(targetX, targetY, manager);
+	SpawnQuadrant(originX, originY, manager);
+
+	auto midX = (targetX + originX) / 2;
+	auto midY = (targetY + originY) / 2;
+	SpawnQuadrant(midX, midY, manager);
+
+	if ((midX == targetX && midY == targetY)
+		|| midX == originX && midY == originY)
+	{
+		// We're all filled in on this segment.
+		return;
+	}
+
+	SpawnBetween(originX, originY, midX, midY, manager);
+	SpawnBetween(midX + sign(targetX - originX), midY + sign(targetY - originY), targetX, targetY, manager);
+}
+
+void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 {
 	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
 	if (inputEntities.size() == 0) return;
@@ -279,10 +321,37 @@ void CheckWorldClick(ECS_Core::Manager& manager)
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
 		auto mouseWorldCoords = WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition);
+		auto&& quadrantCoords = mouseWorldCoords.m_quadrant;
 		
-		if (TileNED::s_spawnedQuadrants.find({ (int)mouseWorldCoords.m_quadrant.m_x, (int)mouseWorldCoords.m_quadrant.m_y }) == TileNED::s_spawnedQuadrants.end())
+		if (TileNED::s_spawnedQuadrants.find({ (int)quadrantCoords.m_x, (int)quadrantCoords.m_y }) == TileNED::s_spawnedQuadrants.end())
 		{
-			SpawnQuadrant((int)mouseWorldCoords.m_quadrant.m_x, (int)mouseWorldCoords.m_quadrant.m_y, manager);
+			// We're going to need to spawn world up to that point.
+			// first: find the closest available world tile
+			int closestX = 0;
+			int closestY = 0;
+			int smallestDistance = std::numeric_limits<int>::max();
+			// Assume the initial tile is the closest for a start
+			for (auto&& quadrant : s_spawnedQuadrants)
+			{
+				auto&& quadX = quadrant.first.first;
+				auto&& quadY = quadrant.first.second;
+				auto&& distX = quadX - static_cast<int>(quadrantCoords.m_x);
+				auto&& distY = quadY - static_cast<int>(quadrantCoords.m_y);
+				auto&& distanceSq = distX * distX + distY * distY;
+				if (distanceSq < smallestDistance)
+				{
+					closestX = quadX;
+					closestY = quadY;
+					smallestDistance = distanceSq;
+				}
+			}
+
+			SpawnBetween(
+				closestX,
+				closestY, 
+				static_cast<int>(quadrantCoords.m_x),
+				static_cast<int>(quadrantCoords.m_y),
+				manager);
 		}
 
 		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
@@ -301,7 +370,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		}
 		break;
 	case GameLoopPhase::ACTION:
-		CheckWorldClick(m_managerRef);
+		TileNED::CheckWorldClick(m_managerRef);
 		break;
 
 	case GameLoopPhase::INPUT:
