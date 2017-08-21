@@ -25,11 +25,12 @@ using f64 = double;
 
 using timeuS = s64;
 
+template<typename NUM_TYPE>
 struct CartesianVector3
 {
-	f64 m_x{ 0 };
-	f64 m_y{ 0 };
-	f64 m_z{ 0 };
+	NUM_TYPE m_x{ 0 };
+	NUM_TYPE m_y{ 0 };
+	NUM_TYPE m_z{ 0 };
 
 	CartesianVector3& operator+=(const CartesianVector3& other)
 	{
@@ -44,7 +45,7 @@ struct CartesianVector3
 		return CartesianVector3(*this) += other;
 	}
 
-	CartesianVector3 operator*(f64 factor) const
+	CartesianVector3 operator*(NUM_TYPE factor) const
 	{
 		auto copy(*this);
 		copy.m_x *= factor;
@@ -52,15 +53,24 @@ struct CartesianVector3
 		copy.m_z *= factor;
 		return copy;
 	}
+
+	template<typename U>
+	CartesianVector3<U> cast()
+	{
+		return CartesianVector3<U>(
+			static_cast<U>(m_x),
+			static_cast<U>(m_y),
+			static_cast<U>(m_z));
+	}
 };
 
+template<typename NUM_TYPE>
 struct CartesianVector2
 {
 	CartesianVector2() {}
-	constexpr CartesianVector2(f64 x, f64 y) : m_x(x), m_y(y) {}
-	constexpr CartesianVector2(int x, int y) : m_x(static_cast<f64>(x)), m_y(static_cast<f64>(y)){}
-	f64 m_x{ 0 };
-	f64 m_y{ 0 };
+	constexpr CartesianVector2(NUM_TYPE x, NUM_TYPE y) : m_x(x), m_y(y) {}
+	NUM_TYPE m_x{ 0 };
+	NUM_TYPE m_y{ 0 };
 
 	CartesianVector2& operator +=(const CartesianVector2& other)
 	{
@@ -86,11 +96,56 @@ struct CartesianVector2
 		return CartesianVector2(*this) -= other;
 	}
 
-	CartesianVector2 operator*(f64 factor) const
+	CartesianVector2 operator*(NUM_TYPE factor) const
 	{
 		auto copy(*this);
 		copy.m_x *= factor;
 		copy.m_y *= factor;
 		return copy;
 	}
+
+	CartesianVector2 operator/(const NUM_TYPE divisor) const
+	{
+		auto copy(*this);
+		copy.m_x /= divisor;
+		copy.m_y /= divisor;
+		return copy;
+	}
+
+	template<typename U>
+	CartesianVector2<U> cast()
+	{
+		return CartesianVector2<U>(
+			static_cast<U>(m_x),
+			static_cast<U>(m_y));
+	}
+
+	bool operator==(const CartesianVector2& other) { return m_x == other.m_x && m_y == other.m_y; }
+	bool operator>(const CartesianVector2& other) {
+		if (*this == other) return false;
+		if (m_x + m_y > other.m_x + other.m_y) return true;
+		if (m_x + m_y < other.m_x + other.m_y) return false;
+		return m_x > other.m_x;
+	};
+	bool operator<(const CartesianVector2& other) {
+		if (*this == other) return false;
+		if (m_x + m_y < other.m_x + other.m_y) return true;
+		if (m_x + m_y > other.m_x + other.m_y) return false;
+		return m_x < other.m_x;
+	};
+	bool operator!=(const CartesianVector2& other) { return !(*this == other); }
+	bool operator<=(const CartesianVector2& other) { return !(*this > other); }
+	bool operator>=(const CartesianVector2& other) { return !(*this < other); }
 };
+
+namespace std
+{
+	template<typename NUM_TYPE>
+	bool operator<(const CartesianVector2<NUM_TYPE>& left, const CartesianVector2<NUM_TYPE>& right)
+	{
+		if (left.m_x == right.m_x && left.m_y == right.m_y) return false;
+		if (left.m_x + left.m_y < right.m_x + right.m_y) return true;
+		if (left.m_x + left.m_y > right.m_x + right.m_y) return false;
+		return left.m_x < right.m_x;
+	}
+}

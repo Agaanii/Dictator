@@ -20,17 +20,17 @@ namespace ECS_Core
 		{
 			C_PositionCartesian() {}
 			C_PositionCartesian(f64 X, f64 Y, f64 Z) : m_position({ X, Y, Z }) {}
-			CartesianVector3 m_position;
+			CartesianVector3<f64> m_position;
 		};
 
 		struct C_VelocityCartesian
 		{
-			CartesianVector3 m_velocity;
+			CartesianVector3<f64> m_velocity;
 		};
 
 		struct C_AccelerationCartesian
 		{
-			CartesianVector3 m_acceleration;
+			CartesianVector3<f64> m_acceleration;
 		};
 		struct C_Health
 		{
@@ -180,11 +180,11 @@ namespace ECS_Core
 		};
 		enum class MouseButtons
 		{
-			LEFT    = 1 << 0,
-			RIGHT   = 1 << 1,
-			MIDDLE  = 1 << 2,
-			FOUR    = 1 << 3, // Mouse button indices make sense...
-			FIVE    = 1 << 4,
+			LEFT = 1 << 0,
+			RIGHT = 1 << 1,
+			MIDDLE = 1 << 2,
+			FOUR = 1 << 3, // Mouse button indices make sense...
+			FIVE = 1 << 4,
 
 			_COUNT = 5
 		};
@@ -197,8 +197,8 @@ namespace ECS_Core
 
 			struct MousePosition
 			{
-				CartesianVector2 m_screenPosition;
-				CartesianVector2 m_worldPosition;
+				CartesianVector2<f64> m_screenPosition;
+				CartesianVector2<f64> m_worldPosition;
 			};
 
 			u8 m_unprocessedThisFrameDownMouseButtonFlags{ 0 };
@@ -262,7 +262,7 @@ namespace ECS_Core
 				for (int i = 0; i < (int)MouseButtons::_COUNT; ++i)
 				{
 					if ((m_unprocessedThisFrameUpMouseButtonFlags & (1 << i)) ||
-						  (m_processedThisFrameUpMouseButtonFlags & (1 << i)))
+						(m_processedThisFrameUpMouseButtonFlags & (1 << i)))
 					{
 						m_heldMouseButtonInitialPositions.erase(static_cast<MouseButtons>(1 << i));
 					}
@@ -279,60 +279,53 @@ namespace ECS_Core
 			u8 m_processedThisFrameUpMouseButtonFlags{ 0 };
 		};
 
+		using CoordinateVector2 = CartesianVector2<s64>;
 		struct C_QuadrantPosition
 		{
 			C_QuadrantPosition() {}
-			C_QuadrantPosition(int x, int y)
-				: m_quadrantX(x)
-				, m_quadrantY(y)
+			C_QuadrantPosition(const CoordinateVector2& c) : m_coords(c) { }
+			template<typename NUM_TYPE>
+			C_QuadrantPosition(NUM_TYPE x, NUM_TYPE y)
+				: m_coords(x, y)
 			{}
-			int m_quadrantX{ 0 };
-			int m_quadrantY{ 0 };
+			CoordinateVector2 m_coords;
 		};
 
 		struct C_SectorPosition
 		{
 			C_SectorPosition() {}
-			C_SectorPosition(int qx, int qy, int x, int y)
-				: m_quadrantX(qx)
-				, m_quadrantY(qy)
-				, m_x(x)
-				, m_y(y)
-			{}
-			// Quadrant parent
-			int m_quadrantX{ 0 };
-			int m_quadrantY{ 0 };
+			C_SectorPosition(const CoordinateVector2& qc, const CoordinateVector2& c)
+				: m_quadrantCoords(qc)
+				, m_coords(c)
+			{ }
 
-			int m_x{ 1 };
-			int m_y{ 1 };
+			template<typename NUM_TYPE>
+			C_SectorPosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE x, NUM_TYPE y)
+				: m_quadrantCoords(qx, qy)
+				, m_coords(x, y)
+			{}
+			CoordinateVector2 m_quadrantCoords;
+			CoordinateVector2 m_coords;
 		};
 
-		struct C_TilePosition 
+		struct C_TilePosition
 		{
 			C_TilePosition() {}
-			C_TilePosition(int qx, int qy, int sx, int sy, int x, int y)
-				: m_quadrantX(qx)
-				, m_quadrantY(qy)
-				, m_sectorX(sx)
-				, m_sectorY(sy)
-				, m_x(x)
-				, m_y(y)
-			{
+			C_TilePosition(const CoordinateVector2& qc, const CoordinateVector2& sc, const CoordinateVector2& c)
+				: m_quadrantCoords(qc)
+				, m_sectorCoords(sc)
+				, m_coords(c)
+			{ }
 
-			}
-
-			// Default values are the center of the world
-			// Quadrant parent
-			int m_quadrantX{ 0 };
-			int m_quadrantY{ 0 };
-
-			// Sector within quadrant
-			int m_sectorX{ 1 };
-			int m_sectorY{ 1 };
-
-			// Position within sector
-			int m_x{ 0 };
-			int m_y{ 0 };
+			template<typename NUM_TYPE>
+			C_TilePosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE sx, NUM_TYPE sy, NUM_TYPE x, NUM_TYPE y)
+				: m_quadrantCoords(qx, qy)
+				, m_sectorCoords(sx, sy)
+				, m_coords(x, y)
+			{}
+			CoordinateVector2 m_quadrantCoords;
+			CoordinateVector2 m_sectorCoords;
+			CoordinateVector2 m_coords;
 		};
 	}
 

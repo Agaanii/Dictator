@@ -50,11 +50,11 @@ namespace TileConstants
 	// Will later be configuration data
 	constexpr int TILE_TYPE_COUNT = 8;
 }
-
+using namespace ECS_Core::Components;
 // Non-entity data the tile system needs.
 namespace TileNED
 {
-	using QuadrantId = std::pair<int, int>;
+	using QuadrantId = CoordinateVector2;
 	using namespace TileConstants;
 
 	struct Tile
@@ -62,7 +62,7 @@ namespace TileNED
 		int m_tileType;
 		std::optional<int> m_movementCost; // If notset, unpathable
 
-		// Each 1 pixel is 4 components: RGBA
+										   // Each 1 pixel is 4 components: RGBA
 		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
 	};
 
@@ -71,9 +71,9 @@ namespace TileNED
 	struct Sector
 	{
 		Pathability m_pathability;
-		Tile m_tiles 
+		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
-			[TileConstants::SECTOR_SIDE_LENGTH];
+		[TileConstants::SECTOR_SIDE_LENGTH];
 
 	};
 	struct Quadrant
@@ -81,7 +81,7 @@ namespace TileNED
 		Pathability m_pathability;
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[TileConstants::QUADRANT_SIDE_LENGTH];
+		[TileConstants::QUADRANT_SIDE_LENGTH];
 
 		sf::Texture m_texture;
 	};
@@ -92,29 +92,27 @@ namespace TileNED
 	struct WorldCoordinates
 	{
 		WorldCoordinates() { }
-		WorldCoordinates(CartesianVector2&& quad, CartesianVector2&& sec, CartesianVector2&& tile)
+		WorldCoordinates(CoordinateVector2&& quad, CoordinateVector2&& sec, CoordinateVector2&& tile)
 			: m_quadrant(quad)
 			, m_sector(sec)
 			, m_tile(tile)
 		{}
-		CartesianVector2 m_quadrant;
-		CartesianVector2 m_sector;
-		CartesianVector2 m_tile;
+		CoordinateVector2 m_quadrant;
+		CoordinateVector2 m_sector;
+		CoordinateVector2 m_tile;
 	};
 
 	void CheckWorldClick(ECS_Core::Manager& manager);
 	void SpawnBetween(
-		int originX,
-		int originY,
-		int targetX,
-		int targetY,
+		CoordinateVector2 origin,
+		CoordinateVector2 target,
 		ECS_Core::Manager& manager);
 }
 
-void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
+void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
 {
 	using namespace TileConstants;
-	if (TileNED::s_spawnedQuadrants.find({ X,Y }) 
+	if (TileNED::s_spawnedQuadrants.find(coordinates)
 		!= TileNED::s_spawnedQuadrants.end())
 	{
 		// Quadrant is already here
@@ -124,19 +122,19 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 	auto quadrantSideLength = QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH;
 	manager.addComponent<ECS_Core::Components::C_QuadrantPosition>(
 		index,
-		X, Y);
+		coordinates);
 	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(
 		index,
 		BASE_QUADRANT_ORIGIN_COORDINATE +
-		(quadrantSideLength * X),
+		(quadrantSideLength * coordinates.m_x),
 		BASE_QUADRANT_ORIGIN_COORDINATE +
-		(quadrantSideLength * Y),
+		(quadrantSideLength * coordinates.m_y),
 		0);
 
 	auto rect = std::make_unique<sf::RectangleShape>(sf::Vector2f(
 		static_cast<float>(quadrantSideLength),
 		static_cast<float>(quadrantSideLength)));
-	auto& quadrant = TileNED::s_spawnedQuadrants[{X, Y}];
+	auto& quadrant = TileNED::s_spawnedQuadrants[coordinates];
 	quadrant.m_texture.create(quadrantSideLength, quadrantSideLength);
 	for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
 	{
@@ -155,11 +153,11 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 						tile.m_movementCost = rand() % 6;
 					for (auto& pixel : tile.m_tilePixels)
 					{
-						pixel = 
+						pixel =
 							(((tile.m_tileType & 1) ? 255 : 0) << 0) + // R
 							(((tile.m_tileType & 2) ? 255 : 0) << 8) + // G
-							(((tile.m_tileType & 4) ? 255 : 0) << 16)  + // B
-							+ (0xFF << 24); // A
+							(((tile.m_tileType & 4) ? 255 : 0) << 16) + // B
+							+(0xFF << 24); // A
 					}
 					quadrant.m_texture.update(
 						reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels),
@@ -192,7 +190,7 @@ void SpawnQuadrant(int X, int Y, ECS_Core::Manager& manager)
 			}
 			sector.m_pathability[NORTH][WEST] = nwPathable;
 			sector.m_pathability[WEST][NORTH] = nwPathable;
-			
+
 			bool nePathable = false;
 			if (sector.m_tiles[TILE_SIDE_LENGTH - 1][0].m_movementCost)
 			{
@@ -246,25 +244,25 @@ int min(T&& a, U&& b)
 }
 
 
-TileNED::WorldCoordinates WorldPositionToCoordinates(const CartesianVector2& worldPos)
+TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& worldPos)
 {
 	using namespace TileConstants;
-	auto offsetFromQuadrantOrigin = worldPos - CartesianVector2(
+	auto offsetFromQuadrantOrigin = worldPos - CoordinateVector2(
 		BASE_QUADRANT_ORIGIN_COORDINATE,
 		BASE_QUADRANT_ORIGIN_COORDINATE);
 	return {
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (int)(abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
-		  min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (int)(abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH))},
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (int)(abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
 
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
-		  min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)},
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
 
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
-		  min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH}
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
 	};
 }
 
-CartesianVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& worldCoords)
+CoordinateVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& worldCoords)
 {
 	using namespace TileConstants;
 	return {
@@ -281,36 +279,32 @@ CartesianVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& wor
 }
 
 void TileNED::SpawnBetween(
-	int originX,
-	int originY,
-	int targetX,
-	int targetY,
+	CoordinateVector2 origin,
+	CoordinateVector2 target,
 	ECS_Core::Manager& manager)
 {
 	// Base case: Spawn between a place and itself
-	if (targetX == originX && targetY == originY)
+	if (origin == target)
 	{
 		// Spawn just in case, will return immediately in most cases.
-		SpawnQuadrant(targetX, targetY, manager);
+		SpawnQuadrant(target, manager);
 		return;
 	}
 
-	SpawnQuadrant(targetX, targetY, manager);
-	SpawnQuadrant(originX, originY, manager);
+	SpawnQuadrant(target, manager);
+	SpawnQuadrant(origin, manager);
 
-	auto midX = (targetX + originX) / 2;
-	auto midY = (targetY + originY) / 2;
-	SpawnQuadrant(midX, midY, manager);
+	auto mid = (target + origin) / 2;
+	SpawnQuadrant(mid, manager);
 
-	if ((midX == targetX && midY == targetY)
-		|| midX == originX && midY == originY)
+	if (mid == target || mid == origin)
 	{
 		// We're all filled in on this segment.
 		return;
 	}
 
-	SpawnBetween(originX, originY, midX, midY, manager);
-	SpawnBetween(midX + sign(targetX - originX), midY + sign(targetY - originY), targetX, targetY, manager);
+	SpawnBetween(origin, mid, manager);
+	SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target, manager);
 }
 
 void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
@@ -320,38 +314,34 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
-		auto mouseWorldCoords = WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition);
+		auto mouseWorldCoords = WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition.cast<s64>());
 		auto&& quadrantCoords = mouseWorldCoords.m_quadrant;
-		
-		if (TileNED::s_spawnedQuadrants.find({ (int)quadrantCoords.m_x, (int)quadrantCoords.m_y }) == TileNED::s_spawnedQuadrants.end())
+
+		if (TileNED::s_spawnedQuadrants.find(quadrantCoords) == TileNED::s_spawnedQuadrants.end())
 		{
 			// We're going to need to spawn world up to that point.
 			// first: find the closest available world tile
-			int closestX = 0;
-			int closestY = 0;
+			CoordinateVector2 closest;
 			int smallestDistance = std::numeric_limits<int>::max();
 			// Assume the initial tile is the closest for a start
 			for (auto&& quadrant : s_spawnedQuadrants)
 			{
-				auto&& quadX = quadrant.first.first;
-				auto&& quadY = quadrant.first.second;
-				auto&& distX = quadX - static_cast<int>(quadrantCoords.m_x);
-				auto&& distY = quadY - static_cast<int>(quadrantCoords.m_y);
-				auto&& distanceSq = distX * distX + distY * distY;
+				auto&& quad = quadrant.first;
+				auto&& dist = quad - quadrantCoords;
+				auto&& distanceSq = dist.m_x* dist.m_x + dist.m_y* dist.m_y;
 				if (distanceSq < smallestDistance)
 				{
-					closestX = quadX;
-					closestY = quadY;
+					closest = quad;
 					smallestDistance = distanceSq;
 				}
 			}
 
 			SpawnBetween(
-				closestX,
-				closestY, 
-				static_cast<int>(quadrantCoords.m_x),
-				static_cast<int>(quadrantCoords.m_y),
+				closest,
+				quadrantCoords,
 				manager);
+
+			// Check for tiles that have no direct adjacents.
 		}
 
 		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
@@ -365,7 +355,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::PREPARATION:
 		if (!TileNED::baseQuadrantSpawned)
 		{
-			SpawnQuadrant(0, 0, m_managerRef);
+			SpawnQuadrant({0, 0}, m_managerRef);
 			TileNED::baseQuadrantSpawned = true;
 		}
 		break;
