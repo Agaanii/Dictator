@@ -107,6 +107,31 @@ namespace TileNED
 		CoordinateVector2 origin,
 		CoordinateVector2 target,
 		ECS_Core::Manager& manager);
+	
+	struct SortByOriginDist
+	{
+		// Acts as operator<
+		bool operator()(
+			const CoordinateVector2& left,
+			const CoordinateVector2& right) const
+		{
+			if (left == right) return false;
+			if (left.MagnitudeSq() < right.MagnitudeSq()) return true;
+			if (left.MagnitudeSq() > right.MagnitudeSq()) return false;
+			
+			if (left.m_x < right.m_x) return true;
+			if (left.m_x > right.m_x) return false;
+
+			if (left.m_y < right.m_y) return true;
+			return false;
+		}
+	};
+
+	using CoordinateFromOriginSet = std::set<CoordinateVector2, SortByOriginDist>;
+	void TouchConnectedCoordinates(
+		const CoordinateVector2& origin,
+		CoordinateFromOriginSet& untouched,
+		CoordinateFromOriginSet& touched);
 }
 
 void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
@@ -243,7 +268,6 @@ int min(T&& a, U&& b)
 	return a < b ? a : b;
 }
 
-
 TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& worldPos)
 {
 	using namespace TileConstants;
@@ -251,14 +275,14 @@ TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& wo
 		BASE_QUADRANT_ORIGIN_COORDINATE,
 		BASE_QUADRANT_ORIGIN_COORDINATE);
 	return {
-		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (int)(abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (int)(abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
+		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
 
-		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
+		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
 
-		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * ((int)abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
+		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
 	};
 }
 
@@ -307,6 +331,66 @@ void TileNED::SpawnBetween(
 	SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target, manager);
 }
 
+// Precondition: touched is empty
+void TileNED::TouchConnectedCoordinates(
+	const CoordinateVector2& origin,
+	CoordinateFromOriginSet& untouched,
+	CoordinateFromOriginSet& touched)
+{
+	if (s_spawnedQuadrants.find(origin) == s_spawnedQuadrants.end())
+	{
+		return;
+	}
+	if (touched.find(origin) != touched.end())
+	{
+		return;
+	}
+
+	touched.insert(origin);
+	untouched.erase(origin);
+	TouchConnectedCoordinates(origin + CoordinateVector2(0, 1), untouched, touched);
+	TouchConnectedCoordinates(origin + CoordinateVector2(1, 0), untouched, touched);
+	TouchConnectedCoordinates(origin - CoordinateVector2(0, 1), untouched, touched);
+	TouchConnectedCoordinates(origin - CoordinateVector2(1, 0), untouched, touched);
+}
+
+CoordinateVector2 FindNearestQuadrant(const TileNED::SpawnedQuadrantMap& searchedQuadrants, const CoordinateVector2& quadrantCoords)
+{
+	CoordinateVector2 closest;
+	s64 smallestDistance = std::numeric_limits<int>::max();
+	// Assume the initial tile is the closest for a start
+	for (auto&& quadrant : searchedQuadrants)
+	{
+		auto&& quad = quadrant.first;
+		auto&& dist = quad - quadrantCoords;
+		auto&& distanceSq = dist.MagnitudeSq();
+		if (distanceSq < smallestDistance)
+		{
+			closest = quad;
+			smallestDistance = distanceSq;
+		}
+	}
+	return closest;
+}
+
+CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& searchedQuadrants, const CoordinateVector2& quadrantCoords)
+{
+	CoordinateVector2 closest;
+	s64 smallestDistance = std::numeric_limits<int>::max();
+	// Assume the initial tile is the closest for a start
+	for (auto&& quadrant : searchedQuadrants)
+	{
+		auto&& dist = quadrant - quadrantCoords;
+		auto&& distanceSq = dist.MagnitudeSq();
+		if (distanceSq < smallestDistance)
+		{
+			closest = quadrant;
+			smallestDistance = distanceSq;
+		}
+	}
+	return closest;
+}
+
 void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 {
 	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
@@ -321,27 +405,44 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 		{
 			// We're going to need to spawn world up to that point.
 			// first: find the closest available world tile
-			CoordinateVector2 closest;
-			int smallestDistance = std::numeric_limits<int>::max();
-			// Assume the initial tile is the closest for a start
-			for (auto&& quadrant : s_spawnedQuadrants)
-			{
-				auto&& quad = quadrant.first;
-				auto&& dist = quad - quadrantCoords;
-				auto&& distanceSq = dist.m_x* dist.m_x + dist.m_y* dist.m_y;
-				if (distanceSq < smallestDistance)
-				{
-					closest = quad;
-					smallestDistance = distanceSq;
-				}
-			}
+			auto closest = FindNearestQuadrant(s_spawnedQuadrants, quadrantCoords);
 
 			SpawnBetween(
 				closest,
 				quadrantCoords,
 				manager);
 
-			// Check for tiles that have no direct adjacents.
+			// Find all quadrants which can't be reached by repeated cardinal direction movement from the origin
+			CoordinateFromOriginSet touchedCoordinates, untouchedCoordinates;
+			for (auto&& quadrant : s_spawnedQuadrants)
+			{
+				untouchedCoordinates.insert(quadrant.first);
+			}
+			TouchConnectedCoordinates({ 0, 0 }, untouchedCoordinates, touchedCoordinates);
+
+			// Start with the closest untouched, connect it. We'll only need to add one to connect it, we know they're corner-to-corner
+			// To be secure about it, connect on both sides. Screw your RAM.
+			while (untouchedCoordinates.size())
+			{
+				auto nearestDisconnected = untouchedCoordinates.begin();
+				auto nearestConnected = FindNearestQuadrant(touchedCoordinates, *nearestDisconnected);
+				for (; nearestDisconnected != untouchedCoordinates.end(); ++nearestDisconnected)
+				{
+					if ((nearestConnected - *nearestDisconnected).MagnitudeSq() == 2)
+					{
+						break;
+					}
+				}
+				if (nearestDisconnected == untouchedCoordinates.end())
+				{
+					break;
+				}
+				SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y }, manager);
+				SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y }, manager);
+
+				touchedCoordinates.clear();
+				TouchConnectedCoordinates(nearestConnected, untouchedCoordinates, touchedCoordinates);
+			}
 		}
 
 		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);

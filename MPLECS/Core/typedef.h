@@ -120,22 +120,24 @@ struct CartesianVector2
 			static_cast<U>(m_y));
 	}
 
-	bool operator==(const CartesianVector2& other) { return m_x == other.m_x && m_y == other.m_y; }
-	bool operator>(const CartesianVector2& other) {
+	NUM_TYPE MagnitudeSq() const { return m_x * m_x + m_y * m_y; }
+
+	bool operator==(const CartesianVector2& other) const { return m_x == other.m_x && m_y == other.m_y; }
+	bool operator>(const CartesianVector2& other) const {
 		if (*this == other) return false;
 		if (m_x + m_y > other.m_x + other.m_y) return true;
 		if (m_x + m_y < other.m_x + other.m_y) return false;
 		return m_x > other.m_x;
 	};
-	bool operator<(const CartesianVector2& other) {
+	bool operator<(const CartesianVector2& other) const {
 		if (*this == other) return false;
 		if (m_x + m_y < other.m_x + other.m_y) return true;
 		if (m_x + m_y > other.m_x + other.m_y) return false;
 		return m_x < other.m_x;
 	};
-	bool operator!=(const CartesianVector2& other) { return !(*this == other); }
-	bool operator<=(const CartesianVector2& other) { return !(*this > other); }
-	bool operator>=(const CartesianVector2& other) { return !(*this < other); }
+	bool operator!=(const CartesianVector2& other) const { return !(*this == other); }
+	bool operator<=(const CartesianVector2& other) const { return !(*this > other); }
+	bool operator>=(const CartesianVector2& other) const { return !(*this < other); }
 };
 
 namespace std
