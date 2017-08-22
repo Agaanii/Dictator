@@ -72,16 +72,14 @@ namespace TileNED
 		Pathability m_pathability;
 		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
-		[TileConstants::SECTOR_SIDE_LENGTH];
-		int m_seedTileType;
-		CoordinateVector2 m_seedPosition;
+			[TileConstants::SECTOR_SIDE_LENGTH];
 	};
 	struct Quadrant
 	{
 		Pathability m_pathability;
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH];
+			[TileConstants::QUADRANT_SIDE_LENGTH];
 
 		sf::Texture m_texture;
 	};
@@ -89,6 +87,22 @@ namespace TileNED
 	SpawnedQuadrantMap s_spawnedQuadrants;
 	bool baseQuadrantSpawned{ false };
 
+	struct SectorSeed
+	{
+		int m_seedTileType{ rand() % TileConstants::TILE_TYPE_COUNT };
+		CoordinateVector2 m_seedPosition { 
+			rand() % TileConstants::SECTOR_SIDE_LENGTH,
+			rand() % TileConstants::SECTOR_SIDE_LENGTH };
+	};
+	struct QuadrantSeed
+	{
+		SectorSeed m_sectors
+			[TileConstants::QUADRANT_SIDE_LENGTH]
+			[TileConstants::QUADRANT_SIDE_LENGTH];
+	};
+	using SeededQuadrantMap = std::map<QuadrantId, QuadrantSeed>;
+	SeededQuadrantMap s_quadrantSeeds;
+	
 	struct WorldCoordinates
 	{
 		WorldCoordinates() { }
@@ -189,12 +203,8 @@ std::vector<SectorSeedPosition> GetRelevantSeeds(
 				quadPosition.m_y = coordinates.m_y;
 			}
 
-			auto quad = TileNED::s_spawnedQuadrants.find(quadPosition);
-			if (quad == TileNED::s_spawnedQuadrants.end())
-			{
-				continue;
-			}
-			auto& seedingSector = quad->second.m_sectors[secPosition.m_x][secPosition.m_y];
+			auto quad = TileNED::s_quadrantSeeds[quadPosition];
+			auto& seedingSector = quad.m_sectors[secPosition.m_x][secPosition.m_y];
 
 			relevantSeeds.push_back({
 				seedingSector.m_seedTileType,
@@ -243,18 +253,6 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
 		{
 			auto& sector = quadrant.m_sectors[secX][secY];
-			sector.m_seedTileType = rand() % TileConstants::TILE_TYPE_COUNT;
-			sector.m_seedPosition = 
-				{rand() % TileConstants::SECTOR_SIDE_LENGTH,
-				 rand() % TileConstants::SECTOR_SIDE_LENGTH};
-		}
-	}
-
-	for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
-	{
-		for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
-		{
-			auto& sector = quadrant.m_sectors[secX][secY];
 
 			auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
 			assert(relevantSeeds.size() > 0);
@@ -278,7 +276,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					{
 						f64 distance = static_cast<f64>(
 							(locationForSeeding - seed.m_position).MagnitudeSq());
-						weightBorders.push_back(totalWeight += 1.0 / (distance * distance));
+						weightBorders.push_back(totalWeight += 1.0 / (distance * distance * distance));
 					}
 
 					auto weightedValue = RandDouble() * totalWeight;
