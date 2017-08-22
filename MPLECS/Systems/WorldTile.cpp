@@ -61,7 +61,6 @@ namespace TileNED
 	{
 		int m_tileType;
 		std::optional<int> m_movementCost; // If notset, unpathable
-
 										   // Each 1 pixel is 4 components: RGBA
 		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
 	};
@@ -74,7 +73,8 @@ namespace TileNED
 		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
 		[TileConstants::SECTOR_SIDE_LENGTH];
-
+		int m_seedTileType;
+		CoordinateVector2 m_seedPosition;
 	};
 	struct Quadrant
 	{
@@ -134,6 +134,83 @@ namespace TileNED
 		CoordinateFromOriginSet& touched);
 }
 
+struct SectorSeedPosition
+{
+	int m_type;
+	// Position is within the 3x3 sector square
+	// Top left sector (-1, -1) from current sector is origin
+	CoordinateVector2 m_position;
+};
+
+std::vector<SectorSeedPosition> GetRelevantSeeds(
+	const ECS_Core::Components::CoordinateVector2 & coordinates,
+	int secX,
+	int secY)
+{
+	std::vector<SectorSeedPosition> relevantSeeds;
+	CoordinateVector2 quadPosition;
+	CoordinateVector2 secPosition;
+	for (int x = -1; x < 2; ++x)
+	{
+		auto secPosX = secX + x;
+		if (secPosX < 0)
+		{
+			// Go one quadrant left, if available
+			secPosition.m_x = TileConstants::QUADRANT_SIDE_LENGTH - 1;
+			quadPosition.m_x = coordinates.m_x - 1;
+		}
+		else if (secPosX >= TileConstants::QUADRANT_SIDE_LENGTH)
+		{
+			secPosition.m_x = 0;
+			quadPosition.m_x = coordinates.m_x + 1;
+		}
+		else
+		{
+			secPosition.m_x = secPosX;
+			quadPosition.m_x = coordinates.m_x;
+		}
+		for (int y = -1; y < 2; ++y)
+		{
+			auto secPosY = secY + y;
+			if (secPosY < 0)
+			{
+				// Go one quadrant left, if available
+				secPosition.m_y = TileConstants::QUADRANT_SIDE_LENGTH - 1;
+				quadPosition.m_y = coordinates.m_y - 1;
+			}
+			else if (secPosY >= TileConstants::QUADRANT_SIDE_LENGTH)
+			{
+				secPosition.m_y = 0;
+				quadPosition.m_y = coordinates.m_y + 1;
+			}
+			else
+			{
+				secPosition.m_y = secPosY;
+				quadPosition.m_y = coordinates.m_y;
+			}
+
+			auto quad = TileNED::s_spawnedQuadrants.find(quadPosition);
+			if (quad == TileNED::s_spawnedQuadrants.end())
+			{
+				continue;
+			}
+			auto& seedingSector = quad->second.m_sectors[secPosition.m_x][secPosition.m_y];
+
+			relevantSeeds.push_back({
+				seedingSector.m_seedTileType,
+				{ seedingSector.m_seedPosition.m_x + ((x + 1) * TileConstants::SECTOR_SIDE_LENGTH),
+				seedingSector.m_seedPosition.m_y + ((y + 1) * TileConstants::SECTOR_SIDE_LENGTH) }
+			});
+		}
+	}
+	return relevantSeeds;
+}
+
+f64 RandDouble()
+{
+	return static_cast<f64>(rand()) / static_cast<f64>(RAND_MAX + 1);
+}
+
 void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
 {
 	using namespace TileConstants;
@@ -166,16 +243,59 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
 		{
 			auto& sector = quadrant.m_sectors[secX][secY];
+			sector.m_seedTileType = rand() % TileConstants::TILE_TYPE_COUNT;
+			sector.m_seedPosition = 
+				{rand() % TileConstants::SECTOR_SIDE_LENGTH,
+				 rand() % TileConstants::SECTOR_SIDE_LENGTH};
+		}
+	}
+
+	for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
+	{
+		for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
+		{
+			auto& sector = quadrant.m_sectors[secX][secY];
+
+			auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
+			assert(relevantSeeds.size() > 0);
+
 			for (auto tileX = 0; tileX < TileConstants::SECTOR_SIDE_LENGTH; ++tileX)
 			{
 				for (auto tileY = 0; tileY < TileConstants::SECTOR_SIDE_LENGTH; ++tileY)
 				{
 					auto& tile = sector.m_tiles[tileX][tileY];
-					// Later this will be based on all sorts of fun terrain generation
-					// But that's later
-					tile.m_tileType = rand() % TileConstants::TILE_TYPE_COUNT;
+
+					// Pick a seed
+					// Will be chosen by weighted random, based on distance from nearest 9 seeds
+					// Seeds are from local sector, and the 8 adjacent and corner-adj sectors
+					auto locationForSeeding = CoordinateVector2(
+						tileX + TileConstants::SECTOR_SIDE_LENGTH,
+						tileY + TileConstants::SECTOR_SIDE_LENGTH);
+					
+					std::vector<f64> weightBorders;
+					f64 totalWeight = 0;
+					for (auto&& seed : relevantSeeds)
+					{
+						f64 distance = static_cast<f64>(
+							(locationForSeeding - seed.m_position).MagnitudeSq());
+						weightBorders.push_back(totalWeight += 1.0 / (distance * distance));
+					}
+
+					auto weightedValue = RandDouble() * totalWeight;
+					size_t weightedPosition = 0;
+					for (; weightedPosition < weightBorders.size(); ++weightedPosition)
+					{
+						if (weightedValue < weightBorders[weightedPosition])
+						{
+							break;
+						}
+					}
+					// If we get 1.0, it won't be less (probably) so just use that edge
+					// No huge effect
+					if (weightedPosition >= relevantSeeds.size()) weightedPosition = relevantSeeds.size() - 1;
+					tile.m_tileType = relevantSeeds[weightedPosition].m_type;
 					if (tile.m_tileType) // Make type 0 unpathable for testing
-						tile.m_movementCost = rand() % 6;
+						tile.m_movementCost = (rand() % 6) + 1;
 					for (auto& pixel : tile.m_tilePixels)
 					{
 						pixel =
