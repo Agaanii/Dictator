@@ -72,14 +72,14 @@ namespace TileNED
 		Pathability m_pathability;
 		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
-			[TileConstants::SECTOR_SIDE_LENGTH];
+		[TileConstants::SECTOR_SIDE_LENGTH];
 	};
 	struct Quadrant
 	{
 		Pathability m_pathability;
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[TileConstants::QUADRANT_SIDE_LENGTH];
+		[TileConstants::QUADRANT_SIDE_LENGTH];
 
 		sf::Texture m_texture;
 	};
@@ -90,7 +90,7 @@ namespace TileNED
 	struct SectorSeed
 	{
 		int m_seedTileType{ rand() % TileConstants::TILE_TYPE_COUNT };
-		CoordinateVector2 m_seedPosition { 
+		CoordinateVector2 m_seedPosition{
 			rand() % TileConstants::SECTOR_SIDE_LENGTH,
 			rand() % TileConstants::SECTOR_SIDE_LENGTH };
 	};
@@ -98,11 +98,11 @@ namespace TileNED
 	{
 		SectorSeed m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[TileConstants::QUADRANT_SIDE_LENGTH];
+		[TileConstants::QUADRANT_SIDE_LENGTH];
 	};
 	using SeededQuadrantMap = std::map<QuadrantId, QuadrantSeed>;
 	SeededQuadrantMap s_quadrantSeeds;
-	
+
 	struct WorldCoordinates
 	{
 		WorldCoordinates() { }
@@ -121,7 +121,7 @@ namespace TileNED
 		CoordinateVector2 origin,
 		CoordinateVector2 target,
 		ECS_Core::Manager& manager);
-	
+
 	struct SortByOriginDist
 	{
 		// Acts as operator<
@@ -132,7 +132,7 @@ namespace TileNED
 			if (left == right) return false;
 			if (left.MagnitudeSq() < right.MagnitudeSq()) return true;
 			if (left.MagnitudeSq() > right.MagnitudeSq()) return false;
-			
+
 			if (left.m_x < right.m_x) return true;
 			if (left.m_x > right.m_x) return false;
 
@@ -237,10 +237,10 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		coordinates);
 	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(
 		index,
-		BASE_QUADRANT_ORIGIN_COORDINATE +
-		(quadrantSideLength * coordinates.m_x),
-		BASE_QUADRANT_ORIGIN_COORDINATE +
-		(quadrantSideLength * coordinates.m_y),
+		static_cast<f64>(BASE_QUADRANT_ORIGIN_COORDINATE +
+		(quadrantSideLength * coordinates.m_x)),
+		static_cast<f64>(BASE_QUADRANT_ORIGIN_COORDINATE +
+		(quadrantSideLength * coordinates.m_y)),
 		0);
 
 	auto rect = std::make_unique<sf::RectangleShape>(sf::Vector2f(
@@ -257,6 +257,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 			auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
 			assert(relevantSeeds.size() > 0);
 
+			std::optional<int> movementCosts[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
 			for (auto tileX = 0; tileX < TileConstants::SECTOR_SIDE_LENGTH; ++tileX)
 			{
 				for (auto tileY = 0; tileY < TileConstants::SECTOR_SIDE_LENGTH; ++tileY)
@@ -269,7 +270,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					auto locationForSeeding = CoordinateVector2(
 						tileX + TileConstants::SECTOR_SIDE_LENGTH,
 						tileY + TileConstants::SECTOR_SIDE_LENGTH);
-					
+
 					std::vector<f64> weightBorders;
 					f64 totalWeight = 0;
 					for (auto&& seed : relevantSeeds)
@@ -293,7 +294,10 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					if (weightedPosition >= relevantSeeds.size()) weightedPosition = relevantSeeds.size() - 1;
 					tile.m_tileType = relevantSeeds[weightedPosition].m_type;
 					if (tile.m_tileType) // Make type 0 unpathable for testing
+					{
 						tile.m_movementCost = (rand() % 6) + 1;
+						movementCosts[tileX][tileY] = tile.m_movementCost;
+					}
 					for (auto& pixel : tile.m_tilePixels)
 					{
 						pixel =
@@ -323,11 +327,26 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 				auto isPathable = [](const TileNED::Tile& tile) -> bool {
 					return (bool)tile.m_movementCost;
 				};
-				for (auto&& tileRow : sector.m_tiles)
+
+				for (int leftI = 1; leftI < SECTOR_SIDE_LENGTH; ++leftI)
 				{
-					for (auto&& tile : tileRow)
+					if (nwPathable) break;
+					for (int topI = 1; topI < SECTOR_SIDE_LENGTH; ++topI)
 					{
-						bool pathable = isPathable(tile);
+						if (nwPathable) break;
+						if (!isPathable(sector.m_tiles[0][topI]))
+						{
+							continue;
+						}
+						if (!isPathable(sector.m_tiles[leftI][0]))
+						{
+							continue;
+						}
+
+						if (Pathing::GetPath(movementCosts, { 0, topI }, { leftI, 0 }))
+						{
+							nwPathable = true;
+						}
 					}
 				}
 			}
@@ -475,7 +494,7 @@ void TileNED::TouchConnectedCoordinates(
 CoordinateVector2 FindNearestQuadrant(const TileNED::SpawnedQuadrantMap& searchedQuadrants, const CoordinateVector2& quadrantCoords)
 {
 	CoordinateVector2 closest;
-	s64 smallestDistance = std::numeric_limits<int>::max();
+	s64 smallestDistance = std::numeric_limits<s64>::max();
 	// Assume the initial tile is the closest for a start
 	for (auto&& quadrant : searchedQuadrants)
 	{
@@ -494,7 +513,7 @@ CoordinateVector2 FindNearestQuadrant(const TileNED::SpawnedQuadrantMap& searche
 CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& searchedQuadrants, const CoordinateVector2& quadrantCoords)
 {
 	CoordinateVector2 closest;
-	s64 smallestDistance = std::numeric_limits<int>::max();
+	s64 smallestDistance = std::numeric_limits<s64>::max();
 	// Assume the initial tile is the closest for a start
 	for (auto&& quadrant : searchedQuadrants)
 	{
@@ -574,7 +593,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::PREPARATION:
 		if (!TileNED::baseQuadrantSpawned)
 		{
-			SpawnQuadrant({0, 0}, m_managerRef);
+			SpawnQuadrant({ 0, 0 }, m_managerRef);
 			TileNED::baseQuadrantSpawned = true;
 		}
 		break;
