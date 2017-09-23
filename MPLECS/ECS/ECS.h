@@ -66,6 +66,55 @@ namespace ECS_Core
 			std::vector<DamageOverTime> m_dots;
 		};
 
+		using CoordinateVector2 = CartesianVector2<s64>;
+		struct C_QuadrantPosition
+		{
+			C_QuadrantPosition() {}
+			C_QuadrantPosition(const CoordinateVector2& c) : m_coords(c) { }
+			template<typename NUM_TYPE>
+			C_QuadrantPosition(NUM_TYPE x, NUM_TYPE y)
+				: m_coords(x, y)
+			{}
+			CoordinateVector2 m_coords;
+		};
+
+		struct C_SectorPosition
+		{
+			C_SectorPosition() {}
+			C_SectorPosition(const CoordinateVector2& qc, const CoordinateVector2& c)
+				: m_quadrantCoords(qc)
+				, m_coords(c)
+			{ }
+
+			template<typename NUM_TYPE>
+			C_SectorPosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE x, NUM_TYPE y)
+				: m_quadrantCoords(qx, qy)
+				, m_coords(x, y)
+			{}
+			CoordinateVector2 m_quadrantCoords;
+			CoordinateVector2 m_coords;
+		};
+
+		struct C_TilePosition
+		{
+			C_TilePosition() {}
+			C_TilePosition(const CoordinateVector2& qc, const CoordinateVector2& sc, const CoordinateVector2& c)
+				: m_quadrantCoords(qc)
+				, m_sectorCoords(sc)
+				, m_coords(c)
+			{ }
+
+			template<typename NUM_TYPE>
+			C_TilePosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE sx, NUM_TYPE sy, NUM_TYPE x, NUM_TYPE y)
+				: m_quadrantCoords(qx, qy)
+				, m_sectorCoords(sx, sy)
+				, m_coords(x, y)
+			{}
+			CoordinateVector2 m_quadrantCoords;
+			CoordinateVector2 m_sectorCoords;
+			CoordinateVector2 m_coords;
+		};
+
 		enum class Modifiers
 		{
 			CTRL = 1 << 0,
@@ -199,6 +248,7 @@ namespace ECS_Core
 			{
 				CartesianVector2<f64> m_screenPosition;
 				CartesianVector2<f64> m_worldPosition;
+				std::optional<C_TilePosition> m_tilePosition;
 			};
 
 			u8 m_unprocessedThisFrameDownMouseButtonFlags{ 0 };
@@ -279,59 +329,16 @@ namespace ECS_Core
 			u8 m_processedThisFrameUpMouseButtonFlags{ 0 };
 		};
 
-		using CoordinateVector2 = CartesianVector2<s64>;
-		struct C_QuadrantPosition
+		struct C_BuildingDescription
 		{
-			C_QuadrantPosition() {}
-			C_QuadrantPosition(const CoordinateVector2& c) : m_coords(c) { }
-			template<typename NUM_TYPE>
-			C_QuadrantPosition(NUM_TYPE x, NUM_TYPE y)
-				: m_coords(x, y)
-			{}
-			CoordinateVector2 m_coords;
-		};
-
-		struct C_SectorPosition
-		{
-			C_SectorPosition() {}
-			C_SectorPosition(const CoordinateVector2& qc, const CoordinateVector2& c)
-				: m_quadrantCoords(qc)
-				, m_coords(c)
-			{ }
-
-			template<typename NUM_TYPE>
-			C_SectorPosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE x, NUM_TYPE y)
-				: m_quadrantCoords(qx, qy)
-				, m_coords(x, y)
-			{}
-			CoordinateVector2 m_quadrantCoords;
-			CoordinateVector2 m_coords;
-		};
-
-		struct C_TilePosition
-		{
-			C_TilePosition() {}
-			C_TilePosition(const CoordinateVector2& qc, const CoordinateVector2& sc, const CoordinateVector2& c)
-				: m_quadrantCoords(qc)
-				, m_sectorCoords(sc)
-				, m_coords(c)
-			{ }
-
-			template<typename NUM_TYPE>
-			C_TilePosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE sx, NUM_TYPE sy, NUM_TYPE x, NUM_TYPE y)
-				: m_quadrantCoords(qx, qy)
-				, m_sectorCoords(sx, sy)
-				, m_coords(x, y)
-			{}
-			CoordinateVector2 m_quadrantCoords;
-			CoordinateVector2 m_sectorCoords;
-			CoordinateVector2 m_coords;
+			int m_buildingType{ 0 };
 		};
 	}
 
 	namespace Tags
 	{
 		struct T_NoAcceleration {};
+		struct T_BuildingGhost {};
 	}
 
 	namespace Signatures
@@ -342,6 +349,7 @@ namespace ECS_Core
 		using S_Living = ecs::Signature<Components::C_Health>;
 		using S_Health = ecs::Signature<Components::C_Health, Components::C_Healable, Components::C_Damageable>;
 		using S_Input = ecs::Signature<Components::C_UserInputs>;
+		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -353,13 +361,16 @@ namespace ECS_Core
 		Components::C_Healable,
 		Components::C_Damageable,
 		Components::C_UserInputs,
-		Components::C_TilePosition,
 		Components::C_QuadrantPosition,
 		Components::C_SectorPosition,
-		Components::C_TilePosition
+		Components::C_TilePosition,
+		Components::C_BuildingDescription
 	>;
 
-	using MasterTagList = ecs::TagList<Tags::T_NoAcceleration>;
+	using MasterTagList = ecs::TagList<
+		Tags::T_NoAcceleration,
+		Tags::T_BuildingGhost
+	>;
 
 	using MasterSignatureList = ecs::SignatureList<
 		Signatures::S_ApplyConstantMotion,
@@ -367,7 +378,8 @@ namespace ECS_Core
 		Signatures::S_Drawable,
 		Signatures::S_Living,
 		Signatures::S_Health,
-		Signatures::S_Input
+		Signatures::S_Input,
+		Signatures::S_TilePositionable
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

@@ -103,18 +103,7 @@ namespace TileNED
 	using SeededQuadrantMap = std::map<QuadrantId, QuadrantSeed>;
 	SeededQuadrantMap s_quadrantSeeds;
 
-	struct WorldCoordinates
-	{
-		WorldCoordinates() { }
-		WorldCoordinates(CoordinateVector2&& quad, CoordinateVector2&& sec, CoordinateVector2&& tile)
-			: m_quadrant(quad)
-			, m_sector(sec)
-			, m_tile(tile)
-		{}
-		CoordinateVector2 m_quadrant;
-		CoordinateVector2 m_sector;
-		CoordinateVector2 m_tile;
-	};
+	using WorldCoordinates = ECS_Core::Components::C_TilePosition;
 
 	void CheckWorldClick(ECS_Core::Manager& manager);
 	void SpawnBetween(
@@ -315,74 +304,74 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 				}
 			}
 
-			using namespace Pathing::PathingSide;
-			bool nwPathable = false;
-			if (sector.m_tiles[0][0].m_movementCost)
-			{
-				nwPathable = true;
-			}
-			else
-			{
-				//  Start at top and left edge, other than corner, start trying to find paths
-				auto isPathable = [](const TileNED::Tile& tile) -> bool {
-					return (bool)tile.m_movementCost;
-				};
+			//using namespace Pathing::PathingSide;
+			//bool nwPathable = false;
+			//if (sector.m_tiles[0][0].m_movementCost)
+			//{
+			//	nwPathable = true;
+			//}
+			//else
+			//{
+			//	//  Start at top and left edge, other than corner, start trying to find paths
+			//	auto isPathable = [](const TileNED::Tile& tile) -> bool {
+			//		return (bool)tile.m_movementCost;
+			//	};
 
-				for (int leftI = 1; leftI < SECTOR_SIDE_LENGTH; ++leftI)
-				{
-					if (nwPathable) break;
-					for (int topI = 1; topI < SECTOR_SIDE_LENGTH; ++topI)
-					{
-						if (nwPathable) break;
-						if (!isPathable(sector.m_tiles[0][topI]))
-						{
-							continue;
-						}
-						if (!isPathable(sector.m_tiles[leftI][0]))
-						{
-							continue;
-						}
+			//	for (int leftI = 1; leftI < SECTOR_SIDE_LENGTH; ++leftI)
+			//	{
+			//		if (nwPathable) break;
+			//		for (int topI = 1; topI < SECTOR_SIDE_LENGTH; ++topI)
+			//		{
+			//			if (nwPathable) break;
+			//			if (!isPathable(sector.m_tiles[0][topI]))
+			//			{
+			//				continue;
+			//			}
+			//			if (!isPathable(sector.m_tiles[leftI][0]))
+			//			{
+			//				continue;
+			//			}
 
-						if (Pathing::GetPath(movementCosts, { 0, topI }, { leftI, 0 }))
-						{
-							nwPathable = true;
-						}
-					}
-				}
-			}
-			sector.m_pathability[NORTH][WEST] = nwPathable;
-			sector.m_pathability[WEST][NORTH] = nwPathable;
+			//			if (Pathing::GetPath(movementCosts, { 0, topI }, { leftI, 0 }))
+			//			{
+			//				nwPathable = true;
+			//			}
+			//		}
+			//	}
+			//}
+			//sector.m_pathability[NORTH][WEST] = nwPathable;
+			//sector.m_pathability[WEST][NORTH] = nwPathable;
 
-			bool nePathable = false;
-			if (sector.m_tiles[TILE_SIDE_LENGTH - 1][0].m_movementCost)
-			{
-				nePathable = true;
-			}
-			else
-			{
-			}
-			sector.m_pathability[NORTH][EAST] = nePathable;
-			sector.m_pathability[EAST][NORTH] = nePathable;
+			//bool nePathable = false;
+			//if (sector.m_tiles[TILE_SIDE_LENGTH - 1][0].m_movementCost)
+			//{
+			//	nePathable = true;
+			//}
+			//else
+			//{
+			//}
+			//sector.m_pathability[NORTH][EAST] = nePathable;
+			//sector.m_pathability[EAST][NORTH] = nePathable;
 
-			bool sePathable = false;
-			if (sector.m_tiles[TILE_SIDE_LENGTH - 1][TILE_SIDE_LENGTH - 1].m_movementCost)
-			{
-				sePathable = true;
-				sector.m_pathability[SOUTH][EAST] = true;
-				sector.m_pathability[EAST][SOUTH] = true;
-			}
+			//bool sePathable = false;
+			//if (sector.m_tiles[TILE_SIDE_LENGTH - 1][TILE_SIDE_LENGTH - 1].m_movementCost)
+			//{
+			//	sePathable = true;
+			//	sector.m_pathability[SOUTH][EAST] = true;
+			//	sector.m_pathability[EAST][SOUTH] = true;
+			//}
 
-			bool swPathable = false;
-			if (sector.m_tiles[0][TILE_SIDE_LENGTH - 1].m_movementCost)
-			{
-				swPathable = true;
-			}
-			else
-			{
+			//bool swPathable = false;
+			//if (sector.m_tiles[0][TILE_SIDE_LENGTH - 1].m_movementCost)
+			//{
+			//	swPathable = true;
+			//}
+			//else
+			//{
 
-			}
-			sector.m_pathability[SOUTH][WEST] = swPathable;
-			sector.m_pathability[WEST][SOUTH] = swPathable;
+			//}
+			//sector.m_pathability[SOUTH][WEST] = swPathable;
+			//sector.m_pathability[WEST][SOUTH] = swPathable;
 		}
 	}
 	rect->setTexture(&quadrant.m_texture);
@@ -416,10 +405,10 @@ TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& wo
 		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
 
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
 
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
 	};
 }
 
@@ -428,14 +417,14 @@ CoordinateVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& wo
 	using namespace TileConstants;
 	return {
 		BASE_QUADRANT_ORIGIN_COORDINATE +
-		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrant.m_x)
-			+ worldCoords.m_sector.m_x) * SECTOR_SIDE_LENGTH)
-			+ worldCoords.m_tile.m_x) * TILE_SIDE_LENGTH),
+		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrantCoords.m_x)
+			+ worldCoords.m_sectorCoords.m_x) * SECTOR_SIDE_LENGTH)
+			+ worldCoords.m_coords.m_x) * TILE_SIDE_LENGTH),
 
 		BASE_QUADRANT_ORIGIN_COORDINATE +
-		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrant.m_y)
-			+ worldCoords.m_sector.m_y) * SECTOR_SIDE_LENGTH)
-			+ worldCoords.m_tile.m_y) * TILE_SIDE_LENGTH)
+		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrantCoords.m_y)
+			+ worldCoords.m_sectorCoords.m_y) * SECTOR_SIDE_LENGTH)
+			+ worldCoords.m_coords.m_y) * TILE_SIDE_LENGTH)
 	};
 }
 
@@ -535,8 +524,7 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
-		auto mouseWorldCoords = WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition.cast<s64>());
-		auto&& quadrantCoords = mouseWorldCoords.m_quadrant;
+		auto&& quadrantCoords = inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords;
 
 		if (TileNED::s_spawnedQuadrants.find(quadrantCoords) == TileNED::s_spawnedQuadrants.end())
 		{
@@ -590,6 +578,23 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
+	case GameLoopPhase::INPUT:
+		// Fill in tile position of the mouse
+		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
+		{
+			auto& inputComponent = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
+			inputComponent.m_currentMousePosition.m_tilePosition =
+				WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition.cast<s64>());
+			for (auto&& mouseInputs : inputComponent.m_heldMouseButtonInitialPositions)
+			{
+				if (!mouseInputs.second.m_position.m_tilePosition)
+				{
+					mouseInputs.second.m_position.m_tilePosition =
+						WorldPositionToCoordinates(mouseInputs.second.m_position.m_worldPosition.cast<s64>());
+				}
+			}
+		}
+		break;
 	case GameLoopPhase::PREPARATION:
 		if (!TileNED::baseQuadrantSpawned)
 		{
@@ -601,8 +606,21 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		TileNED::CheckWorldClick(m_managerRef);
 		break;
 
-	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION_RESPONSE:
+		// Update position of any world-tile drawables
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TilePositionable>(
+			[](
+				ecs::EntityIndex mI,
+				ECS_Core::Components::C_PositionCartesian& position,
+				const ECS_Core::Components::C_TilePosition& tilePosition)
+		{
+			auto worldPosition = CoordinatesToWorldPosition(tilePosition);
+			position.m_position.m_x = static_cast<f64>(worldPosition.m_x);
+			position.m_position.m_y = static_cast<f64>(worldPosition.m_y);
+			
+		});
+		break;
+
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:
 		return;

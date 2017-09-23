@@ -320,6 +320,7 @@ ECS_Core::Components::MouseButtons GetMouseButton(sf::Mouse::Button button)
 	case sf::Mouse::Button::XButton1: return ECS_Core::Components::MouseButtons::FOUR;
 	case sf::Mouse::Button::XButton2: return ECS_Core::Components::MouseButtons::FIVE;
 	}
+	return ECS_Core::Components::MouseButtons::_COUNT;
 }
 
 namespace sf

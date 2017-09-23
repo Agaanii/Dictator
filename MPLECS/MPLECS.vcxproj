@@ -142,9 +142,9 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Systems\BuildingCreation.cpp" />
     <ClCompile Include="Systems\DamageApplication.cpp" />
     <ClCompile Include="Systems\Movement.cpp" />
-    <ClCompile Include="Systems\ObjectSpammer.cpp" />
     <ClCompile Include="Systems\SFMLManager.cpp" />
     <ClCompile Include="Systems\SystemTemplate.cpp" />
     <ClCompile Include="Systems\UnitDeath.cpp" />
@@ -152,6 +152,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClCompile Include="Util\Pathing.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BuildingCreation.h" />
     <ClInclude Include="Components\GraphicsComponents.h" />
     <ClInclude Include="Core\typedef.h" />
     <ClInclude Include="ECS\ecs.hpp" />

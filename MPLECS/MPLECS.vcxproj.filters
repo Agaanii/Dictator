@@ -51,9 +51,6 @@
     <ClCompile Include="Systems\Movement.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
-    <ClCompile Include="Systems\ObjectSpammer.cpp">
-      <Filter>Source Files\Systems</Filter>
-    </ClCompile>
     <ClCompile Include="Systems\SFMLManager.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
@@ -71,6 +68,9 @@
     </ClCompile>
     <ClCompile Include="Util\Pathing.cpp">
       <Filter>Source Files\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Systems\BuildingCreation.cpp">
+      <Filter>Source Files\Systems</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -142,6 +142,9 @@
     </ClInclude>
     <ClInclude Include="Util\Pathing.h">
       <Filter>Header Files\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildingCreation.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

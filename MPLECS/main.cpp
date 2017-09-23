@@ -41,8 +41,8 @@ int main()
 {
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
+	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
-	// RegisterSystem<ObjectSpammer>();
 	RegisterSystem<SFMLManager>();
 	RegisterSystem<UnitDeath>();
 	auto loopStart = chrono::high_resolution_clock::now();
@@ -60,7 +60,7 @@ int main()
 		};
 		for (auto&& phase : c_phaseOrder)
 		{
-			for (auto& system : s_systems)
+			for (auto&& system : s_systems)
 			{
 				system->Operate(phase, loopDuration);
 				if (system->ShouldExit())

@@ -28,9 +28,9 @@ template <> std::unique_ptr<SystemName> InstantiateSystem();
 
 DECLARE_SYSTEM(DamageApplication);
 DECLARE_SYSTEM(NewtonianMovement);
-DECLARE_SYSTEM(ObjectSpammer);
 DECLARE_SYSTEM(SFMLManager);
 DECLARE_SYSTEM(UnitDeath);
+DECLARE_SYSTEM(BuildingCreation);
 DECLARE_SYSTEM(WorldTile);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
@@ -41,4 +41,5 @@ DECLARE_SYSTEM(WorldTile);
 	}
 
 // Make the compiler happy with our template
+// No need to register this one (Though it won't be a lot of operations anyway)
 DECLARE_SYSTEM(SystemTemplate);
