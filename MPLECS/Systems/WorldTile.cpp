@@ -103,6 +103,8 @@ namespace TileNED
 	using SeededQuadrantMap = std::map<QuadrantId, QuadrantSeed>;
 	SeededQuadrantMap s_quadrantSeeds;
 
+	void CheckBuildingPlacements(ECS_Core::Manager& manager);
+
 	using WorldCoordinates = ECS_Core::Components::C_TilePosition;
 
 	void CheckWorldClick(ECS_Core::Manager& manager);
@@ -517,6 +519,37 @@ CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& se
 	return closest;
 }
 
+void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
+{
+	auto& completedBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
+	auto& inProgressBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>();
+	auto& ghostBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>();
+
+	for (auto& ghost : ghostBuildings)
+	{
+		auto& tilePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(ghost);
+
+		bool collisionFound{ false };
+		for (auto& complete : completedBuildings)
+		{
+			if (tilePosition == manager.getComponent<ECS_Core::Components::C_TilePosition>(complete))
+			{
+				collisionFound = true;
+				break;
+			}
+		}
+		for (auto& inProgress : inProgressBuildings)
+		{
+			if (tilePosition == manager.getComponent<ECS_Core::Components::C_TilePosition>(inProgress))
+			{
+				collisionFound = true;
+				break;
+			}
+		}
+		manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghost).m_currentPlacementValid = !collisionFound;
+	}
+}
+
 void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 {
 	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
@@ -619,6 +652,8 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			position.m_position.m_y = static_cast<f64>(worldPosition.m_y);
 			
 		});
+
+		TileNED::CheckBuildingPlacements(m_managerRef);
 		break;
 
 	case GameLoopPhase::RENDER:

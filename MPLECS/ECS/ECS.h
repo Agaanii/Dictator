@@ -113,6 +113,13 @@ namespace ECS_Core
 			CoordinateVector2 m_quadrantCoords;
 			CoordinateVector2 m_sectorCoords;
 			CoordinateVector2 m_coords;
+
+			bool operator==(const C_TilePosition& other)
+			{
+				return m_quadrantCoords == other.m_quadrantCoords
+					&& m_sectorCoords == other.m_sectorCoords
+					&& m_coords == other.m_coords;
+			}
 		};
 
 		enum class Modifiers
@@ -334,13 +341,17 @@ namespace ECS_Core
 			u64 m_buildingType{ 0 };
 			f64 m_buildingProgress{ 0 };
 		};
+
+		struct C_BuildingGhost {
+			bool m_currentPlacementValid{ false };
+		};
 	}
 
 	namespace Tags
 	{
 		struct T_NoAcceleration {};
-		struct T_BuildingGhost {};
 		struct T_BuildingConstruction {};
+		struct T_BuildingComplete {};
 	}
 
 	namespace Signatures
@@ -353,7 +364,10 @@ namespace ECS_Core
 		using S_Input = ecs::Signature<Components::C_UserInputs>;
 		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
 		using S_DrawableBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable>;
+		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
 		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
+		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingConstruction>;
+		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingComplete>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -368,13 +382,14 @@ namespace ECS_Core
 		Components::C_QuadrantPosition,
 		Components::C_SectorPosition,
 		Components::C_TilePosition,
+		Components::C_BuildingGhost,
 		Components::C_BuildingDescription
 	>;
 
 	using MasterTagList = ecs::TagList<
 		Tags::T_NoAcceleration,
-		Tags::T_BuildingGhost,
-		Tags::T_BuildingConstruction
+		Tags::T_BuildingConstruction,
+		Tags::T_BuildingComplete
 	>;
 
 	using MasterSignatureList = ecs::SignatureList<
@@ -386,7 +401,10 @@ namespace ECS_Core
 		Signatures::S_Input,
 		Signatures::S_TilePositionable,
 		Signatures::S_DrawableBuilding,
-		Signatures::S_DrawableConstructingBuilding
+		Signatures::S_DrawableConstructingBuilding,
+		Signatures::S_InProgressBuilding,
+		Signatures::S_CompleteBuilding,
+		Signatures::S_PlannedBuildingPlacement
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

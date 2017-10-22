@@ -73,7 +73,13 @@ void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
 
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
-		manager.delTag<ECS_Core::Tags::T_BuildingGhost>(*s_ghostEntity);
+		auto& ghost = manager.getComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
+		if (!ghost.m_currentPlacementValid)
+		{
+			// TODO: Surface error
+			return;
+		}
+		manager.delComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
 		manager.addTag<ECS_Core::Tags::T_BuildingConstruction>(*s_ghostEntity);
 		auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
 		sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_drawable.get());
@@ -96,7 +102,7 @@ void Buildings::CheckCreateGhosts(ECS_Core::Manager& manager)
 	if (inputComponent.m_newKeyDown.count(ECS_Core::Components::InputKeys::B))
 	{
 		s_ghostEntity = manager.createIndex();
-		manager.addTag<ECS_Core::Tags::T_BuildingGhost>(*s_ghostEntity);
+		manager.addComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
 		manager.addComponent<ECS_Core::Components::C_TilePosition>(*s_ghostEntity) = *inputComponent.m_currentMousePosition.m_tilePosition;
 		manager.addComponent<ECS_Core::Components::C_PositionCartesian>(*s_ghostEntity);
 		manager.addComponent<ECS_Core::Components::C_BuildingDescription>(*s_ghostEntity); // TODO: Mapping input key to building type
