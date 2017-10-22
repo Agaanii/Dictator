@@ -331,7 +331,8 @@ namespace ECS_Core
 
 		struct C_BuildingDescription
 		{
-			int m_buildingType{ 0 };
+			u64 m_buildingType{ 0 };
+			f64 m_buildingProgress{ 0 };
 		};
 	}
 
@@ -339,6 +340,7 @@ namespace ECS_Core
 	{
 		struct T_NoAcceleration {};
 		struct T_BuildingGhost {};
+		struct T_BuildingConstruction {};
 	}
 
 	namespace Signatures
@@ -350,6 +352,8 @@ namespace ECS_Core
 		using S_Health = ecs::Signature<Components::C_Health, Components::C_Healable, Components::C_Damageable>;
 		using S_Input = ecs::Signature<Components::C_UserInputs>;
 		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
+		using S_DrawableBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable>;
+		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -369,7 +373,8 @@ namespace ECS_Core
 
 	using MasterTagList = ecs::TagList<
 		Tags::T_NoAcceleration,
-		Tags::T_BuildingGhost
+		Tags::T_BuildingGhost,
+		Tags::T_BuildingConstruction
 	>;
 
 	using MasterSignatureList = ecs::SignatureList<
@@ -379,7 +384,9 @@ namespace ECS_Core
 		Signatures::S_Living,
 		Signatures::S_Health,
 		Signatures::S_Input,
-		Signatures::S_TilePositionable
+		Signatures::S_TilePositionable,
+		Signatures::S_DrawableBuilding,
+		Signatures::S_DrawableConstructingBuilding
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

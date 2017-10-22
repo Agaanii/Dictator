@@ -24,8 +24,40 @@
 namespace Buildings
 {
 	std::optional<ecs::EntityIndex> s_ghostEntity;
+	void AdvanceBuildingConstruction(ECS_Core::Manager& manager, const timeuS& frameDuration);
 	void CheckCreatePlacements(ECS_Core::Manager& manager);
 	void CheckCreateGhosts(ECS_Core::Manager& manager);
+}
+
+template<class T>
+T min(T&& a, T&& b)
+{
+	return a < b ? a : b;
+}
+
+void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const timeuS& frameDuration)
+{
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_DrawableConstructingBuilding>(
+		[&manager, frameDuration](
+			ecs::EntityIndex mI,
+			ECS_Core::Components::C_BuildingDescription& building,
+			ECS_Core::Components::C_SFMLDrawable& drawable)
+	{
+		building.m_buildingProgress += (1.0 * frameDuration / (30 * 1000000));
+
+		if (building.m_buildingProgress >= 1.0)
+		{
+			building.m_buildingProgress = 1.0;
+			manager.delTag<ECS_Core::Tags::T_BuildingConstruction>(mI);
+		}
+
+		auto alphaFloat = min(1.0, 0.1 + (0.9 * building.m_buildingProgress));
+		sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_drawable.get());
+		if (shapeDrawable)
+		{
+			shapeDrawable->setFillColor({ 128, 128, 128, static_cast<sf::Uint8>(alphaFloat * 255) });
+		}
+	});
 }
 
 void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
@@ -42,12 +74,14 @@ void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
 		manager.delTag<ECS_Core::Tags::T_BuildingGhost>(*s_ghostEntity);
+		manager.addTag<ECS_Core::Tags::T_BuildingConstruction>(*s_ghostEntity);
 		auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
 		sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_drawable.get());
 		if (shapeDrawable)
-			shapeDrawable->setFillColor(sf::Color(128, 128, 128, 255));
+			shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
 
 		s_ghostEntity.reset();
+		
 		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
 	}
 }
@@ -92,6 +126,7 @@ void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		// Construction does not advance on the cycle of creation
 
 		// Advance Construction
+		Buildings::AdvanceBuildingConstruction(m_managerRef, frameDuration);
 
 		// Create ghosts and placements
 		Buildings::CheckCreatePlacements(m_managerRef);
