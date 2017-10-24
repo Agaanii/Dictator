@@ -95,17 +95,17 @@ namespace ECS_Core
 			CoordinateVector2 m_coords;
 		};
 
-		struct C_TilePosition
+		struct TilePosition
 		{
-			C_TilePosition() {}
-			C_TilePosition(const CoordinateVector2& qc, const CoordinateVector2& sc, const CoordinateVector2& c)
+			TilePosition() {}
+			TilePosition(const CoordinateVector2& qc, const CoordinateVector2& sc, const CoordinateVector2& c)
 				: m_quadrantCoords(qc)
 				, m_sectorCoords(sc)
 				, m_coords(c)
 			{ }
 
 			template<typename NUM_TYPE>
-			C_TilePosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE sx, NUM_TYPE sy, NUM_TYPE x, NUM_TYPE y)
+			TilePosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE sx, NUM_TYPE sy, NUM_TYPE x, NUM_TYPE y)
 				: m_quadrantCoords(qx, qy)
 				, m_sectorCoords(sx, sy)
 				, m_coords(x, y)
@@ -114,12 +114,27 @@ namespace ECS_Core
 			CoordinateVector2 m_sectorCoords;
 			CoordinateVector2 m_coords;
 
-			bool operator==(const C_TilePosition& other)
+			bool operator==(const TilePosition& other) const
 			{
 				return m_quadrantCoords == other.m_quadrantCoords
 					&& m_sectorCoords == other.m_sectorCoords
 					&& m_coords == other.m_coords;
 			}
+
+			bool operator<(const TilePosition& other) const
+			{
+				if (m_quadrantCoords < other.m_quadrantCoords) return true;
+				if (m_sectorCoords < other.m_sectorCoords) return true;
+				if (m_coords < other.m_coords) return true;
+				return false;
+			}
+		};
+
+		struct C_TilePosition
+		{
+			C_TilePosition() = default;
+			C_TilePosition(const TilePosition& position) : m_position(position) {}
+			TilePosition m_position;
 		};
 
 		enum class Modifiers
@@ -345,13 +360,17 @@ namespace ECS_Core
 		struct C_BuildingGhost {
 			bool m_currentPlacementValid{ false };
 		};
+
+		struct C_Territory
+		{
+			std::set<TilePosition> m_ownedTiles;
+		};
 	}
 
 	namespace Tags
 	{
 		struct T_NoAcceleration {};
 		struct T_BuildingConstruction {};
-		struct T_BuildingComplete {};
 	}
 
 	namespace Signatures
@@ -365,9 +384,9 @@ namespace ECS_Core
 		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
 		using S_DrawableBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable>;
 		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
-		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
+		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
 		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingConstruction>;
-		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingComplete>;
+		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -383,13 +402,13 @@ namespace ECS_Core
 		Components::C_SectorPosition,
 		Components::C_TilePosition,
 		Components::C_BuildingGhost,
-		Components::C_BuildingDescription
+		Components::C_BuildingDescription,
+		Components::C_Territory
 	>;
 
 	using MasterTagList = ecs::TagList<
 		Tags::T_NoAcceleration,
-		Tags::T_BuildingConstruction,
-		Tags::T_BuildingComplete
+		Tags::T_BuildingConstruction
 	>;
 
 	using MasterSignatureList = ecs::SignatureList<

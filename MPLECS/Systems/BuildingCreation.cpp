@@ -41,6 +41,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 		[&manager, frameDuration](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_BuildingDescription& building,
+			ECS_Core::Components::C_TilePosition& buildingTilePosition,
 			ECS_Core::Components::C_SFMLDrawable& drawable)
 	{
 		building.m_buildingProgress += (1.0 * frameDuration / (30 * 1000000));
@@ -48,7 +49,9 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 		if (building.m_buildingProgress >= 1.0)
 		{
 			building.m_buildingProgress = 1.0;
+			// We're done building, remove the construction tag and give it territory
 			manager.delTag<ECS_Core::Tags::T_BuildingConstruction>(mI);
+			manager.addComponent<ECS_Core::Components::C_Territory>(mI).m_ownedTiles.insert(buildingTilePosition.m_position);
 		}
 
 		auto alphaFloat = min(1.0, 0.1 + (0.9 * building.m_buildingProgress));
