@@ -361,9 +361,16 @@ namespace ECS_Core
 			bool m_currentPlacementValid{ false };
 		};
 
+		struct GrowthTile
+		{
+			f64 m_progress;
+			TilePosition m_tile;
+		};
+
 		struct C_Territory
 		{
 			std::set<TilePosition> m_ownedTiles;
+			std::optional<GrowthTile> m_nextGrowthTile;
 		};
 	}
 

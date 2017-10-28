@@ -18,6 +18,7 @@
 #include "../Util/Pathing.h"
 
 #include <limits>
+#include <random>
 
 // Terms:
 // * Tile: Unit of the world terrain
@@ -63,6 +64,7 @@ namespace TileNED
 		std::optional<int> m_movementCost; // If notset, unpathable
 										   // Each 1 pixel is 4 components: RGBA
 		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
+		std::optional<ecs::EntityIndex> m_owningBuilding; // If notset, no building owns this tile
 	};
 
 	using Pathability = bool[Pathing::PathingSide::_COUNT][Pathing::PathingSide::_COUNT];
@@ -107,6 +109,10 @@ namespace TileNED
 
 	using WorldCoordinates = ECS_Core::Components::TilePosition;
 
+	std::set<WorldCoordinates> GetAdjacents(const WorldCoordinates& coordinates);
+
+	void GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration);
+	TileNED::Quadrant& FetchQuadrant(const ECS_Core::Components::CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
 	void CheckWorldClick(ECS_Core::Manager& manager);
 	void SpawnBetween(
 		CoordinateVector2 origin,
@@ -234,7 +240,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		(quadrantSideLength * coordinates.m_y)),
 		0);
 
-	auto rect = std::make_unique<sf::RectangleShape>(sf::Vector2f(
+	auto rect = std::make_shared<sf::RectangleShape>(sf::Vector2f(
 		static_cast<float>(quadrantSideLength),
 		static_cast<float>(quadrantSideLength)));
 	auto& quadrant = TileNED::s_spawnedQuadrants[coordinates];
@@ -308,11 +314,8 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		}
 	}
 	rect->setTexture(&quadrant.m_texture);
-	manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(
-		index,
-		std::move(rect),
-		ECS_Core::Components::DrawLayer::TERRAIN,
-		0);
+	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 0, rect });
 }
 
 template<class T>
@@ -481,6 +484,199 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 	}
 }
 
+std::set<TileNED::WorldCoordinates> TileNED::GetAdjacents(const WorldCoordinates& coords)
+{
+	std::set<TileNED::WorldCoordinates> result;
+	auto coordsCopy = coords;
+	if (coords.m_coords.m_x > 0)
+	{
+		--coordsCopy.m_coords.m_x;
+	}
+	else if (coords.m_sectorCoords.m_x > 0)
+	{
+		coordsCopy.m_coords.m_x = SECTOR_SIDE_LENGTH - 1;
+		--coordsCopy.m_sectorCoords.m_x;
+	}
+	else
+	{
+		coordsCopy.m_coords.m_x = SECTOR_SIDE_LENGTH - 1;
+		coordsCopy.m_sectorCoords.m_x = QUADRANT_SIDE_LENGTH - 1;
+		--coordsCopy.m_quadrantCoords.m_x;
+	}
+	result.insert(coordsCopy);
+	coordsCopy = coords;
+
+	if (coords.m_coords.m_y > 0)
+	{
+		--coordsCopy.m_coords.m_y;
+	}
+	else if (coords.m_sectorCoords.m_y > 0)
+	{
+		coordsCopy.m_coords.m_y = SECTOR_SIDE_LENGTH - 1;
+		--coordsCopy.m_sectorCoords.m_y;
+	}
+	else
+	{
+		coordsCopy.m_coords.m_y = SECTOR_SIDE_LENGTH - 1;
+		coordsCopy.m_sectorCoords.m_y = QUADRANT_SIDE_LENGTH - 1;
+		--coordsCopy.m_quadrantCoords.m_y;
+	}
+	result.insert(coordsCopy);
+	coordsCopy = coords;
+
+	if (coords.m_coords.m_x < SECTOR_SIDE_LENGTH - 1)
+	{
+		++coordsCopy.m_coords.m_x;
+	}
+	else if (coords.m_sectorCoords.m_x < QUADRANT_SIDE_LENGTH - 1)
+	{
+		coordsCopy.m_coords.m_x = 0;
+		++coordsCopy.m_sectorCoords.m_x;
+	}
+	else
+	{
+		coordsCopy.m_coords.m_x = 0;
+		coordsCopy.m_sectorCoords.m_x = 0;
+		++coordsCopy.m_quadrantCoords.m_x;
+	}
+	result.insert(coordsCopy);
+	coordsCopy = coords;
+
+	if (coords.m_coords.m_y < SECTOR_SIDE_LENGTH - 1)
+	{
+		++coordsCopy.m_coords.m_y;
+	}
+	else if (coords.m_sectorCoords.m_y < QUADRANT_SIDE_LENGTH - 1)
+	{
+		coordsCopy.m_coords.m_y = 0;
+		++coordsCopy.m_sectorCoords.m_y;
+	}
+	else
+	{
+		coordsCopy.m_coords.m_y = 0;
+		coordsCopy.m_sectorCoords.m_y = 0;
+		++coordsCopy.m_quadrantCoords.m_y;
+	}
+	result.insert(coordsCopy);
+	coordsCopy = coords;
+
+	return result;
+}
+
+void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
+{
+	auto& territoryEntities = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
+
+	for (auto& territoryEntity : territoryEntities)
+	{
+		// Make sure territory is growing into a valid spot
+		auto& territory = manager.getComponent<C_Territory>(territoryEntity);
+		bool needsGrowthTile = true;
+		if (territory.m_nextGrowthTile)
+		{
+			auto& coordinates = territory.m_nextGrowthTile->m_tile;
+			if (!FetchQuadrant(coordinates.m_quadrantCoords, manager)
+				.m_sectors[coordinates.m_sectorCoords.m_x][coordinates.m_sectorCoords.m_y]
+				.m_tiles[coordinates.m_coords.m_x][coordinates.m_coords.m_y]
+				.m_owningBuilding)
+			{
+				needsGrowthTile = false;
+			}
+		}
+		if (needsGrowthTile)
+		{
+			// get all tiles adjacent to the territory that are not yet claimed
+			std::vector<TilePosition> availableGrowthTiles;
+			for (auto& tile : territory.m_ownedTiles)
+			{
+				for (auto& adjacent : GetAdjacents(tile))
+				{
+					auto& adjacentTile = FetchQuadrant(adjacent.m_quadrantCoords, manager)
+						.m_sectors[adjacent.m_sectorCoords.m_x][adjacent.m_sectorCoords.m_y]
+						.m_tiles[adjacent.m_coords.m_x][adjacent.m_coords.m_y];
+					if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
+					{
+						availableGrowthTiles.push_back(adjacent);
+					}
+				}
+			}
+
+			if (availableGrowthTiles.size())
+			{
+				std::random_device rd;
+				std::mt19937 g(rd());
+				std::shuffle(availableGrowthTiles.begin(), availableGrowthTiles.end(), g);
+
+				territory.m_nextGrowthTile = { territory.m_nextGrowthTile ? territory.m_nextGrowthTile->m_progress : 0.f, availableGrowthTiles.front() };
+			}
+		}
+
+		// Now grow if we can
+		if (territory.m_nextGrowthTile)
+		{
+			if (territory.m_nextGrowthTile->m_progress += (0.00001 * frameDuration) >= 1)
+			{
+				auto& tile = territory.m_nextGrowthTile->m_tile;
+				FetchQuadrant(tile.m_quadrantCoords, manager)
+					.m_sectors[tile.m_sectorCoords.m_x][tile.m_sectorCoords.m_y]
+					.m_tiles[tile.m_coords.m_x][tile.m_coords.m_y].m_owningBuilding = territoryEntity;
+				territory.m_ownedTiles.insert(tile);
+				territory.m_nextGrowthTile.reset();
+
+				// TODO: Add in drawables for tracking
+			}
+		}
+	}
+}
+
+TileNED::Quadrant& TileNED::FetchQuadrant(const ECS_Core::Components::CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager)
+{
+	if (TileNED::s_spawnedQuadrants.find(quadrantCoords) == TileNED::s_spawnedQuadrants.end())
+	{
+		// We're going to need to spawn world up to that point.
+		// first: find the closest available world tile
+		auto closest = FindNearestQuadrant(s_spawnedQuadrants, quadrantCoords);
+
+		SpawnBetween(
+			closest,
+			quadrantCoords,
+			manager);
+
+		// Find all quadrants which can't be reached by repeated cardinal direction movement from the origin
+		CoordinateFromOriginSet touchedCoordinates, untouchedCoordinates;
+		for (auto&& quadrant : s_spawnedQuadrants)
+		{
+			untouchedCoordinates.insert(quadrant.first);
+		}
+		TouchConnectedCoordinates({ 0, 0 }, untouchedCoordinates, touchedCoordinates);
+
+		// Start with the closest untouched, connect it. We'll only need to add one to connect it, we know they're corner-to-corner
+		// To be secure about it, connect on both sides. Screw your RAM.
+		while (untouchedCoordinates.size())
+		{
+			auto nearestDisconnected = untouchedCoordinates.begin();
+			auto nearestConnected = FindNearestQuadrant(touchedCoordinates, *nearestDisconnected);
+			for (; nearestDisconnected != untouchedCoordinates.end(); ++nearestDisconnected)
+			{
+				if ((nearestConnected - *nearestDisconnected).MagnitudeSq() == 2)
+				{
+					break;
+				}
+			}
+			if (nearestDisconnected == untouchedCoordinates.end())
+			{
+				break;
+			}
+			SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y }, manager);
+			SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y }, manager);
+
+			touchedCoordinates.clear();
+			TouchConnectedCoordinates(nearestConnected, untouchedCoordinates, touchedCoordinates);
+		}
+	}
+	return s_spawnedQuadrants[quadrantCoords];
+}
+
 void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 {
 	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
@@ -490,49 +686,7 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 	{
 		auto&& quadrantCoords = inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_quadrantCoords;
 
-		if (TileNED::s_spawnedQuadrants.find(quadrantCoords) == TileNED::s_spawnedQuadrants.end())
-		{
-			// We're going to need to spawn world up to that point.
-			// first: find the closest available world tile
-			auto closest = FindNearestQuadrant(s_spawnedQuadrants, quadrantCoords);
-
-			SpawnBetween(
-				closest,
-				quadrantCoords,
-				manager);
-
-			// Find all quadrants which can't be reached by repeated cardinal direction movement from the origin
-			CoordinateFromOriginSet touchedCoordinates, untouchedCoordinates;
-			for (auto&& quadrant : s_spawnedQuadrants)
-			{
-				untouchedCoordinates.insert(quadrant.first);
-			}
-			TouchConnectedCoordinates({ 0, 0 }, untouchedCoordinates, touchedCoordinates);
-
-			// Start with the closest untouched, connect it. We'll only need to add one to connect it, we know they're corner-to-corner
-			// To be secure about it, connect on both sides. Screw your RAM.
-			while (untouchedCoordinates.size())
-			{
-				auto nearestDisconnected = untouchedCoordinates.begin();
-				auto nearestConnected = FindNearestQuadrant(touchedCoordinates, *nearestDisconnected);
-				for (; nearestDisconnected != untouchedCoordinates.end(); ++nearestDisconnected)
-				{
-					if ((nearestConnected - *nearestDisconnected).MagnitudeSq() == 2)
-					{
-						break;
-					}
-				}
-				if (nearestDisconnected == untouchedCoordinates.end())
-				{
-					break;
-				}
-				SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y }, manager);
-				SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y }, manager);
-
-				touchedCoordinates.clear();
-				TouchConnectedCoordinates(nearestConnected, untouchedCoordinates, touchedCoordinates);
-			}
-		}
+		FetchQuadrant(quadrantCoords, manager);
 
 		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
 	}
@@ -567,6 +721,9 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		}
 		break;
 	case GameLoopPhase::ACTION:
+		// Grow territories that are able to do so before taking any actions
+		TileNED::GrowTerritories(m_managerRef, frameDuration);
+
 		TileNED::CheckWorldClick(m_managerRef);
 		break;
 

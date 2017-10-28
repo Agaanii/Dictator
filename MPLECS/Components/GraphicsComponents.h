@@ -23,6 +23,7 @@ namespace ECS_Core
 		{
 			BACKGROUND,
 			TERRAIN,
+			BUILDING,
 			UNIT,
 			EFFECT,
 			MENU,
@@ -31,19 +32,9 @@ namespace ECS_Core
 		};
 		struct C_SFMLDrawable
 		{
-			C_SFMLDrawable() { }
-			C_SFMLDrawable(
-				std::unique_ptr<sf::Drawable>&& drawable,
-				DrawLayer layer,
-				u64 priority)
-				: m_drawable(std::move(drawable))
-				, m_drawLayer(layer)
-				, m_priority(priority)
-			{ }
-
-			std::unique_ptr<sf::Drawable> m_drawable;
-			DrawLayer m_drawLayer{ DrawLayer::BACKGROUND };
-			u64 m_priority{ 0 };
+			// Each layer may have a set of drawables
+			// They'll be drawn in priority order, low to high
+			std::map<DrawLayer, std::vector<std::pair<u64, std::shared_ptr<sf::Drawable>>>> m_drawables;
 		};
 	}
 }

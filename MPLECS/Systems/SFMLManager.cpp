@@ -745,21 +745,24 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		[&manager](
 			ecs::EntityIndex mI,
 			const ECS_Core::Components::C_PositionCartesian& position,
-			ECS_Core::Components::C_SFMLDrawable& shape)
+			ECS_Core::Components::C_SFMLDrawable& drawables)
 	{
 		auto handle = manager.getHandleData(mI);
-		if (shape.m_drawable)
+		for (auto& layer : drawables.m_drawables)
 		{
-			auto* transform = dynamic_cast<sf::Transformable*>(shape.m_drawable.get());
-			if (transform)
+			for (auto& drawable : layer.second)
 			{
-				transform->setPosition({
-					static_cast<float>(position.m_position.m_x),
-					static_cast<float>(position.m_position.m_y) });
+				auto* transform = dynamic_cast<sf::Transformable*>(drawable.second.get());
+				if (transform)
+				{
+					transform->setPosition({
+						static_cast<float>(position.m_position.m_x),
+						static_cast<float>(position.m_position.m_y) });
+				}
+				auto& taggedDrawable = drawablesByLayer[layer.first][drawable.first][handle];
+				taggedDrawable.m_drawable = drawable.second.get();
+				taggedDrawable.m_drawnThisFrame = true;
 			}
-			auto& taggedDrawable = drawablesByLayer[shape.m_drawLayer][shape.m_priority][handle];
-			taggedDrawable.m_drawable = shape.m_drawable.get();
-			taggedDrawable.m_drawnThisFrame = true;
 		}
 	});
 	for (auto& layerMap : drawablesByLayer)

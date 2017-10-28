@@ -55,10 +55,14 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 		}
 
 		auto alphaFloat = min(1.0, 0.1 + (0.9 * building.m_buildingProgress));
-		sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_drawable.get());
-		if (shapeDrawable)
+		auto& buildingDrawables = drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING];
+		for (auto& building : buildingDrawables)
 		{
-			shapeDrawable->setFillColor({ 128, 128, 128, static_cast<sf::Uint8>(alphaFloat * 255) });
+			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.second.get());
+			if (shapeDrawable)
+			{
+				shapeDrawable->setFillColor({ 128, 128, 128, static_cast<sf::Uint8>(alphaFloat * 255) });
+			}
 		}
 	});
 }
@@ -85,10 +89,12 @@ void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
 		manager.delComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
 		manager.addTag<ECS_Core::Tags::T_BuildingConstruction>(*s_ghostEntity);
 		auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
-		sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_drawable.get());
-		if (shapeDrawable)
-			shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
-
+		for (auto& building : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
+		{
+			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.second.get());
+			if (shapeDrawable)
+				shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
+		}
 		s_ghostEntity.reset();
 		
 		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
@@ -110,11 +116,10 @@ void Buildings::CheckCreateGhosts(ECS_Core::Manager& manager)
 		manager.addComponent<ECS_Core::Components::C_PositionCartesian>(*s_ghostEntity);
 		manager.addComponent<ECS_Core::Components::C_BuildingDescription>(*s_ghostEntity); // TODO: Mapping input key to building type
 		auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
-		drawable.m_drawLayer = ECS_Core::Components::DrawLayer::UNIT;
-		auto shape = std::make_unique<sf::CircleShape>(2.5f);
+		auto shape = std::make_shared<sf::CircleShape>(2.5f);
 		shape->setOutlineColor(sf::Color(128, 128, 128, 255));
 		shape->setFillColor(sf::Color(128, 128, 128, 128));
-		drawable.m_drawable = std::move(shape);
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT].push_back({ 0, shape });
 
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
 	}
