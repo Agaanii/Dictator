@@ -145,6 +145,58 @@ namespace TileNED
 		CoordinateFromOriginSet& touched);
 }
 
+ECS_Core::Components::TilePosition& ECS_Core::Components::TilePosition::operator+=(const TilePosition& other)
+{
+	m_quadrantCoords += other.m_quadrantCoords;
+	m_sectorCoords += other.m_sectorCoords;
+	m_coords += other.m_coords;
+	assert(m_coords.m_x >= 0);
+	assert(m_coords.m_y >= 0);
+	assert(m_sectorCoords.m_x >= 0);
+	assert(m_sectorCoords.m_y >= 0);
+
+	m_sectorCoords.m_x += m_coords.m_x / TileConstants::SECTOR_SIDE_LENGTH;
+	m_sectorCoords.m_y += m_coords.m_y / TileConstants::SECTOR_SIDE_LENGTH;
+	m_coords.m_x %= TileConstants::SECTOR_SIDE_LENGTH;
+	m_coords.m_y %= TileConstants::SECTOR_SIDE_LENGTH;
+
+	m_quadrantCoords.m_x += m_sectorCoords.m_x / TileConstants::QUADRANT_SIDE_LENGTH;
+	m_quadrantCoords.m_y += m_sectorCoords.m_y / TileConstants::QUADRANT_SIDE_LENGTH;
+	m_sectorCoords.m_x %= TileConstants::QUADRANT_SIDE_LENGTH;
+	m_sectorCoords.m_y %= TileConstants::QUADRANT_SIDE_LENGTH;
+	return *this;
+}
+
+ECS_Core::Components::TilePosition& ECS_Core::Components::TilePosition::operator-=(const TilePosition& other)
+{
+	m_quadrantCoords -= other.m_quadrantCoords;
+	m_sectorCoords -= other.m_sectorCoords;
+	m_coords -= other.m_coords;
+
+	while (m_coords.m_x < 0)
+	{
+		--m_sectorCoords.m_x;
+		m_coords.m_x += TileConstants::SECTOR_SIDE_LENGTH;
+	}
+	while (m_coords.m_y < 0)
+	{
+		--m_sectorCoords.m_y;
+		m_coords.m_y += TileConstants::SECTOR_SIDE_LENGTH;
+	}
+
+	while (m_sectorCoords.m_x < 0)
+	{
+		--m_quadrantCoords.m_x;
+		m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH;
+	}
+	while (m_sectorCoords.m_y < 0)
+	{
+		--m_quadrantCoords.m_y;
+		m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH;
+	}
+	return *this;
+}
+
 struct SectorSeedPosition
 {
 	int m_type;
@@ -206,7 +258,7 @@ std::vector<SectorSeedPosition> GetRelevantSeeds(
 			relevantSeeds.push_back({
 				seedingSector.m_seedTileType,
 				{ seedingSector.m_seedPosition.m_x + ((x + 1) * TileConstants::SECTOR_SIDE_LENGTH),
-				  seedingSector.m_seedPosition.m_y + ((y + 1) * TileConstants::SECTOR_SIDE_LENGTH) }
+				seedingSector.m_seedPosition.m_y + ((y + 1) * TileConstants::SECTOR_SIDE_LENGTH) }
 			});
 		}
 	}
@@ -315,7 +367,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 	}
 	rect->setTexture(&quadrant.m_texture);
 	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
-	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 0, rect });
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 0, rect,{ 0,0 } });
 }
 
 template<class T>
@@ -338,13 +390,13 @@ TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& wo
 		BASE_QUADRANT_ORIGIN_COORDINATE);
 	return TilePosition{
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
-		  min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
 
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
-		  min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
 
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
-		  min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
 	};
 }
 
@@ -361,6 +413,20 @@ CoordinateVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& wo
 		(((((QUADRANT_SIDE_LENGTH * worldCoords.m_quadrantCoords.m_y)
 			+ worldCoords.m_sectorCoords.m_y) * SECTOR_SIDE_LENGTH)
 			+ worldCoords.m_coords.m_y) * TILE_SIDE_LENGTH)
+	};
+}
+
+CoordinateVector2 CoordinatesToWorldOffset(const TileNED::WorldCoordinates& worldOffset)
+{
+	using namespace TileConstants;
+	return {
+		(((((QUADRANT_SIDE_LENGTH * worldOffset.m_quadrantCoords.m_x)
+		+ worldOffset.m_sectorCoords.m_x) * SECTOR_SIDE_LENGTH)
+			+ worldOffset.m_coords.m_x) * TILE_SIDE_LENGTH),
+
+			(((((QUADRANT_SIDE_LENGTH * worldOffset.m_quadrantCoords.m_y)
+				+ worldOffset.m_sectorCoords.m_y) * SECTOR_SIDE_LENGTH)
+				+ worldOffset.m_coords.m_y) * TILE_SIDE_LENGTH)
 	};
 }
 
@@ -486,82 +552,17 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 
 std::set<TileNED::WorldCoordinates> TileNED::GetAdjacents(const WorldCoordinates& coords)
 {
-	std::set<TileNED::WorldCoordinates> result;
-	auto coordsCopy = coords;
-	if (coords.m_coords.m_x > 0)
-	{
-		--coordsCopy.m_coords.m_x;
-	}
-	else if (coords.m_sectorCoords.m_x > 0)
-	{
-		coordsCopy.m_coords.m_x = SECTOR_SIDE_LENGTH - 1;
-		--coordsCopy.m_sectorCoords.m_x;
-	}
-	else
-	{
-		coordsCopy.m_coords.m_x = SECTOR_SIDE_LENGTH - 1;
-		coordsCopy.m_sectorCoords.m_x = QUADRANT_SIDE_LENGTH - 1;
-		--coordsCopy.m_quadrantCoords.m_x;
-	}
-	result.insert(coordsCopy);
-	coordsCopy = coords;
-
-	if (coords.m_coords.m_y > 0)
-	{
-		--coordsCopy.m_coords.m_y;
-	}
-	else if (coords.m_sectorCoords.m_y > 0)
-	{
-		coordsCopy.m_coords.m_y = SECTOR_SIDE_LENGTH - 1;
-		--coordsCopy.m_sectorCoords.m_y;
-	}
-	else
-	{
-		coordsCopy.m_coords.m_y = SECTOR_SIDE_LENGTH - 1;
-		coordsCopy.m_sectorCoords.m_y = QUADRANT_SIDE_LENGTH - 1;
-		--coordsCopy.m_quadrantCoords.m_y;
-	}
-	result.insert(coordsCopy);
-	coordsCopy = coords;
-
-	if (coords.m_coords.m_x < SECTOR_SIDE_LENGTH - 1)
-	{
-		++coordsCopy.m_coords.m_x;
-	}
-	else if (coords.m_sectorCoords.m_x < QUADRANT_SIDE_LENGTH - 1)
-	{
-		coordsCopy.m_coords.m_x = 0;
-		++coordsCopy.m_sectorCoords.m_x;
-	}
-	else
-	{
-		coordsCopy.m_coords.m_x = 0;
-		coordsCopy.m_sectorCoords.m_x = 0;
-		++coordsCopy.m_quadrantCoords.m_x;
-	}
-	result.insert(coordsCopy);
-	coordsCopy = coords;
-
-	if (coords.m_coords.m_y < SECTOR_SIDE_LENGTH - 1)
-	{
-		++coordsCopy.m_coords.m_y;
-	}
-	else if (coords.m_sectorCoords.m_y < QUADRANT_SIDE_LENGTH - 1)
-	{
-		coordsCopy.m_coords.m_y = 0;
-		++coordsCopy.m_sectorCoords.m_y;
-	}
-	else
-	{
-		coordsCopy.m_coords.m_y = 0;
-		coordsCopy.m_sectorCoords.m_y = 0;
-		++coordsCopy.m_quadrantCoords.m_y;
-	}
-	result.insert(coordsCopy);
-	coordsCopy = coords;
-
-	return result;
+	return {
+		coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } },
+		coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } },
+		coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } },
+		coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } },
+	};
 }
+
+// Hack: Get reference to global font
+
+extern std::optional<sf::Font> s_font;
 
 void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 {
@@ -571,6 +572,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 	{
 		// Make sure territory is growing into a valid spot
 		auto& territory = manager.getComponent<C_Territory>(territoryEntity);
+		auto& buildingTilePos = manager.getComponent<C_TilePosition>(territoryEntity);
 		bool needsGrowthTile = true;
 		if (territory.m_nextGrowthTile)
 		{
@@ -614,7 +616,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 		// Now grow if we can
 		if (territory.m_nextGrowthTile)
 		{
-			if (territory.m_nextGrowthTile->m_progress += (0.00001 * frameDuration) >= 1)
+			territory.m_nextGrowthTile->m_progress += (0.0000002 * frameDuration);
+			if (territory.m_nextGrowthTile->m_progress >= 1)
 			{
 				auto& tile = territory.m_nextGrowthTile->m_tile;
 				FetchQuadrant(tile.m_quadrantCoords, manager)
@@ -623,7 +626,30 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				territory.m_ownedTiles.insert(tile);
 				territory.m_nextGrowthTile.reset();
 
-				// TODO: Add in drawables for tracking
+				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
+				{
+					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity);
+					auto positionOffset = CoordinatesToWorldOffset(buildingTilePos.m_position - tile);
+
+					auto hexagon = std::make_shared<sf::ConvexShape>(6);
+					hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
+					hexagon->setPoint(1, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(2, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(4, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(5, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setOutlineThickness(2);
+					hexagon->setOutlineColor(sf::Color());
+					hexagon->setFillColor(sf::Color(64, 64, 64, 192));
+
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 5, std::shared_ptr<sf::Drawable>(hexagon), positionOffset.cast<f64>() });
+
+					if (s_font)
+					{
+						auto label = std::make_shared<sf::Text>(std::to_string(territoryEntity), *s_font);
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 10, std::shared_ptr<sf::Drawable>(label), positionOffset.cast<f64>() });
+					}
+				}
 			}
 		}
 	}
@@ -738,7 +764,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			auto worldPosition = CoordinatesToWorldPosition(tilePosition.m_position);
 			position.m_position.m_x = static_cast<f64>(worldPosition.m_x);
 			position.m_position.m_y = static_cast<f64>(worldPosition.m_y);
-			
+
 		});
 
 		TileNED::CheckBuildingPlacements(m_managerRef);

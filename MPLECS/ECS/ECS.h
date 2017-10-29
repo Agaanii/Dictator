@@ -128,6 +128,18 @@ namespace ECS_Core
 				if (m_coords < other.m_coords) return true;
 				return false;
 			}
+
+			TilePosition& operator-=(const TilePosition& other);
+			TilePosition operator-(const TilePosition& other) const
+			{
+				return TilePosition(*this) -= other;
+			}
+
+			TilePosition& operator+=(const TilePosition& other);
+			TilePosition operator+(const TilePosition& other) const
+			{
+				return TilePosition(*this) += other;
+			}
 		};
 
 		struct C_TilePosition

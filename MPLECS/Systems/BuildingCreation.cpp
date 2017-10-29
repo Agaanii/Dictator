@@ -58,7 +58,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 		auto& buildingDrawables = drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING];
 		for (auto& building : buildingDrawables)
 		{
-			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.second.get());
+			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
 			if (shapeDrawable)
 			{
 				shapeDrawable->setFillColor({ 128, 128, 128, static_cast<sf::Uint8>(alphaFloat * 255) });
@@ -91,7 +91,7 @@ void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
 		auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
 		for (auto& building : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
 		{
-			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.second.get());
+			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
 			if (shapeDrawable)
 				shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
 		}
@@ -119,7 +119,7 @@ void Buildings::CheckCreateGhosts(ECS_Core::Manager& manager)
 		auto shape = std::make_shared<sf::CircleShape>(2.5f);
 		shape->setOutlineColor(sf::Color(128, 128, 128, 255));
 		shape->setFillColor(sf::Color(128, 128, 128, 128));
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT].push_back({ 0, shape });
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT].push_back({ 0, shape, {0,0} });
 
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
 	}

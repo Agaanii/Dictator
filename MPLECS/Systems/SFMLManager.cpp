@@ -719,7 +719,7 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 struct TaggedDrawable
 {
 	bool m_drawnThisFrame;
-	sf::Drawable* m_drawable;
+	std::vector<sf::Drawable*> m_drawable;
 };
 
 namespace std
@@ -752,15 +752,15 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		{
 			for (auto& drawable : layer.second)
 			{
-				auto* transform = dynamic_cast<sf::Transformable*>(drawable.second.get());
+				auto* transform = dynamic_cast<sf::Transformable*>(drawable.m_graphic.get());
 				if (transform)
 				{
 					transform->setPosition({
-						static_cast<float>(position.m_position.m_x),
-						static_cast<float>(position.m_position.m_y) });
+						static_cast<float>(position.m_position.m_x + drawable.m_offset.m_x),
+						static_cast<float>(position.m_position.m_y + drawable.m_offset.m_y) });
 				}
-				auto& taggedDrawable = drawablesByLayer[layer.first][drawable.first][handle];
-				taggedDrawable.m_drawable = drawable.second.get();
+				auto& taggedDrawable = drawablesByLayer[layer.first][drawable.m_priority][handle];
+				taggedDrawable.m_drawable.push_back(drawable.m_graphic.get());
 				taggedDrawable.m_drawnThisFrame = true;
 			}
 		}
@@ -782,7 +782,10 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			{
 				if (drawable.second.m_drawnThisFrame)
 				{
-					s_window.draw(*drawable.second.m_drawable);
+					for (auto&& graphic : drawable.second.m_drawable)
+					{
+						s_window.draw(*graphic);
+					}
 					drawable.second.m_drawnThisFrame = false;
 				}
 				else
