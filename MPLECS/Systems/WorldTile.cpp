@@ -629,16 +629,16 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
 				{
 					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity);
-					auto positionOffset = CoordinatesToWorldOffset(buildingTilePos.m_position - tile);
+					auto positionOffset = CoordinatesToWorldOffset(tile - buildingTilePos.m_position);
 
 					auto hexagon = std::make_shared<sf::ConvexShape>(6);
 					hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
-					hexagon->setPoint(1, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(2, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(1, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(2, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
 					hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(4, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(5, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setOutlineThickness(2);
+					hexagon->setPoint(4, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setPoint(5, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+					hexagon->setOutlineThickness(0.1f);
 					hexagon->setOutlineColor(sf::Color());
 					hexagon->setFillColor(sf::Color(64, 64, 64, 192));
 
@@ -646,8 +646,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 
 					if (s_font)
 					{
-						auto label = std::make_shared<sf::Text>(std::to_string(territoryEntity), *s_font);
-						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 10, std::shared_ptr<sf::Drawable>(label), positionOffset.cast<f64>() });
+						auto label = std::make_shared<sf::Text>(std::to_string(territoryEntity), *s_font, 5);
+						//drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 10, std::shared_ptr<sf::Drawable>(label), positionOffset.cast<f64>() });
 					}
 				}
 			}
