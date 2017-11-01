@@ -124,7 +124,9 @@ namespace ECS_Core
 			bool operator<(const TilePosition& other) const
 			{
 				if (m_quadrantCoords < other.m_quadrantCoords) return true;
+				if (other.m_quadrantCoords < m_quadrantCoords) return false;
 				if (m_sectorCoords < other.m_sectorCoords) return true;
+				if (other.m_sectorCoords < m_sectorCoords) return false;
 				if (m_coords < other.m_coords) return true;
 				return false;
 			}

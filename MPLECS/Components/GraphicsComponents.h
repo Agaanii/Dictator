@@ -32,14 +32,11 @@ namespace ECS_Core
 		};
 		struct AttachedDrawable
 		{
-			AttachedDrawable(u64 pri, const std::shared_ptr<sf::Drawable>& graphic, CartesianVector2<f64> offset)
-				: m_priority(pri)
-				, m_graphic(graphic)
+			AttachedDrawable(const std::shared_ptr<sf::Drawable>& graphic, CartesianVector2<f64> offset)
+				: m_graphic(graphic)
 				, m_offset(offset)
 			{}
 			AttachedDrawable() = default;
-
-			u64 m_priority;
 			std::shared_ptr<sf::Drawable> m_graphic;
 			CartesianVector2<f64> m_offset;
 		};
@@ -47,7 +44,7 @@ namespace ECS_Core
 		{
 			// Each layer may have a set of drawables
 			// They'll be drawn in priority order, low to high
-			std::map<DrawLayer, std::vector<AttachedDrawable>> m_drawables;
+			std::map<DrawLayer, std::map<u64 /*priority*/, std::vector<AttachedDrawable>>> m_drawables;
 		};
 	}
 }

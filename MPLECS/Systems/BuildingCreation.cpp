@@ -56,12 +56,15 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 
 		auto alphaFloat = min(1.0, 0.1 + (0.9 * building.m_buildingProgress));
 		auto& buildingDrawables = drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING];
-		for (auto& building : buildingDrawables)
+		for (auto& prio : buildingDrawables)
 		{
-			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
-			if (shapeDrawable)
+			for (auto&& drawable : prio.second)
 			{
-				shapeDrawable->setFillColor({ 128, 128, 128, static_cast<sf::Uint8>(alphaFloat * 255) });
+				sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_graphic.get());
+				if (shapeDrawable)
+				{
+					shapeDrawable->setFillColor({ 128, 128, 128, static_cast<sf::Uint8>(alphaFloat * 255) });
+				}
 			}
 		}
 	});
@@ -89,11 +92,14 @@ void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
 		manager.delComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
 		manager.addTag<ECS_Core::Tags::T_BuildingConstruction>(*s_ghostEntity);
 		auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
-		for (auto& building : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
+		for (auto& prio : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
 		{
-			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
-			if (shapeDrawable)
-				shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
+			for (auto&& building : prio.second)
+			{
+				sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
+				if (shapeDrawable)
+					shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
+			}
 		}
 		s_ghostEntity.reset();
 		
@@ -119,7 +125,7 @@ void Buildings::CheckCreateGhosts(ECS_Core::Manager& manager)
 		auto shape = std::make_shared<sf::CircleShape>(2.5f);
 		shape->setOutlineColor(sf::Color(128, 128, 128, 255));
 		shape->setFillColor(sf::Color(128, 128, 128, 128));
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT].push_back({ 0, shape, {0,0} });
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ shape, {0,0} });
 
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
 	}

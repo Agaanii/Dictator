@@ -109,7 +109,29 @@ namespace TileNED
 
 	using WorldCoordinates = ECS_Core::Components::TilePosition;
 
-	std::set<WorldCoordinates> GetAdjacents(const WorldCoordinates& coordinates);
+	struct TileSide
+	{
+		TileSide() = default;
+		TileSide(const TileNED::WorldCoordinates& coords, const Direction& direction)
+			: m_coords(coords)
+			, m_direction(direction)
+		{}
+		bool operator<(const TileSide& other) const
+		{
+			if (m_direction < other.m_direction)
+			{
+				return true;
+			}
+			else if (other.m_direction < m_direction)
+			{
+				return false;
+			}
+			return m_coords < other.m_coords;
+		}
+		TileNED::WorldCoordinates m_coords;
+		Direction m_direction{ Direction::NORTH };
+	};
+	std::set<TileSide> GetAdjacents(const WorldCoordinates& coordinates);
 
 	void GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration);
 	TileNED::Quadrant& FetchQuadrant(const ECS_Core::Components::CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
@@ -143,6 +165,14 @@ namespace TileNED
 		const CoordinateVector2& origin,
 		CoordinateFromOriginSet& untouched,
 		CoordinateFromOriginSet& touched);
+
+	enum class DrawPriority
+	{
+		LANDSCAPE,
+		TERRITORY_BORDER,
+		FLAVOR_BUILDING,
+		LOGICAL_BUILDING,
+	};
 }
 
 ECS_Core::Components::TilePosition& ECS_Core::Components::TilePosition::operator+=(const TilePosition& other)
@@ -367,7 +397,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 	}
 	rect->setTexture(&quadrant.m_texture);
 	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
-	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 0, rect,{ 0,0 } });
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({ rect,{ 0,0 } });
 }
 
 template<class T>
@@ -550,13 +580,13 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 	}
 }
 
-std::set<TileNED::WorldCoordinates> TileNED::GetAdjacents(const WorldCoordinates& coords)
+std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords)
 {
 	return {
-		coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } },
-		coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } },
-		coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } },
-		coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } },
+		{coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::EAST},
+		{coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } }, Direction::SOUTH},
+		{coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::WEST},
+		{coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } }, Direction::NORTH},
 	};
 }
 
@@ -593,12 +623,12 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 			{
 				for (auto& adjacent : GetAdjacents(tile))
 				{
-					auto& adjacentTile = FetchQuadrant(adjacent.m_quadrantCoords, manager)
-						.m_sectors[adjacent.m_sectorCoords.m_x][adjacent.m_sectorCoords.m_y]
-						.m_tiles[adjacent.m_coords.m_x][adjacent.m_coords.m_y];
+					auto& adjacentTile = FetchQuadrant(adjacent.m_coords.m_quadrantCoords, manager)
+						.m_sectors[adjacent.m_coords.m_sectorCoords.m_x][adjacent.m_coords.m_sectorCoords.m_y]
+						.m_tiles[adjacent.m_coords.m_coords.m_x][adjacent.m_coords.m_coords.m_y];
 					if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
 					{
-						availableGrowthTiles.push_back(adjacent);
+						availableGrowthTiles.push_back(adjacent.m_coords);
 					}
 				}
 			}
@@ -629,25 +659,75 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
 				{
 					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity);
-					auto positionOffset = CoordinatesToWorldOffset(tile - buildingTilePos.m_position);
 
-					auto hexagon = std::make_shared<sf::ConvexShape>(6);
-					hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
-					hexagon->setPoint(1, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(2, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(4, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setPoint(5, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-					hexagon->setOutlineThickness(0.1f);
-					hexagon->setOutlineColor(sf::Color());
-					hexagon->setFillColor(sf::Color(64, 64, 64, 192));
-
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 5, std::shared_ptr<sf::Drawable>(hexagon), positionOffset.cast<f64>() });
-
-					if (s_font)
+					// Add graphics for the individual tile
 					{
-						auto label = std::make_shared<sf::Text>(std::to_string(territoryEntity), *s_font, 5);
-						//drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].push_back({ 10, std::shared_ptr<sf::Drawable>(label), positionOffset.cast<f64>() });
+						auto hexagon = std::make_shared<sf::ConvexShape>(6);
+						auto positionOffset = CoordinatesToWorldOffset(tile - buildingTilePos.m_position);
+						hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
+						hexagon->setPoint(1, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+						hexagon->setPoint(2, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+						hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
+						hexagon->setPoint(4, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+						hexagon->setPoint(5, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+						hexagon->setOutlineThickness(0.1f);
+						hexagon->setOutlineColor(sf::Color());
+						hexagon->setFillColor(sf::Color(64, 64, 64, 192));
+
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({hexagon, positionOffset.cast<f64>()});
+					}
+
+					// redraw the borders
+					{
+						// Remove previous borders
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].erase(static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER));
+
+						// Tile in territory + direction from tile which is open
+						std::set<std::pair<TilePosition, Direction>> edges;
+						// For each tile in this territory, see if it has any adjacent spaces which are not in the territory
+						for (auto&& ownedTile : territory.m_ownedTiles)
+						{
+							for (auto&& adj : GetAdjacents(ownedTile))
+							{
+								if (!territory.m_ownedTiles.count(adj.m_coords))
+								{
+									edges.insert({ ownedTile, adj.m_direction });
+								}
+							}
+						}
+
+						// Draw each segment
+						for (auto&& edge : edges)
+						{
+							auto positionOffset = CoordinatesToWorldOffset(edge.first - buildingTilePos.m_position).cast<f64>();
+							bool isVertical = (edge.second == Direction::EAST || edge.second == Direction::WEST);
+
+							// sf Line type is always 1 pixel wide, so use rectangle so we can control thickness
+							auto line = std::make_shared<sf::RectangleShape>(
+								isVertical 
+								? sf::Vector2f{0.1f, 1.f * TileConstants::TILE_SIDE_LENGTH}
+								: sf::Vector2f{1.f * TileConstants::TILE_SIDE_LENGTH, 0.1f});
+
+							switch (edge.second)
+							{
+							case Direction::NORTH:
+								// Go from top left corner, no offset
+								break;
+							case Direction::SOUTH:
+								// start from bottom left
+								positionOffset.m_y += TileConstants::TILE_SIDE_LENGTH - 0.1;
+								break;
+							case Direction::EAST:
+								// Start from top right
+								positionOffset.m_x += TileConstants::TILE_SIDE_LENGTH - 0.1;
+								break;
+							case Direction::WEST:
+								// Go from top left corner
+								break;
+							}
+							line->setFillColor({});
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({line, positionOffset});
+						}
 					}
 				}
 			}

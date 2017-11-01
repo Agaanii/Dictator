@@ -25,6 +25,14 @@ using f64 = double;
 
 using timeuS = s64;
 
+enum class Direction
+{
+	NORTH,
+	SOUTH,
+	EAST,
+	WEST
+};
+
 template<typename NUM_TYPE>
 struct CartesianVector3
 {

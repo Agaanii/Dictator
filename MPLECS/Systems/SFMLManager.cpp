@@ -729,10 +729,26 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 	}
 }
 
+namespace std
+{
+	bool operator<(const std::weak_ptr<sf::Drawable>& left, const std::weak_ptr<sf::Drawable>& right)
+	{
+		if (left.expired() && !right.expired())
+		{
+			return true;
+		}
+		if (right.expired() && !left.expired())
+		{
+			return false;
+		}
+		return left.owner_before(right);
+	}
+}
+
 struct TaggedDrawable
 {
 	bool m_drawnThisFrame;
-	std::vector<sf::Drawable*> m_drawable;
+	std::set<std::weak_ptr<sf::Drawable>> m_drawable;
 };
 
 namespace std
@@ -761,20 +777,23 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			ECS_Core::Components::C_SFMLDrawable& drawables)
 	{
 		auto handle = manager.getHandleData(mI);
-		for (auto& layer : drawables.m_drawables)
+		for (auto&& layer : drawables.m_drawables)
 		{
-			for (auto& drawable : layer.second)
+			for (auto&& priority : layer.second)
 			{
-				auto* transform = dynamic_cast<sf::Transformable*>(drawable.m_graphic.get());
-				if (transform)
+				for (auto&& drawable : priority.second)
 				{
-					transform->setPosition({
-						static_cast<float>(position.m_position.m_x + drawable.m_offset.m_x),
-						static_cast<float>(position.m_position.m_y + drawable.m_offset.m_y) });
+					auto* transform = dynamic_cast<sf::Transformable*>(drawable.m_graphic.get());
+					if (transform)
+					{
+						transform->setPosition({
+							static_cast<float>(position.m_position.m_x + drawable.m_offset.m_x),
+							static_cast<float>(position.m_position.m_y + drawable.m_offset.m_y) });
+					}
+					auto& taggedDrawable = drawablesByLayer[layer.first][priority.first][handle];
+					taggedDrawable.m_drawable.insert(drawable.m_graphic);
+					taggedDrawable.m_drawnThisFrame = true;
 				}
-				auto& taggedDrawable = drawablesByLayer[layer.first][drawable.m_priority][handle];
-				taggedDrawable.m_drawable.push_back(drawable.m_graphic.get());
-				taggedDrawable.m_drawnThisFrame = true;
 			}
 		}
 	});
@@ -795,8 +814,15 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			{
 				if (drawable.second.m_drawnThisFrame)
 				{
-					for (auto&& graphic : drawable.second.m_drawable)
+					std::vector<std::weak_ptr<sf::Drawable>> expiredPtrs;
+					for (auto&& weakGraphic : drawable.second.m_drawable)
 					{
+						if (weakGraphic.expired())
+						{
+							expiredPtrs.push_back(weakGraphic);
+							continue;
+						}
+						auto graphic = weakGraphic.lock();
 						s_window.draw(*graphic);
 					}
 					drawable.second.m_drawnThisFrame = false;
