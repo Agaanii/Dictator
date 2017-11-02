@@ -660,22 +660,22 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				{
 					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity);
 
-					// Add graphics for the individual tile
-					{
-						auto hexagon = std::make_shared<sf::ConvexShape>(6);
-						auto positionOffset = CoordinatesToWorldOffset(tile - buildingTilePos.m_position);
-						hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
-						hexagon->setPoint(1, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-						hexagon->setPoint(2, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-						hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
-						hexagon->setPoint(4, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-						hexagon->setPoint(5, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-						hexagon->setOutlineThickness(0.1f);
-						hexagon->setOutlineColor(sf::Color());
-						hexagon->setFillColor(sf::Color(64, 64, 64, 192));
+					//// Add graphics for the individual tile
+					//{
+					//	auto hexagon = std::make_shared<sf::ConvexShape>(6);
+					//	auto positionOffset = CoordinatesToWorldOffset(tile - buildingTilePos.m_position);
+					//	hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
+					//	hexagon->setPoint(1, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+					//	hexagon->setPoint(2, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+					//	hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
+					//	hexagon->setPoint(4, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
+					//	hexagon->setPoint(5, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
+					//	hexagon->setOutlineThickness(0.1f);
+					//	hexagon->setOutlineColor(sf::Color());
+					//	hexagon->setFillColor(sf::Color(64, 64, 64, 192));
 
-						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({hexagon, positionOffset.cast<f64>()});
-					}
+					//	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({hexagon, positionOffset.cast<f64>()});
+					//}
 
 					// redraw the borders
 					{

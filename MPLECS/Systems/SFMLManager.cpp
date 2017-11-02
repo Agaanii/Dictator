@@ -643,11 +643,11 @@ void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	EventResponse::UpdateMouseWorldPosition(inputComponent);
 }
 
-void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent)
+void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent, const timeuS& frameDuration)
 {
 	if (s_font)
 	{
-		sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText, worldCoordinatesText;
+		sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText, worldCoordinatesText, frameDurationText;
 		std::vector<sf::Text*> texts{ 
 			&modifierText, 
 			&newDownText, 
@@ -655,7 +655,9 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 			&currentDepressedText, 
 			&windowPositionText, 
 			&worldPositionText,
-		&worldCoordinatesText};
+			&worldCoordinatesText,
+			&frameDurationText
+		};
 		std::string modifierString = "";
 		if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::CTRL)
 		{
@@ -716,6 +718,8 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 			worldCoordinatesText.setString(mouseWorldCoordinatesStr);
 		}
 
+		std::string frameDurationStr = "FrameDuration: " + std::to_string(frameDuration) + " uS";
+		worldCoordinatesText.setString(frameDurationStr);
 
 		int row = 0;
 		for (auto* text : texts)
@@ -814,18 +818,19 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			{
 				if (drawable.second.m_drawnThisFrame)
 				{
-					std::vector<std::weak_ptr<sf::Drawable>> expiredPtrs;
-					for (auto&& weakGraphic : drawable.second.m_drawable)
+					for (auto&& weakGraphicIter = drawable.second.m_drawable.begin(); weakGraphicIter != drawable.second.m_drawable.end();)
 					{
-						if (weakGraphic.expired())
+						if (weakGraphicIter->expired())
 						{
-							expiredPtrs.push_back(weakGraphic);
-							continue;
+							drawable.second.m_drawable.erase(weakGraphicIter++);
 						}
-						auto graphic = weakGraphic.lock();
-						s_window.draw(*graphic);
+						else
+						{
+							auto graphic = weakGraphicIter->lock();
+							s_window.draw(*graphic);
+							++weakGraphicIter;
+						}
 					}
-					drawable.second.m_drawnThisFrame = false;
 				}
 				else
 				{
@@ -840,7 +845,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	}
 
 	s_window.setView(s_UIView);
-	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject));
+	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject), frameDuration);
 	s_window.display();
 }
 
