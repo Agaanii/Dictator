@@ -140,6 +140,7 @@ namespace TileNED
 		CoordinateVector2 origin,
 		CoordinateVector2 target,
 		ECS_Core::Manager& manager);
+	void ReturnDeadBuildingTiles(ECS_Core::Manager& manager);
 
 	struct SortByOriginDist
 	{
@@ -598,6 +599,19 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 {
 	auto& territoryEntities = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
 
+	// Run through the buildings that are in progress, make sure they contain their own building placement
+	for (auto&& buildingEntity : manager.entitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>())
+	{
+		auto& buildingTilePos = manager.getComponent<C_TilePosition>(buildingEntity);
+		auto& placementTile = FetchQuadrant(buildingTilePos.m_position.m_quadrantCoords, manager)
+			.m_sectors[buildingTilePos.m_position.m_sectorCoords.m_x][buildingTilePos.m_position.m_sectorCoords.m_y]
+			.m_tiles[buildingTilePos.m_position.m_coords.m_x][buildingTilePos.m_position.m_coords.m_y];
+		if (!placementTile.m_owningBuilding)
+		{
+			placementTile.m_owningBuilding = buildingEntity;
+		}
+	}
+
 	for (auto& territoryEntity : territoryEntities)
 	{
 		// Make sure territory is growing into a valid spot
@@ -659,24 +673,6 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
 				{
 					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity);
-
-					//// Add graphics for the individual tile
-					//{
-					//	auto hexagon = std::make_shared<sf::ConvexShape>(6);
-					//	auto positionOffset = CoordinatesToWorldOffset(tile - buildingTilePos.m_position);
-					//	hexagon->setPoint(0, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 0.f });
-					//	hexagon->setPoint(1, { 0.f, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-					//	hexagon->setPoint(2, { 0.f, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-					//	hexagon->setPoint(3, { 0.5f * TileConstants::TILE_SIDE_LENGTH, 1.f * TileConstants::TILE_SIDE_LENGTH });
-					//	hexagon->setPoint(4, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.667f * TileConstants::TILE_SIDE_LENGTH });
-					//	hexagon->setPoint(5, { 1.f * TileConstants::TILE_SIDE_LENGTH, 0.333f * TileConstants::TILE_SIDE_LENGTH });
-					//	hexagon->setOutlineThickness(0.1f);
-					//	hexagon->setOutlineColor(sf::Color());
-					//	hexagon->setFillColor(sf::Color(64, 64, 64, 192));
-
-					//	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({hexagon, positionOffset.cast<f64>()});
-					//}
-
 					// redraw the borders
 					{
 						// Remove previous borders
@@ -798,6 +794,28 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 	}
 }
 
+void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
+{
+	for (auto&& deadBuildingEntity : manager.entitiesMatching<ECS_Core::Signatures::S_DestroyedBuilding>())
+	{
+		auto& buildingPosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(deadBuildingEntity).m_position;
+		auto& buildingTile = FetchQuadrant(buildingPosition.m_quadrantCoords, manager)
+			.m_sectors[buildingPosition.m_sectorCoords.m_x][buildingPosition.m_sectorCoords.m_y]
+			.m_tiles[buildingPosition.m_coords.m_x][buildingPosition.m_coords.m_y];
+		buildingTile.m_owningBuilding.reset();
+
+		if (manager.hasComponent<ECS_Core::Components::C_Territory>(deadBuildingEntity))
+		{
+			for (auto&& tile : manager.getComponent<ECS_Core::Components::C_Territory>(deadBuildingEntity).m_ownedTiles)
+			{
+				FetchQuadrant(tile.m_quadrantCoords, manager)
+					.m_sectors[tile.m_sectorCoords.m_x][tile.m_sectorCoords.m_y]
+					.m_tiles[tile.m_coords.m_x][tile.m_coords.m_y].m_owningBuilding.reset();
+			}
+		}
+	}
+}
+
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -852,6 +870,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:
+		TileNED::ReturnDeadBuildingTiles(m_managerRef);
 		return;
 	}
 }

@@ -392,6 +392,7 @@ namespace ECS_Core
 	{
 		struct T_NoAcceleration {};
 		struct T_BuildingConstruction {};
+		struct T_Dead {};
 	}
 
 	namespace Signatures
@@ -408,6 +409,7 @@ namespace ECS_Core
 		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
 		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingConstruction>;
 		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory>;
+		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -429,7 +431,8 @@ namespace ECS_Core
 
 	using MasterTagList = ecs::TagList<
 		Tags::T_NoAcceleration,
-		Tags::T_BuildingConstruction
+		Tags::T_BuildingConstruction,
+		Tags::T_Dead
 	>;
 
 	using MasterSignatureList = ecs::SignatureList<
@@ -444,7 +447,8 @@ namespace ECS_Core
 		Signatures::S_DrawableConstructingBuilding,
 		Signatures::S_InProgressBuilding,
 		Signatures::S_CompleteBuilding,
-		Signatures::S_PlannedBuildingPlacement
+		Signatures::S_PlannedBuildingPlacement,
+		Signatures::S_DestroyedBuilding
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;
