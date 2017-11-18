@@ -709,12 +709,12 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 
 		if (inputComponent.m_currentMousePosition.m_tilePosition)
 		{
-			std::string mouseWorldCoordinatesStr = "Tile: " + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_quadrantCoords.m_x)
-				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_quadrantCoords.m_y)
-				+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_sectorCoords.m_x)
-				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_sectorCoords.m_y)
-				+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_coords.m_x)
-				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_coords.m_y);
+			std::string mouseWorldCoordinatesStr = "Tile: " + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords.m_x)
+				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords.m_y)
+				+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_sectorCoords.m_x)
+				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_sectorCoords.m_y)
+				+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_coords.m_x)
+				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_coords.m_y);
 			worldCoordinatesText.setString(mouseWorldCoordinatesStr);
 		}
 

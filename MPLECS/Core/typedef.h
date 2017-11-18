@@ -159,3 +159,54 @@ namespace std
 		return left.m_x < right.m_x;
 	}
 }
+
+using CoordinateVector2 = CartesianVector2<s64>;
+
+struct TilePosition
+{
+	TilePosition() {}
+	TilePosition(const CoordinateVector2& qc, const CoordinateVector2& sc, const CoordinateVector2& c)
+		: m_quadrantCoords(qc)
+		, m_sectorCoords(sc)
+		, m_coords(c)
+	{ }
+
+	template<typename NUM_TYPE>
+	TilePosition(NUM_TYPE qx, NUM_TYPE qy, NUM_TYPE sx, NUM_TYPE sy, NUM_TYPE x, NUM_TYPE y)
+		: m_quadrantCoords(qx, qy)
+		, m_sectorCoords(sx, sy)
+		, m_coords(x, y)
+	{}
+	CoordinateVector2 m_quadrantCoords;
+	CoordinateVector2 m_sectorCoords;
+	CoordinateVector2 m_coords;
+
+	bool operator==(const TilePosition& other) const
+	{
+		return m_quadrantCoords == other.m_quadrantCoords
+			&& m_sectorCoords == other.m_sectorCoords
+			&& m_coords == other.m_coords;
+	}
+
+	bool operator<(const TilePosition& other) const
+	{
+		if (m_quadrantCoords < other.m_quadrantCoords) return true;
+		if (other.m_quadrantCoords < m_quadrantCoords) return false;
+		if (m_sectorCoords < other.m_sectorCoords) return true;
+		if (other.m_sectorCoords < m_sectorCoords) return false;
+		if (m_coords < other.m_coords) return true;
+		return false;
+	}
+
+	TilePosition& operator-=(const TilePosition& other);
+	TilePosition operator-(const TilePosition& other) const
+	{
+		return TilePosition(*this) -= other;
+	}
+
+	TilePosition& operator+=(const TilePosition& other);
+	TilePosition operator+(const TilePosition& other) const
+	{
+		return TilePosition(*this) += other;
+	}
+};

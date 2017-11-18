@@ -146,6 +146,9 @@
     <ClInclude Include="BuildingCreation.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Components\InputComponents.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\cour.ttf">

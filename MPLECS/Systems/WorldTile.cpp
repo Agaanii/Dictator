@@ -107,7 +107,7 @@ namespace TileNED
 
 	void CheckBuildingPlacements(ECS_Core::Manager& manager);
 
-	using WorldCoordinates = ECS_Core::Components::TilePosition;
+	using WorldCoordinates = TilePosition;
 
 	struct TileSide
 	{
@@ -134,7 +134,7 @@ namespace TileNED
 	std::set<TileSide> GetAdjacents(const WorldCoordinates& coordinates);
 
 	void GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration);
-	TileNED::Quadrant& FetchQuadrant(const ECS_Core::Components::CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
+	TileNED::Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
 	void CheckWorldClick(ECS_Core::Manager& manager);
 	void SpawnBetween(
 		CoordinateVector2 origin,
@@ -176,7 +176,7 @@ namespace TileNED
 	};
 }
 
-ECS_Core::Components::TilePosition& ECS_Core::Components::TilePosition::operator+=(const TilePosition& other)
+TilePosition& TilePosition::operator+=(const TilePosition& other)
 {
 	m_quadrantCoords += other.m_quadrantCoords;
 	m_sectorCoords += other.m_sectorCoords;
@@ -198,7 +198,7 @@ ECS_Core::Components::TilePosition& ECS_Core::Components::TilePosition::operator
 	return *this;
 }
 
-ECS_Core::Components::TilePosition& ECS_Core::Components::TilePosition::operator-=(const TilePosition& other)
+TilePosition& TilePosition::operator-=(const TilePosition& other)
 {
 	m_quadrantCoords -= other.m_quadrantCoords;
 	m_sectorCoords -= other.m_sectorCoords;
@@ -237,7 +237,7 @@ struct SectorSeedPosition
 };
 
 std::vector<SectorSeedPosition> GetRelevantSeeds(
-	const ECS_Core::Components::CoordinateVector2 & coordinates,
+	const CoordinateVector2 & coordinates,
 	int secX,
 	int secY)
 {
@@ -731,7 +731,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 	}
 }
 
-TileNED::Quadrant& TileNED::FetchQuadrant(const ECS_Core::Components::CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager)
+TileNED::Quadrant& TileNED::FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager)
 {
 	if (TileNED::s_spawnedQuadrants.find(quadrantCoords) == TileNED::s_spawnedQuadrants.end())
 	{
@@ -786,7 +786,7 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
-		auto&& quadrantCoords = inputComponent.m_currentMousePosition.m_tilePosition->m_position.m_quadrantCoords;
+		auto&& quadrantCoords = inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords;
 
 		FetchQuadrant(quadrantCoords, manager);
 
