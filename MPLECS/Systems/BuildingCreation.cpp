@@ -51,6 +51,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 			building.m_buildingProgress = 1.0;
 			// We're done building, remove the construction tag and give it territory
 			manager.delTag<ECS_Core::Tags::T_BuildingConstruction>(mI);
+			manager.addComponent<ECS_Core::Components::C_YieldPotential>(mI);
 			manager.addComponent<ECS_Core::Components::C_Territory>(mI).m_ownedTiles.insert(buildingTilePosition.m_position);
 		}
 

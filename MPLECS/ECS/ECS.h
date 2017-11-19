@@ -110,6 +110,7 @@ namespace ECS_Core
 
 		struct C_BuildingGhost {
 			bool m_currentPlacementValid{ false };
+			ecs::Impl::Handle m_placingGovernor;
 		};
 
 		struct GrowthTile
@@ -122,6 +123,28 @@ namespace ECS_Core
 		{
 			std::set<TilePosition> m_ownedTiles;
 			std::optional<GrowthTile> m_nextGrowthTile;
+		};
+
+		using YieldType = s32;
+		struct Yield
+		{
+			f64 m_productionInterval;
+			s32 m_value;
+		};
+		struct C_YieldPotential
+		{
+			std::map<YieldType, Yield> m_availableYields;
+		};
+
+		struct C_ResourceInventory
+		{
+			std::map<YieldType, s64> m_collectedYields;
+		};
+
+		struct C_Realm
+		{
+			std::set<ecs::Impl::Handle> m_subordinates;
+			std::set<ecs::Impl::Handle> m_territories;
 		};
 	}
 
@@ -145,8 +168,9 @@ namespace ECS_Core
 		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
 		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
 		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingConstruction>;
-		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory>;
+		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
+		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -163,7 +187,10 @@ namespace ECS_Core
 		Components::C_TilePosition,
 		Components::C_BuildingGhost,
 		Components::C_BuildingDescription,
-		Components::C_Territory
+		Components::C_Territory,
+		Components::C_YieldPotential,
+		Components::C_ResourceInventory,
+		Components::C_Realm
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -185,7 +212,8 @@ namespace ECS_Core
 		Signatures::S_InProgressBuilding,
 		Signatures::S_CompleteBuilding,
 		Signatures::S_PlannedBuildingPlacement,
-		Signatures::S_DestroyedBuilding
+		Signatures::S_DestroyedBuilding,
+		Signatures::S_Governor
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;
