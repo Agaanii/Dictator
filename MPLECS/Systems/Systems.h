@@ -33,7 +33,11 @@ DECLARE_SYSTEM(SFMLManager,,);
 DECLARE_SYSTEM(UnitDeath,,);
 DECLARE_SYSTEM(BuildingCreation,,);
 DECLARE_SYSTEM(WorldTile,,);
-DECLARE_SYSTEM(Government, m_localPlayerGovernment = m_managerRef.createHandle(), ecs::Impl::Handle m_localPlayerGovernment);
+DECLARE_SYSTEM(Government,
+	m_localPlayerGovernment = m_managerRef.createHandle(); 
+	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(m_localPlayerGovernment);
+	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(m_localPlayerGovernment),
+	ecs::Impl::Handle m_localPlayerGovernment);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\
