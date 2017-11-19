@@ -76,6 +76,13 @@ namespace ecs {
 			{
 				return !operator==(other);
 			}
+
+			bool operator<(const Handle& other) const
+			{
+				if (handleDataIndex < other.handleDataIndex) return true;
+				if (handleDataIndex > other.handleDataIndex) return false;
+				return counter < other.counter;
+			}
         };
 
         template <typename TSettings>
@@ -251,6 +258,7 @@ namespace ecs {
 
     template <typename TSettings>
     class Manager {
+		using HandleData = Impl::HandleData;
 
         public:
             using Handle = Impl::Handle;
@@ -476,20 +484,26 @@ namespace ecs {
                 mOSS << "\n\n";
             }*/
 
-				auto& getHandleData(EntityIndex mI) noexcept {
-					return getHandleData(getEntity(mI).handleDataIndex);
-				}
+			auto& getHandleData(EntityIndex mI) noexcept {
+				return getHandleData(getEntity(mI).handleDataIndex);
+			}
 
-				const auto& getHandleData(EntityIndex mI) const noexcept {
-					return getHandleData(getEntity(mI).handleDataIndex);
-				}
+			const auto& getHandleData(EntityIndex mI) const noexcept {
+				return getHandleData(getEntity(mI).handleDataIndex);
+			}
+
+			Handle getHandle(EntityIndex mI) const noexcept {
+				Handle result;
+				result.handleDataIndex = entities[mI].handleDataIndex;
+				result.counter = handleData[entities[mI].handleDataIndex].counter;
+				return result;
+			}
 
         private:
             using Settings = TSettings;
             using ThisType = Manager<Settings>;
             using Bitset = typename Settings::Bitset;
             using Entity = Impl::Entity<Settings>;
-            using HandleData = Impl::HandleData;
 
             using SignatureBitsetsStorage = Impl::SignatureBitsetsStorage<Settings>;
             using ComponentStorage = Impl::ComponentStorage<Settings>;

@@ -112,6 +112,9 @@ namespace ECS_Core
 			bool m_currentPlacementValid{ false };
 			ecs::Impl::Handle m_placingGovernor;
 		};
+		struct C_BuildingConstruction {
+			ecs::Impl::Handle m_placingGovernor;
+		};
 
 		struct GrowthTile
 		{
@@ -151,7 +154,6 @@ namespace ECS_Core
 	namespace Tags
 	{
 		struct T_NoAcceleration {};
-		struct T_BuildingConstruction {};
 		struct T_Dead {};
 	}
 
@@ -166,8 +168,8 @@ namespace ECS_Core
 		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
 		using S_DrawableBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable>;
 		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
-		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Tags::T_BuildingConstruction>;
-		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_BuildingConstruction>;
+		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Components::C_BuildingConstruction>;
+		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
 		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
 		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory>;
@@ -190,12 +192,12 @@ namespace ECS_Core
 		Components::C_Territory,
 		Components::C_YieldPotential,
 		Components::C_ResourceInventory,
-		Components::C_Realm
+		Components::C_Realm,
+		Components::C_BuildingConstruction
 	>;
 
 	using MasterTagList = ecs::TagList<
 		Tags::T_NoAcceleration,
-		Tags::T_BuildingConstruction,
 		Tags::T_Dead
 	>;
 

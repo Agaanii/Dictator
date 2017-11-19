@@ -16,8 +16,9 @@
 
 void BeginBuildingConstruction(ECS_Core::Manager & manager, ecs::EntityIndex & ghostEntity)
 {
+	manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(ghostEntity).m_placingGovernor =
+		manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor;
 	manager.delComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
-	manager.addTag<ECS_Core::Tags::T_BuildingConstruction>(ghostEntity);
 	auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
 	for (auto& prio : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
 	{
