@@ -36,6 +36,11 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 			ECS_Core::Components::C_SFMLDrawable& drawable,
 			ECS_Core::Components::C_BuildingConstruction& construction)
 	{
+		if (!manager.isHandleValid(construction.m_placingGovernor))
+		{
+			manager.kill(mI);
+			return;
+		}
 		building.m_buildingProgress += (1.0 * frameDuration / (30 * 1000000));
 
 		if (building.m_buildingProgress >= 1.0)
@@ -64,7 +69,6 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 				}
 			}
 		}
-
 	});
 }
 

@@ -90,6 +90,35 @@ void InterpretLocalInput(ECS_Core::Manager& manager, ecs::Impl::Handle localGove
 	}
 }
 
+void GainIncomes(ECS_Core::Manager& manager, const timeuS& frameDuration)
+{
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>(
+		[&manager, &frameDuration](
+			ecs::EntityIndex mI,
+			ECS_Core::Components::C_Realm& realm,
+			ECS_Core::Components::C_ResourceInventory& inventory)
+	{
+		for (auto&& territoryHandle : realm.m_territories)
+		{
+			if (!manager.isHandleValid(territoryHandle) || !manager.hasComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle))
+			{
+				continue;
+			}
+
+			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
+			for (auto&& yield : territoryYield.m_availableYields)
+			{
+				yield.second.m_productionProgress += 1. * frameDuration / 1000000;
+				if (yield.second.m_productionProgress > yield.second.m_productionInterval)
+				{
+					yield.second.m_productionProgress -= yield.second.m_productionInterval;
+					inventory.m_collectedYields[yield.first] += yield.second.m_value;
+				}
+			}
+		}
+	});
+}
+
 void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -97,11 +126,30 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::INPUT:
 		InterpretLocalInput(m_managerRef, m_localPlayerGovernment);
 		break;
-	case GameLoopPhase::PREPARATION:
 	case GameLoopPhase::ACTION:
+		GainIncomes(m_managerRef, frameDuration);
+		break;
+	case GameLoopPhase::PREPARATION:
 	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
+		break;
 	case GameLoopPhase::CLEANUP:
+		for (auto&& governor : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Governor>())
+		{
+			auto& realm = m_managerRef.getComponent<ECS_Core::Components::C_Realm>(governor);
+			auto& managerRef = m_managerRef;
+			for (auto iter = realm.m_territories.begin(); iter != realm.m_territories.end();)
+			{
+				if (managerRef.isHandleValid(*iter))
+				{
+					++iter;
+				}
+				else
+				{
+					realm.m_territories.erase(iter++);
+				}
+			}
+		}
 		return;
 	}
 }

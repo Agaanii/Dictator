@@ -678,7 +678,9 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 					auto& ownedTile = FetchQuadrant(tilePos.m_quadrantCoords, manager)
 						.m_sectors[tilePos.m_sectorCoords.m_x][tilePos.m_sectorCoords.m_y]
 						.m_tiles[tilePos.m_coords.m_x][tilePos.m_coords.m_y];
-					++yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)].m_value;
+					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
+					yield.m_productionInterval = 5;
+					++yield.m_value;
 				}
 
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))

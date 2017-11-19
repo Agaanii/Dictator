@@ -118,7 +118,7 @@ namespace ECS_Core
 
 		struct GrowthTile
 		{
-			f64 m_progress;
+			f64 m_progress{ 0 };
 			TilePosition m_tile;
 		};
 
@@ -131,8 +131,9 @@ namespace ECS_Core
 		using YieldType = s32;
 		struct Yield
 		{
-			f64 m_productionInterval;
-			s32 m_value;
+			f64 m_productionInterval{ 1 };
+			f64 m_productionProgress{ 0 };
+			s32 m_value{ 0 };
 		};
 		struct C_YieldPotential
 		{
