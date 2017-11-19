@@ -146,9 +146,6 @@
     <ClInclude Include="Util\Pathing.h">
       <Filter>Header Files\Util</Filter>
     </ClInclude>
-    <ClInclude Include="BuildingCreation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Components\InputComponents.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>

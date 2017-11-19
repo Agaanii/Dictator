@@ -41,6 +41,7 @@ int main()
 {
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
+	RegisterSystem<Government>();
 	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
 	RegisterSystem<SFMLManager>();

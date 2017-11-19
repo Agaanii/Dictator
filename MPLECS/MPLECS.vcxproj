@@ -153,7 +153,6 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClCompile Include="Util\Pathing.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BuildingCreation.h" />
     <ClInclude Include="Components\GraphicsComponents.h" />
     <ClInclude Include="Components\InputComponents.h" />
     <ClInclude Include="Core\typedef.h" />

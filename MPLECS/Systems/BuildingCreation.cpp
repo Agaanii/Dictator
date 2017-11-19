@@ -23,16 +23,7 @@
 
 namespace Buildings
 {
-	std::optional<ecs::EntityIndex> s_ghostEntity;
 	void AdvanceBuildingConstruction(ECS_Core::Manager& manager, const timeuS& frameDuration);
-	void CheckCreatePlacements(ECS_Core::Manager& manager);
-	void CheckCreateGhosts(ECS_Core::Manager& manager);
-}
-
-template<class T>
-T min(T&& a, T&& b)
-{
-	return a < b ? a : b;
 }
 
 void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const timeuS& frameDuration)
@@ -71,67 +62,6 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 	});
 }
 
-void Buildings::CheckCreatePlacements(ECS_Core::Manager& manager)
-{
-	if (!s_ghostEntity) return;
-
-	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
-	if (inputEntities.size() == 0) return;
-	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
-
-	// Update position of the ghost
-	manager.getComponent<ECS_Core::Components::C_TilePosition>(*s_ghostEntity) = *inputComponent.m_currentMousePosition.m_tilePosition;
-
-	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
-	{
-		auto& ghost = manager.getComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
-		if (!ghost.m_currentPlacementValid)
-		{
-			// TODO: Surface error
-			return;
-		}
-		manager.delComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
-		manager.addTag<ECS_Core::Tags::T_BuildingConstruction>(*s_ghostEntity);
-		auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
-		for (auto& prio : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
-		{
-			for (auto&& building : prio.second)
-			{
-				sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
-				if (shapeDrawable)
-					shapeDrawable->setFillColor(sf::Color(128, 128, 128, 26));
-			}
-		}
-		s_ghostEntity.reset();
-		
-		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-	}
-}
-
-void Buildings::CheckCreateGhosts(ECS_Core::Manager& manager)
-{
-	if (s_ghostEntity) return;
-	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
-	if (inputEntities.size() == 0) return;
-	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
-
-	if (inputComponent.m_newKeyDown.count(ECS_Core::Components::InputKeys::B))
-	{
-		s_ghostEntity = manager.createIndex();
-		manager.addComponent<ECS_Core::Components::C_BuildingGhost>(*s_ghostEntity);
-		manager.addComponent<ECS_Core::Components::C_TilePosition>(*s_ghostEntity) = *inputComponent.m_currentMousePosition.m_tilePosition;
-		manager.addComponent<ECS_Core::Components::C_PositionCartesian>(*s_ghostEntity);
-		manager.addComponent<ECS_Core::Components::C_BuildingDescription>(*s_ghostEntity); // TODO: Mapping input key to building type
-		auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*s_ghostEntity);
-		auto shape = std::make_shared<sf::CircleShape>(2.5f);
-		shape->setOutlineColor(sf::Color(128, 128, 128, 255));
-		shape->setFillColor(sf::Color(128, 128, 128, 128));
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ shape, {0,0} });
-
-		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
-	}
-}
-
 void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -143,15 +73,8 @@ void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 
 	case GameLoopPhase::ACTION:
-		// Advance construction, then create ghosts and placements
-		// Construction does not advance on the cycle of creation
-
-		// Advance Construction
+		// Advance construction
 		Buildings::AdvanceBuildingConstruction(m_managerRef, frameDuration);
-
-		// Create ghosts and placements
-		Buildings::CheckCreatePlacements(m_managerRef);
-		Buildings::CheckCreateGhosts(m_managerRef);
 		break;
 	case GameLoopPhase::RENDER:
 		// Update building visuals

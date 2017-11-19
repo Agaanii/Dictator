@@ -15,24 +15,25 @@
 template<typename SystemType>
 std::unique_ptr<SystemType> InstantiateSystem();
 
-#define DECLARE_SYSTEM(SystemName)														\
+#define DECLARE_SYSTEM(SystemName, ConstructorBody, Member)								\
 class SystemName : public SystemBase													\
 {																						\
 public:																					\
-	SystemName() : SystemBase() {}														\
+	SystemName() : SystemBase() { ConstructorBody; }									\
 	virtual ~SystemName() {}															\
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;	\
 	virtual bool ShouldExit() override;													\
+	Member;																				\
 };																						\
 template <> std::unique_ptr<SystemName> InstantiateSystem();
 
-DECLARE_SYSTEM(DamageApplication);
-DECLARE_SYSTEM(NewtonianMovement);
-DECLARE_SYSTEM(SFMLManager);
-DECLARE_SYSTEM(UnitDeath);
-DECLARE_SYSTEM(BuildingCreation);
-DECLARE_SYSTEM(WorldTile);
-DECLARE_SYSTEM(Government);
+DECLARE_SYSTEM(DamageApplication,,);
+DECLARE_SYSTEM(NewtonianMovement,,);
+DECLARE_SYSTEM(SFMLManager,,);
+DECLARE_SYSTEM(UnitDeath,,);
+DECLARE_SYSTEM(BuildingCreation,,);
+DECLARE_SYSTEM(WorldTile,,);
+DECLARE_SYSTEM(Government, m_localPlayerGovernment = m_managerRef.createHandle(), ecs::Impl::Handle m_localPlayerGovernment);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\
@@ -43,4 +44,4 @@ DECLARE_SYSTEM(Government);
 
 // Make the compiler happy with our template
 // No need to register this one (Though it won't be a lot of operations anyway)
-DECLARE_SYSTEM(SystemTemplate);
+DECLARE_SYSTEM(SystemTemplate,,);

@@ -210,3 +210,9 @@ struct TilePosition
 		return TilePosition(*this) += other;
 	}
 };
+
+template<class T>
+T min(T&& a, T&& b)
+{
+	return a < b ? a : b;
+}

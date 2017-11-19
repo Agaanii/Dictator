@@ -65,6 +65,17 @@ namespace ecs {
         struct Handle {
             HandleDataIndex handleDataIndex;
             Counter counter;
+
+			bool operator==(const Handle& other) const
+			{
+				return handleDataIndex == other.handleDataIndex
+					&& counter == other.counter;
+			}
+
+			bool operator!=(const Handle& other) const
+			{
+				return !operator==(other);
+			}
         };
 
         template <typename TSettings>
