@@ -47,6 +47,12 @@ int main()
 	RegisterSystem<SFMLManager>();
 	RegisterSystem<UnitDeath>();
 	auto loopStart = chrono::high_resolution_clock::now();
+
+	for (auto&& system : s_systems)
+	{
+		system->SetupGameplay();
+	}
+
 	while(true)
 	{
 		auto now = chrono::high_resolution_clock::now();

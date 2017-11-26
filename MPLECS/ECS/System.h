@@ -30,7 +30,7 @@ class SystemBase
 public:
 	SystemBase();
 	virtual ~SystemBase() {}
-
+	virtual void SetupGameplay() = 0;
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) = 0;
 	virtual bool ShouldExit() = 0;
 protected:

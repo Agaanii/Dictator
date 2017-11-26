@@ -21,7 +21,7 @@
 sf::RenderWindow s_window(sf::VideoMode(1600, 900), "Loesby is good at this shit.");
 bool closingTriggered = false;
 bool close = false;
-std::optional<sf::Font> s_font;
+sf::Font s_font;
 sf::Vector2u s_mostRecentWindowSize;
 
 sf::View s_worldView({ 0, 0, 1600, 900 });
@@ -504,6 +504,15 @@ void EventResponse::OnJoystickDisconnect(const sf::Event::JoystickConnectEvent& 
 {
 }
 
+void SFMLManager::SetupGameplay()
+{
+	sf::Font tempFont;
+	if (tempFont.loadFromFile("Assets/cour.ttf"))
+	{
+		s_font = tempFont;
+	}
+}
+
 void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	if (!EventResponse::s_inputObject)
@@ -537,15 +546,6 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 void ReadSFMLInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
-	if (!s_font)
-	{
-		sf::Font tempFont;
-		if (tempFont.loadFromFile("Assets/cour.ttf"))
-		{
-			s_font = tempFont;
-		}
-	}
-
 	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
 	sf::Event event;
 	while (s_window.pollEvent(event))
@@ -645,91 +645,88 @@ void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 
 void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent, const timeuS& frameDuration)
 {
-	if (s_font)
+	sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText, worldCoordinatesText, frameDurationText;
+	std::vector<sf::Text*> texts{
+		&modifierText,
+		&newDownText,
+		&newUpText,
+		&currentDepressedText,
+		&windowPositionText,
+		&worldPositionText,
+		&worldCoordinatesText,
+		&frameDurationText
+	};
+	std::string modifierString = "";
+	if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::CTRL)
 	{
-		sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText, worldCoordinatesText, frameDurationText;
-		std::vector<sf::Text*> texts{ 
-			&modifierText, 
-			&newDownText, 
-			&newUpText, 
-			&currentDepressedText, 
-			&windowPositionText, 
-			&worldPositionText,
-			&worldCoordinatesText,
-			&frameDurationText
-		};
-		std::string modifierString = "";
-		if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::CTRL)
-		{
-			modifierString += "Control ";
-		}
-		if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::ALT)
-		{
-			modifierString += "Alt ";
-		}
-		if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::SHIFT)
-		{
-			modifierString += "Shift";
-		}
-		modifierText.setString(modifierString);
+		modifierString += "Control ";
+	}
+	if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::ALT)
+	{
+		modifierString += "Alt ";
+	}
+	if (inputComponent.m_activeModifiers & (u8)ECS_Core::Components::Modifiers::SHIFT)
+	{
+		modifierString += "Shift";
+	}
+	modifierText.setString(modifierString);
 
-		std::string newUpStr = "";
-		for (auto&& inputKey : inputComponent.m_newKeyUp)
-		{
-			if (newUpStr.size()) newUpStr += " ";
-			newUpStr += GetInputKeyString(inputKey);
-		}
-		newUpText.setString(newUpStr);
+	std::string newUpStr = "";
+	for (auto&& inputKey : inputComponent.m_newKeyUp)
+	{
+		if (newUpStr.size()) newUpStr += " ";
+		newUpStr += GetInputKeyString(inputKey);
+	}
+	newUpText.setString(newUpStr);
 
-		std::string newDownStr = "";
-		for (auto&& inputKey : inputComponent.m_newKeyDown)
-		{
-			if (newDownStr.size()) newDownStr += " ";
-			newDownStr += GetInputKeyString(inputKey);
-		}
-		newDownText.setString(newDownStr);
+	std::string newDownStr = "";
+	for (auto&& inputKey : inputComponent.m_newKeyDown)
+	{
+		if (newDownStr.size()) newDownStr += " ";
+		newDownStr += GetInputKeyString(inputKey);
+	}
+	newDownText.setString(newDownStr);
 
-		std::string currentDepressedStr = "";
-		for (auto&& inputKey : inputComponent.m_unprocessedCurrentKeys)
-		{
-			if (currentDepressedStr.size()) currentDepressedStr += " ";
-			currentDepressedStr += GetInputKeyString(inputKey);
-		}
-		currentDepressedText.setString(currentDepressedStr);
+	std::string currentDepressedStr = "";
+	for (auto&& inputKey : inputComponent.m_unprocessedCurrentKeys)
+	{
+		if (currentDepressedStr.size()) currentDepressedStr += " ";
+		currentDepressedStr += GetInputKeyString(inputKey);
+	}
+	currentDepressedText.setString(currentDepressedStr);
 
-		std::string windowMousePosStr = 
-			"Window: X=" + std::to_string(inputComponent.m_currentMousePosition.m_screenPosition.m_x) + 
-			", Y=" + std::to_string(inputComponent.m_currentMousePosition.m_screenPosition.m_y);
-		windowPositionText.setString(windowMousePosStr);
+	std::string windowMousePosStr =
+		"Window: X=" + std::to_string(inputComponent.m_currentMousePosition.m_screenPosition.m_x) +
+		", Y=" + std::to_string(inputComponent.m_currentMousePosition.m_screenPosition.m_y);
+	windowPositionText.setString(windowMousePosStr);
 
-		std::string worldMousePosStr = 
-			"World: X=" + std::to_string(inputComponent.m_currentMousePosition.m_worldPosition.m_x) + 
-			", Y=" + std::to_string(inputComponent.m_currentMousePosition.m_worldPosition.m_y);
-		worldPositionText.setString(worldMousePosStr);
+	std::string worldMousePosStr =
+		"World: X=" + std::to_string(inputComponent.m_currentMousePosition.m_worldPosition.m_x) +
+		", Y=" + std::to_string(inputComponent.m_currentMousePosition.m_worldPosition.m_y);
+	worldPositionText.setString(worldMousePosStr);
 
-		if (inputComponent.m_currentMousePosition.m_tilePosition)
-		{
-			std::string mouseWorldCoordinatesStr = "Tile: " + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords.m_x)
-				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords.m_y)
-				+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_sectorCoords.m_x)
-				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_sectorCoords.m_y)
-				+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_coords.m_x)
-				+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_coords.m_y);
-			worldCoordinatesText.setString(mouseWorldCoordinatesStr);
-		}
+	if (inputComponent.m_currentMousePosition.m_tilePosition)
+	{
+		std::string mouseWorldCoordinatesStr = "Tile: " + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords.m_x)
+			+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords.m_y)
+			+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_sectorCoords.m_x)
+			+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_sectorCoords.m_y)
+			+ ":" + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_coords.m_x)
+			+ "." + std::to_string(inputComponent.m_currentMousePosition.m_tilePosition->m_coords.m_y);
+		worldCoordinatesText.setString(mouseWorldCoordinatesStr);
+	}
 
-		std::string frameDurationStr = "FrameDuration: " + std::to_string(frameDuration) + " uS";
-		worldCoordinatesText.setString(frameDurationStr);
+	std::string frameDurationStr = "FrameDuration: " + std::to_string(frameDuration) + " uS";
+	worldCoordinatesText.setString(frameDurationStr);
 
-		int row = 0;
-		for (auto* text : texts)
-		{
-			text->setFont(*s_font);
-			text->setPosition(0, 45.f * row++);
-			text->setFillColor(sf::Color(255, 255, 255));
-			text->setOutlineColor(sf::Color(15, 15, 15));
-			s_window.draw(*text);
-		}
+	int row = 0;
+	for (auto* text : texts)
+	{
+		text->setFont(s_font);
+		text->setPosition(0, 45.f * row++);
+		text->setFillColor(sf::Color(255, 255, 255));
+		text->setOutlineColor(sf::Color(15, 15, 15));
+		s_window.draw(*text);
 	}
 }
 

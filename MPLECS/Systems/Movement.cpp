@@ -14,6 +14,8 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+void NewtonianMovement::SetupGameplay() {}
+
 void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration) 
 {
 	if (phase != GameLoopPhase::ACTION)

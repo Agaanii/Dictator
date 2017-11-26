@@ -72,6 +72,8 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 	});
 }
 
+void BuildingCreation::SetupGameplay() {}
+
 void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)

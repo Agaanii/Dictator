@@ -14,6 +14,8 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+#include <iostream>
+
 void BeginBuildingConstruction(ECS_Core::Manager & manager, ecs::EntityIndex & ghostEntity)
 {
 	manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(ghostEntity).m_placingGovernor =
@@ -46,9 +48,17 @@ void CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ shape,{ 0,0 } });
 }
 
-void InterpretLocalInput(ECS_Core::Manager& manager, ecs::Impl::Handle localGovernor)
+void InterpretLocalInput(ECS_Core::Manager& manager)
 {
 	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
+	auto playerGovernorEntities = manager.entitiesMatching<ECS_Core::Signatures::S_PlayerGovernor>();
+	if (playerGovernorEntities.size() != 1)
+	{
+		std::cout << "Pain and suffering: there are " << playerGovernorEntities.size() << " player governors";
+		return;
+	}
+	auto playerGovernorEntity = playerGovernorEntities.front();
+	auto playerGovernorHandle = manager.getHandle(playerGovernorEntity);
 	if (inputEntities.size() == 0) return;
 	// Should only be one input component, only one computer running this
 	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
@@ -59,7 +69,7 @@ void InterpretLocalInput(ECS_Core::Manager& manager, ecs::Impl::Handle localGove
 		for (auto&& ghostEntity : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
 		{
 			auto& ghost = manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
-			if (ghost.m_placingGovernor != localGovernor)
+			if (ghost.m_placingGovernor != playerGovernorHandle)
 			{
 				continue;
 			}
@@ -76,14 +86,14 @@ void InterpretLocalInput(ECS_Core::Manager& manager, ecs::Impl::Handle localGove
 
 	if (inputComponent.m_newKeyDown.count(ECS_Core::Components::InputKeys::B))
 	{
-		CreateBuildingGhost(manager, localGovernor, *inputComponent.m_currentMousePosition.m_tilePosition);
+		CreateBuildingGhost(manager, playerGovernorHandle, *inputComponent.m_currentMousePosition.m_tilePosition);
 
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
 	}
 
 	for (auto&& ghost : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
 	{
-		if (manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghost).m_placingGovernor == localGovernor)
+		if (manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghost).m_placingGovernor == playerGovernorHandle)
 		{
 			manager.getComponent<ECS_Core::Components::C_TilePosition>(ghost) = *inputComponent.m_currentMousePosition.m_tilePosition;
 		}
@@ -119,12 +129,20 @@ void GainIncomes(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	});
 }
 
+void Government::SetupGameplay()
+{
+	auto localPlayerGovernment = m_managerRef.createHandle();
+	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
+	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment);
+	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayerGovernment);
+}
+
 void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
 	case GameLoopPhase::INPUT:
-		InterpretLocalInput(m_managerRef, m_localPlayerGovernment);
+		InterpretLocalInput(m_managerRef);
 		break;
 	case GameLoopPhase::ACTION:
 		GainIncomes(m_managerRef, frameDuration);

@@ -15,29 +15,27 @@
 template<typename SystemType>
 std::unique_ptr<SystemType> InstantiateSystem();
 
-#define DECLARE_SYSTEM(SystemName, ConstructorBody, Member)								\
+// Poor man's metaclass
+// Herb, real metaclasses when?
+#define DECLARE_SYSTEM(SystemName)														\
 class SystemName : public SystemBase													\
 {																						\
 public:																					\
-	SystemName() : SystemBase() { ConstructorBody; }									\
+	SystemName() : SystemBase() { }														\
 	virtual ~SystemName() {}															\
+	virtual void SetupGameplay() override;												\
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;	\
 	virtual bool ShouldExit() override;													\
-	Member;																				\
 };																						\
 template <> std::unique_ptr<SystemName> InstantiateSystem();
 
-DECLARE_SYSTEM(DamageApplication,,);
-DECLARE_SYSTEM(NewtonianMovement,,);
-DECLARE_SYSTEM(SFMLManager,,);
-DECLARE_SYSTEM(UnitDeath,,);
-DECLARE_SYSTEM(BuildingCreation,,);
-DECLARE_SYSTEM(WorldTile,,);
-DECLARE_SYSTEM(Government,
-	m_localPlayerGovernment = m_managerRef.createHandle(); 
-	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(m_localPlayerGovernment);
-	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(m_localPlayerGovernment),
-	ecs::Impl::Handle m_localPlayerGovernment);
+DECLARE_SYSTEM(DamageApplication);
+DECLARE_SYSTEM(NewtonianMovement);
+DECLARE_SYSTEM(SFMLManager);
+DECLARE_SYSTEM(UnitDeath);
+DECLARE_SYSTEM(BuildingCreation);
+DECLARE_SYSTEM(WorldTile);
+DECLARE_SYSTEM(Government);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\
@@ -48,4 +46,4 @@ DECLARE_SYSTEM(Government,
 
 // Make the compiler happy with our template
 // No need to register this one (Though it won't be a lot of operations anyway)
-DECLARE_SYSTEM(SystemTemplate,,);
+DECLARE_SYSTEM(SystemTemplate);

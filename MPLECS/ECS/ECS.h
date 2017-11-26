@@ -156,6 +156,7 @@ namespace ECS_Core
 	{
 		struct T_NoAcceleration {};
 		struct T_Dead {};
+		struct T_LocalPlayer {};
 	}
 
 	namespace Signatures
@@ -174,6 +175,7 @@ namespace ECS_Core
 		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
 		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory>;
+		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -199,7 +201,8 @@ namespace ECS_Core
 
 	using MasterTagList = ecs::TagList<
 		Tags::T_NoAcceleration,
-		Tags::T_Dead
+		Tags::T_Dead,
+		Tags::T_LocalPlayer
 	>;
 
 	using MasterSignatureList = ecs::SignatureList<
@@ -216,7 +219,8 @@ namespace ECS_Core
 		Signatures::S_CompleteBuilding,
 		Signatures::S_PlannedBuildingPlacement,
 		Signatures::S_DestroyedBuilding,
-		Signatures::S_Governor
+		Signatures::S_Governor,
+		Signatures::S_PlayerGovernor
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

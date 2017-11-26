@@ -19,6 +19,8 @@
 void TakeDamage(ECS_Core::Manager& manager, const timeuS& frameDuration);
 void ClearPendingDamage(ECS_Core::Manager& manager, const timeuS& frameDuration);
 
+void DamageApplication::SetupGameplay() {}
+
 void DamageApplication::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)

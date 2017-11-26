@@ -591,10 +591,6 @@ std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords
 	};
 }
 
-// Hack: Get reference to global font
-
-extern std::optional<sf::Font> s_font;
-
 void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 {
 	auto& territoryEntities = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
@@ -828,6 +824,8 @@ void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 		}
 	}
 }
+
+void WorldTile::SetupGameplay() {}
 
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {

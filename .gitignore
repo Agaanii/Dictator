@@ -82,3 +82,4 @@ DerivedDataCache/*
 !MPLECS/Contrib/
 MPLECS/x64/
 *.user
+*.vspx
