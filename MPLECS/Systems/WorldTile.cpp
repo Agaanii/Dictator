@@ -706,12 +706,39 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 						{
 							auto positionOffset = CoordinatesToWorldOffset(edge.first - buildingTilePos.m_position).cast<f64>();
 							bool isVertical = (edge.second == Direction::EAST || edge.second == Direction::WEST);
+							static const float BORDER_PIXEL_WIDTH = 0.25f;
+
+							auto indicatorOffset = positionOffset + CartesianVector2<f64>{BORDER_PIXEL_WIDTH, BORDER_PIXEL_WIDTH};
+							auto sideIndicator = std::make_shared<sf::CircleShape>(BORDER_PIXEL_WIDTH, 4);
+							sideIndicator->setFillColor({});
+							switch (edge.second)
+							{
+							case Direction::NORTH:
+								// Move half right, not down
+								indicatorOffset.m_x += TileConstants::TILE_SIDE_LENGTH / 2;
+								break;
+							case Direction::SOUTH:
+								// move half right and all the way down
+								indicatorOffset.m_x += TileConstants::TILE_SIDE_LENGTH / 2;
+								indicatorOffset.m_y += TileConstants::TILE_SIDE_LENGTH - (4 * BORDER_PIXEL_WIDTH);
+								break;
+							case Direction::EAST:
+								// Move all the way right, half down
+								indicatorOffset.m_x += TileConstants::TILE_SIDE_LENGTH - (4 * BORDER_PIXEL_WIDTH);
+								indicatorOffset.m_y += TileConstants::TILE_SIDE_LENGTH / 2;
+								break;
+							case Direction::WEST:
+								// Move half down, not right
+								indicatorOffset.m_y += TileConstants::TILE_SIDE_LENGTH / 2;
+								break;
+							}
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({ sideIndicator, indicatorOffset });
 
 							// sf Line type is always 1 pixel wide, so use rectangle so we can control thickness
 							auto line = std::make_shared<sf::RectangleShape>(
-								isVertical 
-								? sf::Vector2f{0.1f, 1.f * TileConstants::TILE_SIDE_LENGTH}
-								: sf::Vector2f{1.f * TileConstants::TILE_SIDE_LENGTH, 0.1f});
+								isVertical
+								? sf::Vector2f{ BORDER_PIXEL_WIDTH, 1.f * TileConstants::TILE_SIDE_LENGTH }
+							: sf::Vector2f{ 1.f * TileConstants::TILE_SIDE_LENGTH,BORDER_PIXEL_WIDTH });
 
 							switch (edge.second)
 							{
@@ -720,18 +747,19 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 								break;
 							case Direction::SOUTH:
 								// start from bottom left
-								positionOffset.m_y += TileConstants::TILE_SIDE_LENGTH - 0.1;
+								positionOffset.m_y += TileConstants::TILE_SIDE_LENGTH - BORDER_PIXEL_WIDTH;
 								break;
 							case Direction::EAST:
 								// Start from top right
-								positionOffset.m_x += TileConstants::TILE_SIDE_LENGTH - 0.1;
+								positionOffset.m_x += TileConstants::TILE_SIDE_LENGTH - BORDER_PIXEL_WIDTH;
 								break;
 							case Direction::WEST:
 								// Go from top left corner
 								break;
 							}
 							line->setFillColor({});
-							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({line, positionOffset});
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({ line, positionOffset });
+
 						}
 					}
 				}

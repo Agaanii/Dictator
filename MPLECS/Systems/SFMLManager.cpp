@@ -716,8 +716,8 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 		worldCoordinatesText.setString(mouseWorldCoordinatesStr);
 	}
 
-	std::string frameDurationStr = "FrameDuration: " + std::to_string(frameDuration) + " uS";
-	worldCoordinatesText.setString(frameDurationStr);
+	std::string frameDurationStr = "FrameDuration: " + std::to_string(frameDuration) + " uS. FPS = " + std::to_string(1000000. / frameDuration);
+	frameDurationText.setString(frameDurationStr);
 
 	int row = 0;
 	for (auto* text : texts)
