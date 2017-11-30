@@ -39,12 +39,18 @@ void RegisterSystem()
 
 int main()
 {
+	// Systems registered in processing order
+	
+	// Give the UI first shot at any inputs. Draw order is separate from processing order
+	RegisterSystem<UI>();
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
 	RegisterSystem<Government>();
 	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
 	RegisterSystem<SFMLManager>();
+
+	// Kill units last, other things may want to refer to them
 	RegisterSystem<UnitDeath>();
 	auto loopStart = chrono::high_resolution_clock::now();
 

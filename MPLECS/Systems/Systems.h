@@ -36,6 +36,7 @@ DECLARE_SYSTEM(UnitDeath);
 DECLARE_SYSTEM(BuildingCreation);
 DECLARE_SYSTEM(WorldTile);
 DECLARE_SYSTEM(Government);
+DECLARE_SYSTEM(UI);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\
