@@ -150,6 +150,11 @@ namespace ECS_Core
 			std::set<ecs::Impl::Handle> m_subordinates;
 			std::set<ecs::Impl::Handle> m_territories;
 		};
+
+		struct C_UIFrame
+		{
+
+		};
 	}
 
 	namespace Tags
@@ -196,7 +201,8 @@ namespace ECS_Core
 		Components::C_YieldPotential,
 		Components::C_ResourceInventory,
 		Components::C_Realm,
-		Components::C_BuildingConstruction
+		Components::C_BuildingConstruction,
+		Components::C_UIFrame
 	>;
 
 	using MasterTagList = ecs::TagList<
