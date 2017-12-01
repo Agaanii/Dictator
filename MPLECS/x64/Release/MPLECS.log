@@ -1,8 +1,8 @@
-﻿  WorldTile.cpp
+﻿  UI.cpp
   Generating code
-  102 of 3224 functions ( 3.2%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    26 functions had inline decision re-evaluated but remain unchanged
+  95 of 6590 functions ( 1.4%) were compiled, the rest were copied from previous compilation.
+    10 functions were new in current compilation
+    47 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   MPLECS.vcxproj -> D:\Projects\Dictator\Dictator\MPLECS\x64\Release\MPLECS.exe
           1 file(s) copied.

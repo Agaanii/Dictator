@@ -31,25 +31,43 @@ protected:
 #define DataBinding(Type, MemberName) UIDataBind<Type, decltype(Type::MemberName)>(&Type::MemberName)
 // Example: auto dataBinding = DataBinding(ECS_Core::Components::C_BuildingGhost, m_currentPlacementValid);
 
-template<typename... DataBindings>
+template<typename ...DataBindings>
 class UIFrameDefinition : ECS_Core::Components::C_UIFrame
 {
+	using BindingTuple = typename std::tuple<DataBindings...>;
+	static const int c_tupleCount = static_cast<int>(std::tuple_size<BindingTuple>::value);
 public:
 	// Title gets printed at top of frame
 	// Description gets printed at bottom of frame, filling in values where {#} tokens are
 	// Example: "This unit has {0} hp and {1} mana"
-	UIFrameDefinition(DataBindings&&... bindings, std::string title, std::string description)
-		: m_bindings(bindings)
-		, m_title(title)
+	UIFrameDefinition(std::string title, std::string description, DataBindings&&... bindings)
+		:m_title(title)
 		, m_description(description)
+		, m_bindings(bindings...)
 	{
 	}
 
 protected:
-	std::tuple<DataBindings...> m_bindings;
+
+	std::map<int, std::string> ReadData() const
+	{
+		std::map<int, std::string> result;
+		for (int i = 0; i < c_tupleCount; ++i)
+		{
+			result[i] = std::to_string(m_bindings.get<i>());
+		}
+	}
+
 	std::string m_title;
 	std::string m_description;
+	BindingTuple m_bindings;
 };
+
+auto thing = UIFrameDefinition<UIDataBind<ECS_Core::Components::C_BuildingGhost, bool>, UIDataBind<ECS_Core::Components::C_BuildingDescription, u64>>(
+	"Title",
+	"Descri{0}ption{1}",
+	DataBinding(ECS_Core::Components::C_BuildingGhost, m_currentPlacementValid),
+	DataBinding(ECS_Core::Components::C_BuildingDescription, m_buildingType));
 
 void UI::SetupGameplay() {
 
