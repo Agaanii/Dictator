@@ -143,6 +143,7 @@ namespace ECS_Core
 		struct C_ResourceInventory
 		{
 			std::map<YieldType, s64> m_collectedYields;
+			s64 m_yield0{ 0 };
 		};
 
 		struct C_Realm
@@ -151,9 +152,11 @@ namespace ECS_Core
 			std::set<ecs::Impl::Handle> m_territories;
 		};
 
+		struct UIFrame;
+
 		struct C_UIFrame
 		{
-
+			std::unique_ptr<UIFrame> m_frame;
 		};
 	}
 
@@ -181,6 +184,7 @@ namespace ECS_Core
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
 		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory>;
 		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
+		using S_UIFrame = ecs::Signature<Components::C_UIFrame>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -226,9 +230,19 @@ namespace ECS_Core
 		Signatures::S_PlannedBuildingPlacement,
 		Signatures::S_DestroyedBuilding,
 		Signatures::S_Governor,
-		Signatures::S_PlayerGovernor
+		Signatures::S_PlayerGovernor,
+		Signatures::S_UIFrame
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;
 	using Manager = ecs::Manager<MasterSettings>;
+
+	namespace Components
+	{
+		struct UIFrame
+		{
+			using FieldStrings = std::map<int, std::string>;
+			virtual FieldStrings ReadData(ecs::EntityIndex mI, ECS_Core::Manager& manager) const = 0;
+		};
+	}
 }
