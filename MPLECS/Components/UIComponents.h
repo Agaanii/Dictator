@@ -63,7 +63,7 @@ public:
 		, m_bindings(bindings...)
 	{
 	}
-
+	
 	virtual FieldStrings ReadData(ecs::EntityIndex mI, ECS_Core::Manager& manager) const override
 	{
 		std::map<int, std::string> result;
@@ -73,8 +73,13 @@ public:
 	}
 
 protected:
-
 	std::string m_title;
 	std::string m_description;
 	BindingTuple m_bindings;
 };
+
+template< template <typename ...Args> typename T, typename ...Args>
+auto DefineUIFrame(std::string&& title, std::string&& description, Args&&... args)
+{
+	return std::make_unique<T<Args...>>(std::forward<std::string>(title), std::forward<std::string>(description), std::forward<Args>(args)...);
+}
