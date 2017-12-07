@@ -78,6 +78,7 @@ protected:
 	BindingTuple m_bindings;
 };
 
+// Thanks to reddit user /u/YouFeedTheFish
 template< template <typename ...Args> typename T, typename ...Args>
 auto DefineUIFrame(std::string&& title, std::string&& description, Args&&... args)
 {
