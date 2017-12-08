@@ -139,7 +139,7 @@ void Government::SetupGameplay()
 	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment);
 
 	m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment).m_frame
-		= DefineUIFrame<UIFrameDefinition>(
+		= DefineUIFrame(
 			"Incomes",
 			"Stuff: {0}",
 			DataBinding(ECS_Core::Components::C_ResourceInventory, m_yield0));

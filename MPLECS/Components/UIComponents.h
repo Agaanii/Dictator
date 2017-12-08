@@ -79,8 +79,8 @@ protected:
 };
 
 // Thanks to reddit user /u/YouFeedTheFish
-template< template <typename ...Args> typename T, typename ...Args>
+template<typename ...Args>
 auto DefineUIFrame(std::string&& title, std::string&& description, Args&&... args)
 {
-	return std::make_unique<T<Args...>>(std::forward<std::string>(title), std::forward<std::string>(description), std::forward<Args>(args)...);
+	return std::make_unique<UIFrameDefinition<Args...>>(std::forward<std::string>(title), std::forward<std::string>(description), std::forward<Args>(args)...);
 }
