@@ -241,7 +241,7 @@ namespace ECS_Core
 	{
 		struct UIFrame
 		{
-			using FieldStrings = std::map<int, std::string>;
+			using FieldStrings = std::map<std::vector<int> /*key, separated in description by colons*/, std::string>;
 			virtual FieldStrings ReadData(ecs::EntityIndex mI, ECS_Core::Manager& manager) const = 0;
 		};
 	}

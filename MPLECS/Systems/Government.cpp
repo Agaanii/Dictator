@@ -140,9 +140,11 @@ void Government::SetupGameplay()
 
 	m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment).m_frame
 		= DefineUIFrame(
-			"Incomes",
-			"Stuff: {0}",
-			DataBinding(ECS_Core::Components::C_ResourceInventory, m_yield0));
+			"Inventory",
+			"Food: {0:0}\n"
+			"Lumber: {0:1}\n"
+			"Fresh Water: {0:2}",
+			DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayerGovernment);
 }
 

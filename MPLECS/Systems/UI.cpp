@@ -23,8 +23,6 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
-	case GameLoopPhase::PREPARATION:
-	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION:
 	{
 		for (auto&& entityIndex : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_UIFrame>())
@@ -33,11 +31,25 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			std::string bindingString = "Entity " + std::to_string(entityIndex) + " has bindings ";
 			for (auto&& str : uiEntity.m_frame->ReadData(entityIndex, m_managerRef))
 			{
-				bindingString += std::to_string(str.first) + ": " + str.second;
+				bindingString += "{";
+				bool first = true;
+				for (auto&& i : str.first)
+				{
+					if (!first)
+					{
+						bindingString += ",";
+					}
+					first = false;
+					bindingString += std::to_string(i);
+				}
+				bindingString += "}: " + str.second + " | ";
 			}
 			std::cout << bindingString << std::endl;
 		}
+		break;
 	}
+	case GameLoopPhase::PREPARATION:
+	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:
