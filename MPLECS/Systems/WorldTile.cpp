@@ -134,6 +134,7 @@ namespace TileNED
 	std::set<TileSide> GetAdjacents(const WorldCoordinates& coordinates);
 
 	void GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration);
+	TileNED::Tile & GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager);
 	TileNED::Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
 	void CheckWorldClick(ECS_Core::Manager& manager);
 	void SpawnBetween(
@@ -560,7 +561,7 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 	{
 		auto& tilePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(ghost).m_position;
 
-		bool collisionFound{ false };
+		bool collisionFound{ GetTile(tilePosition, manager).m_owningBuilding };
 		for (auto& complete : completedBuildings)
 		{
 			if (tilePosition == manager.getComponent<ECS_Core::Components::C_TilePosition>(complete).m_position)
@@ -599,9 +600,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 	for (auto&& buildingEntity : manager.entitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>())
 	{
 		auto& buildingTilePos = manager.getComponent<C_TilePosition>(buildingEntity);
-		auto& placementTile = FetchQuadrant(buildingTilePos.m_position.m_quadrantCoords, manager)
-			.m_sectors[buildingTilePos.m_position.m_sectorCoords.m_x][buildingTilePos.m_position.m_sectorCoords.m_y]
-			.m_tiles[buildingTilePos.m_position.m_coords.m_x][buildingTilePos.m_position.m_coords.m_y];
+		auto& placementTile = GetTile(buildingTilePos.m_position, manager);
 		if (!placementTile.m_owningBuilding)
 		{
 			placementTile.m_owningBuilding = buildingEntity;
@@ -614,18 +613,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 		auto& territory = manager.getComponent<C_Territory>(territoryEntity);
 		auto& buildingTilePos = manager.getComponent<C_TilePosition>(territoryEntity);
 		bool needsGrowthTile = true;
-		if (territory.m_nextGrowthTile)
-		{
-			auto& coordinates = territory.m_nextGrowthTile->m_tile;
-			if (!FetchQuadrant(coordinates.m_quadrantCoords, manager)
-				.m_sectors[coordinates.m_sectorCoords.m_x][coordinates.m_sectorCoords.m_y]
-				.m_tiles[coordinates.m_coords.m_x][coordinates.m_coords.m_y]
-				.m_owningBuilding)
-			{
-				needsGrowthTile = false;
-			}
-		}
-		if (needsGrowthTile)
+		if (!territory.m_nextGrowthTile)
 		{
 			// get all tiles adjacent to the territory that are not yet claimed
 			std::vector<TilePosition> availableGrowthTiles;
@@ -633,9 +621,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 			{
 				for (auto& adjacent : GetAdjacents(tile))
 				{
-					auto& adjacentTile = FetchQuadrant(adjacent.m_coords.m_quadrantCoords, manager)
-						.m_sectors[adjacent.m_coords.m_sectorCoords.m_x][adjacent.m_coords.m_sectorCoords.m_y]
-						.m_tiles[adjacent.m_coords.m_coords.m_x][adjacent.m_coords.m_coords.m_y];
+					auto& adjacentTile = GetTile(adjacent.m_coords, manager);
 					if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
 					{
 						availableGrowthTiles.push_back(adjacent.m_coords);
@@ -649,21 +635,21 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				std::mt19937 g(rd());
 				std::shuffle(availableGrowthTiles.begin(), availableGrowthTiles.end(), g);
 
-				territory.m_nextGrowthTile = { territory.m_nextGrowthTile ? territory.m_nextGrowthTile->m_progress : 0.f, availableGrowthTiles.front() };
+				territory.m_nextGrowthTile = { 0.f, availableGrowthTiles.front() };
+
+				auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
+				tile.m_owningBuilding = territoryEntity;
 			}
 		}
 
 		// Now grow if we can
 		if (territory.m_nextGrowthTile)
 		{
+			auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
 			territory.m_nextGrowthTile->m_progress += (0.0000002 * frameDuration);
 			if (territory.m_nextGrowthTile->m_progress >= 1)
 			{
-				auto& tile = territory.m_nextGrowthTile->m_tile;
-				FetchQuadrant(tile.m_quadrantCoords, manager)
-					.m_sectors[tile.m_sectorCoords.m_x][tile.m_sectorCoords.m_y]
-					.m_tiles[tile.m_coords.m_x][tile.m_coords.m_y].m_owningBuilding = territoryEntity;
-				territory.m_ownedTiles.insert(tile);
+				territory.m_ownedTiles.insert(territory.m_nextGrowthTile->m_tile);
 				territory.m_nextGrowthTile.reset();
 
 				// Update yield potential
@@ -671,9 +657,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 				yieldPotential.m_availableYields.clear();
 				for (auto&& tilePos : territory.m_ownedTiles)
 				{
-					auto& ownedTile = FetchQuadrant(tilePos.m_quadrantCoords, manager)
-						.m_sectors[tilePos.m_sectorCoords.m_x][tilePos.m_sectorCoords.m_y]
-						.m_tiles[tilePos.m_coords.m_x][tilePos.m_coords.m_y];
+					auto& ownedTile = GetTile(tilePos, manager);
 					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
 					yield.m_productionInterval = 5;
 					++yield.m_value;
@@ -766,6 +750,13 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 			}
 		}
 	}
+}
+
+TileNED::Tile &TileNED::GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager)
+{
+	return FetchQuadrant(buildingTilePos.m_quadrantCoords, manager)
+		.m_sectors[buildingTilePos.m_sectorCoords.m_x][buildingTilePos.m_sectorCoords.m_y]
+		.m_tiles[buildingTilePos.m_coords.m_x][buildingTilePos.m_coords.m_y];
 }
 
 TileNED::Quadrant& TileNED::FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager)
