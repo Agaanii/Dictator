@@ -154,9 +154,16 @@ namespace ECS_Core
 
 		struct UIFrame;
 
+		struct DataString
+		{
+			CartesianVector2<f64> m_relativePosition;
+			std::shared_ptr<sf::Text> m_text;
+		};
+
 		struct C_UIFrame
 		{
 			std::unique_ptr<UIFrame> m_frame;
+			std::map<std::vector<int>, DataString> m_dataStrings;
 		};
 	}
 
@@ -172,6 +179,7 @@ namespace ECS_Core
 		using S_ApplyConstantMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Tags::T_NoAcceleration>;
 		using S_ApplyNewtonianMotion = ecs::Signature<Components::C_PositionCartesian, Components::C_VelocityCartesian, Components::C_AccelerationCartesian>;
 		using S_Drawable = ecs::Signature<Components::C_PositionCartesian, Components::C_SFMLDrawable>;
+		using S_UIDrawable = ecs::Signature<Components::C_UIFrame, Components::C_SFMLDrawable>;
 		using S_Living = ecs::Signature<Components::C_Health>;
 		using S_Health = ecs::Signature<Components::C_Health, Components::C_Healable, Components::C_Damageable>;
 		using S_Input = ecs::Signature<Components::C_UserInputs>;
@@ -231,7 +239,8 @@ namespace ECS_Core
 		Signatures::S_DestroyedBuilding,
 		Signatures::S_Governor,
 		Signatures::S_PlayerGovernor,
-		Signatures::S_UIFrame
+		Signatures::S_UIFrame,
+		Signatures::S_UIDrawable
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

@@ -132,20 +132,39 @@ void GainIncomes(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	});
 }
 
+extern sf::Font s_font;
 void Government::SetupGameplay()
 {
 	auto localPlayerGovernment = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
 	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment);
 
-	m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment).m_frame
+	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment);
+	uiFrameComponent.m_frame
 		= DefineUIFrame(
 			"Inventory",
-			"Food: {0:0}\n"
-			"Lumber: {0:1}\n"
-			"Fresh Water: {0:2}",
 			DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
+	uiFrameComponent.m_dataStrings[{0, 0}] = { { 40,30 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 1}] = {{ 40,60 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 2}] = {{ 40,90 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 3}] = {{ 40,120 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 4}] = {{ 40,150 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 5}] = {{ 40,180 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 6}] = {{ 40,210 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 7}] = {{ 40,240 }, std::make_shared<sf::Text>() };
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayerGovernment);
+
+	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayerGovernment);
+	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(300, 300));
+	resourceWindowBackground->setFillColor({});
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ resourceWindowBackground, {} });
+	for (auto&& dataStr : uiFrameComponent.m_dataStrings)
+	{
+		dataStr.second.m_text->setFillColor({ 255,255,255 });
+		dataStr.second.m_text->setOutlineColor({ 128,128,128 });
+		dataStr.second.m_text->setFont(s_font);
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({dataStr.second.m_text, dataStr.second.m_relativePosition});
+	}
 }
 
 void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)

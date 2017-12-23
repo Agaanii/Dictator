@@ -18,7 +18,7 @@
 #include <SFML/Graphics.hpp>
 #include <optional>
 
-sf::RenderWindow s_window(sf::VideoMode(1600, 900), "Loesby is good at this shit.");
+sf::RenderWindow s_window(sf::VideoMode(1600, 900), "Loesby is good at this.");
 bool closingTriggered = false;
 bool close = false;
 sf::Font s_font;
@@ -723,7 +723,7 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 	for (auto* text : texts)
 	{
 		text->setFont(s_font);
-		text->setPosition(0, 45.f * row++);
+		text->setPosition(0, 300.f + 45.f * row++);
 		text->setFillColor(sf::Color(255, 255, 255));
 		text->setOutlineColor(sf::Color(15, 15, 15));
 		s_window.draw(*text);
@@ -790,6 +790,32 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 						transform->setPosition({
 							static_cast<float>(position.m_position.m_x + drawable.m_offset.m_x),
 							static_cast<float>(position.m_position.m_y + drawable.m_offset.m_y) });
+					}
+					auto& taggedDrawable = drawablesByLayer[layer.first][priority.first][handle];
+					taggedDrawable.m_drawable.insert(drawable.m_graphic);
+					taggedDrawable.m_drawnThisFrame = true;
+				}
+			}
+		}
+	});
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_UIDrawable>([&manager](
+		ecs::EntityIndex mI,
+		ECS_Core::Components::C_UIFrame& uiFrame,
+		ECS_Core::Components::C_SFMLDrawable& drawables)
+	{
+		auto handle = manager.getHandleData(mI);
+		for (auto&& layer : drawables.m_drawables)
+		{
+			for (auto&& priority : layer.second)
+			{
+				for (auto&& drawable : priority.second)
+				{
+					auto* transform = dynamic_cast<sf::Transformable*>(drawable.m_graphic.get());
+					if (transform)
+					{
+						transform->setPosition({
+							static_cast<float>(drawable.m_offset.m_x),
+							static_cast<float>(drawable.m_offset.m_y) });
 					}
 					auto& taggedDrawable = drawablesByLayer[layer.first][priority.first][handle];
 					taggedDrawable.m_drawable.insert(drawable.m_graphic);

@@ -47,7 +47,7 @@ template<typename ...DataBindings>
 class UIFrameDefinition : public ECS_Core::Components::UIFrame
 {
 	using BindingTuple = typename std::tuple<DataBindings...>;
-	static const int c_tupleCount = static_cast<int>(std::tuple_size<BindingTuple>::value);
+	static constexpr int c_tupleCount = static_cast<int>(std::tuple_size<BindingTuple>::value);
 
 	static_assert(c_tupleCount > 0, "Don't Use Data Bindings if you don't need data bindings");
 protected:
@@ -115,10 +115,9 @@ public:
 	// Title gets printed at top of frame
 	// Description gets printed at bottom of frame, filling in values where {#} tokens are
 	// Example: "This unit has {0} hp and {1} mana"
-	UIFrameDefinition(std::string title, std::string description, DataBindings&&... bindings)
+	UIFrameDefinition(std::string title, DataBindings&&... bindings)
 		: ECS_Core::Components::UIFrame()
 		, m_title(title)
-		, m_description(description)
 		, m_bindings(bindings...)
 	{
 	}
@@ -133,13 +132,12 @@ public:
 
 protected:
 	std::string m_title;
-	std::string m_description;
 	BindingTuple m_bindings;
 };
 
 // Thanks to reddit user /u/YouFeedTheFish
 template<typename ...Args>
-auto DefineUIFrame(std::string&& title, std::string&& description, Args&&... args)
+auto DefineUIFrame(std::string&& title, Args&&... args)
 {
-	return std::make_unique<UIFrameDefinition<Args...>>(std::forward<std::string>(title), std::forward<std::string>(description), std::forward<Args>(args)...);
+	return std::make_unique<UIFrameDefinition<Args...>>(std::forward<std::string>(title), std::forward<Args>(args)...);
 }
