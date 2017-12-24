@@ -560,8 +560,8 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 	for (auto& ghost : ghostBuildings)
 	{
 		auto& tilePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(ghost).m_position;
-
-		bool collisionFound{ GetTile(tilePosition, manager).m_owningBuilding };
+		auto& tile = GetTile(tilePosition, manager);
+		bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost};
 		for (auto& complete : completedBuildings)
 		{
 			if (tilePosition == manager.getComponent<ECS_Core::Components::C_TilePosition>(complete).m_position)
