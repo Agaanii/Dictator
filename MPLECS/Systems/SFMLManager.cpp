@@ -814,8 +814,8 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 					if (transform)
 					{
 						transform->setPosition({
-							static_cast<float>(drawable.m_offset.m_x),
-							static_cast<float>(drawable.m_offset.m_y) });
+							static_cast<float>(uiFrame.m_topLeftCorner.m_x + drawable.m_offset.m_x),
+							static_cast<float>(uiFrame.m_topLeftCorner.m_y + drawable.m_offset.m_y) });
 					}
 					auto& taggedDrawable = drawablesByLayer[layer.first][priority.first][handle];
 					taggedDrawable.m_drawable.insert(drawable.m_graphic);

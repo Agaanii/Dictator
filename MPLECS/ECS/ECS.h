@@ -164,6 +164,15 @@ namespace ECS_Core
 		{
 			std::unique_ptr<UIFrame> m_frame;
 			std::map<std::vector<int>, DataString> m_dataStrings;
+			CartesianVector2<f64> m_topLeftCorner;
+		};
+
+		struct C_TimeTracker
+		{
+			int m_year{ 0 };
+			int m_month{ 0 };
+			int m_day{ 0 };
+			f64 m_dayProgress{ 0 };
 		};
 	}
 
@@ -193,6 +202,7 @@ namespace ECS_Core
 		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory>;
 		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
 		using S_UIFrame = ecs::Signature<Components::C_UIFrame>;
+		using S_TimeTracker = ecs::Signature<Components::C_TimeTracker>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -214,7 +224,8 @@ namespace ECS_Core
 		Components::C_ResourceInventory,
 		Components::C_Realm,
 		Components::C_BuildingConstruction,
-		Components::C_UIFrame
+		Components::C_UIFrame,
+		Components::C_TimeTracker
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -240,7 +251,8 @@ namespace ECS_Core
 		Signatures::S_Governor,
 		Signatures::S_PlayerGovernor,
 		Signatures::S_UIFrame,
-		Signatures::S_UIDrawable
+		Signatures::S_UIDrawable,
+		Signatures::S_TimeTracker
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

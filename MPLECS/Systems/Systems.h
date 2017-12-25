@@ -37,6 +37,7 @@ DECLARE_SYSTEM(BuildingCreation);
 DECLARE_SYSTEM(WorldTile);
 DECLARE_SYSTEM(Government);
 DECLARE_SYSTEM(UI);
+DECLARE_SYSTEM(Time);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\
