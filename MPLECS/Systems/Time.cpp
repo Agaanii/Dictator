@@ -32,7 +32,7 @@ void Time::SetupGameplay()
 	uiFrameComponent.m_dataStrings[{0}] = { { 0,0 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_dataStrings[{1}] = { { 0,35 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_dataStrings[{2}] = { { 50,35 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_topLeftCorner = {1400, 100};
+	uiFrameComponent.m_topLeftCorner = { 1400, 100 };
 	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
 	auto timeBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(100, 70));
 	timeBackground->setFillColor({});

@@ -35,8 +35,18 @@ void BeginBuildingConstruction(ECS_Core::Manager & manager, ecs::EntityIndex & g
 	}
 }
 
-void CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governor, TilePosition & position)
+bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governor, TilePosition & position)
 {
+	// Look through current ghosts, make sure this governor doesn't yet have one active
+	for (auto&& entityIndex : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
+	{
+		auto& ghost = manager.getComponent<ECS_Core::Components::C_BuildingGhost>(entityIndex);
+		if (ghost.m_placingGovernor == governor)
+		{
+			return false;
+		}
+	}
+
 	auto ghostEntity = manager.createIndex();
 	manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor = governor;
 	manager.addComponent<ECS_Core::Components::C_TilePosition>(ghostEntity) = position;
@@ -48,6 +58,7 @@ void CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	shape->setOutlineColor(sf::Color(128, 128, 128, 255));
 	shape->setFillColor(sf::Color(128, 128, 128, 128));
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ shape,{ 0,0 } });
+	return true;
 }
 
 void InterpretLocalInput(ECS_Core::Manager& manager)
