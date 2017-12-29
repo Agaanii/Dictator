@@ -107,11 +107,6 @@ namespace ECS_Core
 			u64 m_buildingType{ 0 };
 			f64 m_buildingProgress{ 0 };
 		};
-
-		struct C_BuildingGhost {
-			bool m_currentPlacementValid{ false };
-			ecs::Impl::Handle m_placingGovernor;
-		};
 		struct C_BuildingConstruction {
 			ecs::Impl::Handle m_placingGovernor;
 		};
@@ -144,6 +139,14 @@ namespace ECS_Core
 		{
 			std::map<YieldType, s64> m_collectedYields;
 			s64 m_yield0{ 0 };
+		};
+
+
+		struct C_BuildingGhost
+		{
+			bool m_currentPlacementValid{ false };
+			ecs::Impl::Handle m_placingGovernor;
+			std::map<YieldType, s64> m_paidYield;
 		};
 
 		struct C_Realm

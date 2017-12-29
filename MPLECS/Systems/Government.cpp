@@ -35,7 +35,7 @@ void BeginBuildingConstruction(ECS_Core::Manager & manager, ecs::EntityIndex & g
 	}
 }
 
-std::map<int, std::map<int, int>> s_buildingCosts
+std::map<int, std::map<ECS_Core::Components::YieldType, s64>> s_buildingCosts
 {
 	{
 		0, 
@@ -94,7 +94,13 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	}
 
 	auto ghostEntity = manager.createIndex();
-	manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor = governor;
+	auto& ghost = manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
+	ghost.m_placingGovernor = governor;
+	ghost.m_paidYield = buildingCostIter->second;
+	for (auto&& cost : buildingCostIter->second)
+	{
+		governorInventory.m_collectedYields[cost.first] -= cost.second;
+	}
 	manager.addComponent<ECS_Core::Components::C_TilePosition>(ghostEntity) = position;
 	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(ghostEntity);
 	manager.addComponent<ECS_Core::Components::C_BuildingDescription>(ghostEntity).m_buildingType = buildingType;
