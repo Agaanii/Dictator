@@ -81,5 +81,7 @@ DerivedDataCache/*
 *.idb
 !MPLECS/Contrib/
 MPLECS/x64/
+MPLECS/x64/Release
+MPLECS/x64/Debug
 *.user
 *.vspx
