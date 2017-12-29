@@ -42,6 +42,7 @@ int main()
 	// Systems registered in processing order
 	
 	// Give the UI first shot at any inputs. Draw order is separate from processing order
+	RegisterSystem<Time>();
 	RegisterSystem<UI>();
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();

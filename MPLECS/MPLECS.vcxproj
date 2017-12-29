@@ -148,6 +148,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClCompile Include="Systems\Movement.cpp" />
     <ClCompile Include="Systems\SFMLManager.cpp" />
     <ClCompile Include="Systems\SystemTemplate.cpp" />
+    <ClCompile Include="Systems\Time.cpp" />
     <ClCompile Include="Systems\UI.cpp" />
     <ClCompile Include="Systems\UnitDeath.cpp" />
     <ClCompile Include="Systems\WorldTile.cpp" />

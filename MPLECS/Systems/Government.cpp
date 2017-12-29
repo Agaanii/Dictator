@@ -35,8 +35,24 @@ void BeginBuildingConstruction(ECS_Core::Manager & manager, ecs::EntityIndex & g
 	}
 }
 
-bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governor, TilePosition & position)
+std::map<int, std::map<int, int>> s_buildingCosts
 {
+	{
+		0, 
+		{
+			{1, 50},
+			{2,50}
+		}
+	}
+};
+
+bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governor, TilePosition & position, int buildingType)
+{
+	// Validate inputs
+	if (!manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(governor))
+	{
+		return false;
+	}
 	// Look through current ghosts, make sure this governor doesn't yet have one active
 	for (auto&& entityIndex : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
 	{
@@ -47,11 +63,41 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 		}
 	}
 
+	auto buildingCostIter = s_buildingCosts.find(buildingType);
+	if (buildingCostIter == s_buildingCosts.end())
+	{
+		return false;
+	}
+
+	// Grab governor, check resource inventory
+	auto& governorInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(governor);
+	std::set<int> insufficientResources;
+	for (auto&& cost : buildingCostIter->second)
+	{
+		auto govResourceIter = governorInventory.m_collectedYields.find(cost.first);
+		if (govResourceIter == governorInventory.m_collectedYields.end())
+		{
+			if (cost.second != 0)
+			{
+				insufficientResources.insert(cost.first);
+			}
+			continue;
+		}
+		if (govResourceIter->second < cost.second)
+		{
+			insufficientResources.insert(cost.first);
+		}
+	}
+	if (insufficientResources.size())
+	{
+		return false;
+	}
+
 	auto ghostEntity = manager.createIndex();
 	manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor = governor;
 	manager.addComponent<ECS_Core::Components::C_TilePosition>(ghostEntity) = position;
 	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(ghostEntity);
-	manager.addComponent<ECS_Core::Components::C_BuildingDescription>(ghostEntity);
+	manager.addComponent<ECS_Core::Components::C_BuildingDescription>(ghostEntity).m_buildingType = buildingType;
 
 	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
 	auto shape = std::make_shared<sf::CircleShape>(2.5f);
@@ -99,9 +145,10 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 
 	if (inputComponent.m_newKeyDown.count(ECS_Core::Components::InputKeys::B))
 	{
-		CreateBuildingGhost(manager, playerGovernorHandle, *inputComponent.m_currentMousePosition.m_tilePosition);
-
-		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
+		if (CreateBuildingGhost(manager, playerGovernorHandle, *inputComponent.m_currentMousePosition.m_tilePosition, 0))
+		{
+			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
+		}
 	}
 
 	for (auto&& ghost : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
@@ -148,7 +195,7 @@ void Government::SetupGameplay()
 {
 	auto localPlayerGovernment = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
-	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment);
+	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment).m_collectedYields = { {1, 100},{2,100} };
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment);
 	uiFrameComponent.m_frame
