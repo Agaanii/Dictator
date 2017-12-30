@@ -23,22 +23,29 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 		// We only act during the action phase
 		return;
 	}
-	f64 frameSeconds = (1. * frameDuration / 1000000);
+	// Get current time
+	// Assume the first entity is the one that has a valid time
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	if (timeEntities.size() == 0)
+	{
+		return;
+	}
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_ApplyConstantMotion>(
-		[&frameSeconds](
+		[&time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_PositionCartesian& position,
 			const ECS_Core::Components::C_VelocityCartesian& velocity) {
-		position.m_position += velocity.m_velocity * frameSeconds;
+		position.m_position += velocity.m_velocity * time.m_frameDuration;
 	});
 
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_ApplyNewtonianMotion>(
-		[&frameSeconds](
+		[&time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_PositionCartesian& position,
 			ECS_Core::Components::C_VelocityCartesian& velocity,
 			const ECS_Core::Components::C_AccelerationCartesian& acceleration) {
-		position.m_position += (velocity.m_velocity * frameSeconds) + (acceleration.m_acceleration * frameSeconds * frameSeconds);
+		position.m_position += ((velocity.m_velocity) + (acceleration.m_acceleration * time.m_frameDuration)) * time.m_frameDuration;
 	});
 }
 

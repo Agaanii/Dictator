@@ -166,10 +166,18 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 	}
 }
 
-void GainIncomes(ECS_Core::Manager& manager, const timeuS& frameDuration)
+void GainIncomes(ECS_Core::Manager& manager)
 {
+	// Get current time
+	// Assume the first entity is the one that has a valid time
+	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	if (timeEntities.size() == 0)
+	{
+		return;
+	}
+	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>(
-		[&manager, &frameDuration](
+		[&manager, &time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_Realm& realm,
 			ECS_Core::Components::C_ResourceInventory& inventory)
@@ -184,7 +192,7 @@ void GainIncomes(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
 			for (auto&& yield : territoryYield.m_availableYields)
 			{
-				yield.second.m_productionProgress += 1. * frameDuration / 1000000;
+				yield.second.m_productionProgress += time.m_frameDuration;
 				if (yield.second.m_productionProgress > yield.second.m_productionInterval)
 				{
 					yield.second.m_productionProgress -= yield.second.m_productionInterval;
@@ -239,7 +247,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		InterpretLocalInput(m_managerRef);
 		break;
 	case GameLoopPhase::ACTION:
-		GainIncomes(m_managerRef, frameDuration);
+		GainIncomes(m_managerRef);
 		break;
 	case GameLoopPhase::PREPARATION:
 	case GameLoopPhase::ACTION_RESPONSE:
