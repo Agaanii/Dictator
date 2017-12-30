@@ -181,7 +181,7 @@ namespace ECS_Core
 			f64 m_frameDuration{ 0 };
 
 			int m_gameSpeed{ 1 };
-			bool m_paused{ false };
+			bool m_paused{ true };
 		};
 	}
 
