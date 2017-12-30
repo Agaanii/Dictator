@@ -16,8 +16,8 @@
 
 #include "../Core/typedef.h"
 
-void TakeDamage(ECS_Core::Manager& manager, const timeuS& frameDuration);
-void ClearPendingDamage(ECS_Core::Manager& manager, const timeuS& frameDuration);
+void TakeDamage(ECS_Core::Manager& manager);
+void ClearPendingDamage(ECS_Core::Manager& manager);
 
 void DamageApplication::SetupGameplay() {}
 
@@ -31,10 +31,10 @@ void DamageApplication::Operate(GameLoopPhase phase, const timeuS& frameDuration
 	case GameLoopPhase::RENDER:
 		return;
 	case GameLoopPhase::ACTION_RESPONSE:
-		TakeDamage(m_managerRef, frameDuration);
+		TakeDamage(m_managerRef);
 		break;
 	case GameLoopPhase::CLEANUP:
-		ClearPendingDamage(m_managerRef, frameDuration);
+		ClearPendingDamage(m_managerRef);
 		break;
 	}
 }
@@ -44,15 +44,24 @@ bool DamageApplication::ShouldExit()
 	return false;
 }
 
-void TakeDamage(ECS_Core::Manager& manager, const timeuS& frameDuration)
+void TakeDamage(ECS_Core::Manager& manager)
 {
+	// Get current time
+	// Assume the first entity is the one that has a valid time
+	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	if (timeEntities.size() == 0)
+	{
+		return;
+	}
+	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Health>(
-		[frameDuration](ecs::EntityIndex mI,
+		[&time](ecs::EntityIndex mI,
 			ECS_Core::Components::C_Health& health,
 			ECS_Core::Components::C_Healable& healing,
 			ECS_Core::Components::C_Damageable& damage)
 	{
-		f64 secondFraction = 1. * frameDuration  / 1000000;
+		f64 secondFraction = time.m_frameDuration;
 		health.m_currentHealth += healing.m_healingThisFrame - damage.m_damageThisFrame;
 		for (auto& hot : healing.m_hots)
 		{
@@ -72,7 +81,7 @@ void TakeDamage(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	});
 }
 
-void ClearPendingDamage(ECS_Core::Manager& manager, const timeuS& frameDuration)
+void ClearPendingDamage(ECS_Core::Manager& manager)
 {
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Health>(
 		[](ecs::EntityIndex mI,
