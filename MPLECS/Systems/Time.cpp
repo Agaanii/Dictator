@@ -55,7 +55,10 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_TimeTracker& time)
 		{
-			time.m_dayProgress += 0.000001 * frameDuration;
+			if (!time.m_paused)
+			{
+				time.m_dayProgress += 0.000001 * frameDuration * time.m_gameSpeed;
+			}
 			if (time.m_dayProgress >= 1)
 			{
 				time.m_dayProgress -= 1;
@@ -71,8 +74,48 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			}
 		});
 		break;
-	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION:
+		// Adjust timescale, pause/unpause
+	{
+		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
+		{
+			auto& inputs = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
+			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::PAUSE_BREAK))
+			{
+				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+					ecs::EntityIndex mI,
+					ECS_Core::Components::C_TimeTracker& time)
+				{
+					time.m_paused = !time.m_paused;
+				});
+				inputs.ProcessKey(ECS_Core::Components::InputKeys::PAUSE_BREAK);
+			}
+			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::NUM_PLUS))
+			{
+				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+					ecs::EntityIndex mI,
+					ECS_Core::Components::C_TimeTracker& time)
+				{
+					time.m_gameSpeed = min<int>(5, ++time.m_gameSpeed);
+
+				});
+				inputs.ProcessKey(ECS_Core::Components::InputKeys::NUM_PLUS);
+			}
+			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::NUM_DASH))
+			{
+				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+					ecs::EntityIndex mI,
+					ECS_Core::Components::C_TimeTracker& time)
+				{
+					time.m_gameSpeed = max<int>(1, --time.m_gameSpeed);
+				});
+				inputs.ProcessKey(ECS_Core::Components::InputKeys::NUM_DASH);
+			}
+		}
+	}
+	break;
+
+	case GameLoopPhase::INPUT:
 	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:

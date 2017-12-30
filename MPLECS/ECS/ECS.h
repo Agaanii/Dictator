@@ -176,6 +176,9 @@ namespace ECS_Core
 			int m_month{ 0 };
 			int m_day{ 0 };
 			f64 m_dayProgress{ 0 };
+
+			int m_gameSpeed{ 1 };
+			bool m_paused{ false };
 		};
 	}
 

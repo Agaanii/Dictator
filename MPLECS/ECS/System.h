@@ -17,11 +17,23 @@
 
 enum class GameLoopPhase
 {
+	// Create any per-frame objects that need to be pre-allocated
 	PREPARATION,
+
+	// Receive user input. Don't yet act on it.
 	INPUT,
+
+	// Take initial actions. Send commands, etc.
 	ACTION,
+
+	// Process results of actions which have been taken
 	ACTION_RESPONSE,
+
+	// Draw current game state and UI
 	RENDER,
+
+	// Destroy any per-frame objects which need it
+	// This is the phase where it is safe to kill Entities
 	CLEANUP
 };
 
