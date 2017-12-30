@@ -177,6 +177,9 @@ namespace ECS_Core
 			int m_day{ 0 };
 			f64 m_dayProgress{ 0 };
 
+			// Amount of game time between previous frame and current
+			f64 m_frameDuration{ 0 };
+
 			int m_gameSpeed{ 1 };
 			bool m_paused{ false };
 		};

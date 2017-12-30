@@ -57,7 +57,8 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		{
 			if (!time.m_paused)
 			{
-				time.m_dayProgress += 0.000001 * frameDuration * time.m_gameSpeed;
+				time.m_frameDuration = 0.000001 * frameDuration * time.m_gameSpeed;
+				time.m_dayProgress += time.m_frameDuration;
 			}
 			if (time.m_dayProgress >= 1)
 			{

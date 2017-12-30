@@ -23,13 +23,22 @@
 
 namespace Buildings
 {
-	void AdvanceBuildingConstruction(ECS_Core::Manager& manager, const timeuS& frameDuration);
+	void AdvanceBuildingConstruction(ECS_Core::Manager& manager);
 }
 
-void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const timeuS& frameDuration)
+void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 {
+	// Get current time
+	// Assume the first entity is the one that has a valid time
+	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	if (timeEntities.size() == 0)
+	{
+		return;
+	}
+	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_DrawableConstructingBuilding>(
-		[&manager, frameDuration](
+		[&manager, &time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_BuildingDescription& building,
 			ECS_Core::Components::C_TilePosition& buildingTilePosition,
@@ -41,7 +50,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager, const ti
 			manager.kill(mI);
 			return;
 		}
-		building.m_buildingProgress += (1.0 * frameDuration / (30 * 1000000));
+		building.m_buildingProgress += time.m_frameDuration / 30; 
 
 		if (building.m_buildingProgress >= 1.0)
 		{
@@ -86,7 +95,7 @@ void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 	case GameLoopPhase::ACTION:
 		// Advance construction
-		Buildings::AdvanceBuildingConstruction(m_managerRef, frameDuration);
+		Buildings::AdvanceBuildingConstruction(m_managerRef);
 		break;
 	case GameLoopPhase::RENDER:
 		// Update building visuals
