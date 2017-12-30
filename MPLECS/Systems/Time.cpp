@@ -55,7 +55,11 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_TimeTracker& time)
 		{
-			if (!time.m_paused)
+			if (time.m_paused)
+			{
+				time.m_frameDuration = 0;
+			}
+			else
 			{
 				time.m_frameDuration = 0.000001 * frameDuration * time.m_gameSpeed;
 				time.m_dayProgress += time.m_frameDuration;
