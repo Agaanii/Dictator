@@ -158,6 +158,9 @@
     <ClInclude Include="Components\UIComponents.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>
+    <ClInclude Include="ECS\ECS.h">
+      <Filter>Header Files\ECS</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\cour.ttf">

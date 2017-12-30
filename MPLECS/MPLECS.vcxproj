@@ -159,6 +159,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClInclude Include="Components\InputComponents.h" />
     <ClInclude Include="Components\UIComponents.h" />
     <ClInclude Include="Core\typedef.h" />
+    <ClInclude Include="ECS\ECS.h" />
     <ClInclude Include="ECS\ecs.hpp" />
     <ClInclude Include="ECS\MPL\All.hpp" />
     <ClInclude Include="ECS\MPL\Concat.hpp" />
