@@ -28,8 +28,8 @@ sf::View s_worldView({ 0, 0, 1600, 900 });
 sf::View s_UIView({ 0, 0, 1600, 900 });
 
 void ReadSFMLInput(ECS_Core::Manager& manager);
-void ReceiveInput(ECS_Core::Manager& manager);
-void RenderWorld(ECS_Core::Manager& manager);
+void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
+void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration);
 
 namespace EventResponse
 {
@@ -528,10 +528,10 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION_RESPONSE:
 		return;
 	case GameLoopPhase::INPUT:
-		ReceiveInput(m_managerRef);
+		ReceiveInput(m_managerRef, frameDuration);
 		break;
 	case GameLoopPhase::RENDER:
-		RenderWorld(m_managerRef);
+		RenderWorld(m_managerRef, frameDuration);
 		break;
 	case GameLoopPhase::CLEANUP:
 	{
@@ -617,41 +617,33 @@ void ReadSFMLInput(ECS_Core::Manager& manager)
 	}
 }
 
-void ReceiveInput(ECS_Core::Manager& manager)
+void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
-	// Get current time
-	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
-	if (timeEntities.size() == 0)
-	{
-		return;
-	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 	{
-		s_worldView.move({ 0, static_cast<f32>(150. * time.m_frameDuration) });
+		s_worldView.move({ 0, 150.f * frameDuration / 1000000 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
 	{
-		s_worldView.move({ 0, static_cast<f32>(-150.f * time.m_frameDuration) });
+		s_worldView.move({ 0, -150.f * frameDuration / 1000000 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
 	{
-		s_worldView.move({ static_cast<f32>(-150.f * time.m_frameDuration), 0 });
+		s_worldView.move({ -150.f * frameDuration / 1000000, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
 	{
-		s_worldView.move({ static_cast<f32>(150.f * time.m_frameDuration), 0 });
+		s_worldView.move({ 150.f * frameDuration / 1000000, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 	}
 	EventResponse::UpdateMouseWorldPosition(inputComponent);
 }
 
-void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent, const ECS_Core::Components::C_TimeTracker& time)
+void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent, const timeuS& frameDuration)
 {
 	sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText, worldCoordinatesText, frameDurationText;
 	std::vector<sf::Text*> texts{
@@ -724,7 +716,7 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 		worldCoordinatesText.setString(mouseWorldCoordinatesStr);
 	}
 
-	std::string frameDurationStr = "FrameDuration: " + std::to_string(time.m_frameDuration) + " sec. FPS = " + std::to_string(1. / time.m_frameDuration);
+	std::string frameDurationStr = "FrameDuration: " + std::to_string(frameDuration) + " uS. FPS = " + std::to_string(1000000. / frameDuration);
 	frameDurationText.setString(frameDurationStr);
 
 	int row = 0;
@@ -773,7 +765,7 @@ namespace std
 }
 
 std::map<ECS_Core::Components::DrawLayer, std::map<u64, std::map<ecs::Impl::HandleData, TaggedDrawable>>> drawablesByLayer;
-void RenderWorld(ECS_Core::Manager& manager)
+void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	s_window.clear();
 
@@ -883,7 +875,7 @@ void RenderWorld(ECS_Core::Manager& manager)
 	}
 
 	s_window.setView(s_UIView);
-	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject), time);
+	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject), frameDuration);
 	s_window.display();
 }
 
