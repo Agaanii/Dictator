@@ -133,7 +133,7 @@ namespace TileNED
 	};
 	std::set<TileSide> GetAdjacents(const WorldCoordinates& coordinates);
 
-	void GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration);
+	void GrowTerritories(ECS_Core::Manager& manager);
 	TileNED::Tile & GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager);
 	TileNED::Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
 	void CheckWorldClick(ECS_Core::Manager& manager);
@@ -592,8 +592,16 @@ std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords
 	};
 }
 
-void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
+void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 {
+	// Get current time
+	// Assume the first entity is the one that has a valid time
+	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	if (timeEntities.size() == 0)
+	{
+		return;
+	}
+	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 	auto& territoryEntities = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
 
 	// Run through the buildings that are in progress, make sure they contain their own building placement
@@ -646,7 +654,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager, timeuS frameDuration)
 		if (territory.m_nextGrowthTile)
 		{
 			auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
-			territory.m_nextGrowthTile->m_progress += (0.0000002 * frameDuration);
+			territory.m_nextGrowthTile->m_progress += (0.2 * time.m_frameDuration);
 			if (territory.m_nextGrowthTile->m_progress >= 1)
 			{
 				territory.m_ownedTiles.insert(territory.m_nextGrowthTile->m_tile);
@@ -876,7 +884,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 	case GameLoopPhase::ACTION:
 		// Grow territories that are able to do so before taking any actions
-		TileNED::GrowTerritories(m_managerRef, frameDuration);
+		TileNED::GrowTerritories(m_managerRef);
 
 		TileNED::CheckWorldClick(m_managerRef);
 		break;
