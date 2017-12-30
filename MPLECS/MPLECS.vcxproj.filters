@@ -159,7 +159,7 @@
       <Filter>Header Files\Components</Filter>
     </ClInclude>
     <ClInclude Include="ECS\ECS.h">
-      <Filter>Header Files\ECS</Filter>
+      <Filter>Source Files\Core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
