@@ -27,7 +27,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	{
 		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
 		{
-			auto& inputComponent = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);^
+			auto& inputComponent = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
 			if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
 			{
 				// Click happened this frame. See whether it's on any UI frame
