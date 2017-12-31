@@ -225,6 +225,8 @@ namespace ECS_Core
 
 				m_unprocessedThisFrameDownMouseButtonFlags = 0;
 				m_processedThisFrameDownMouseButtonFlags = 0;
+				m_unprocessedThisFrameUpMouseButtonFlags = 0;
+				m_processedThisFrameUpMouseButtonFlags = 0;
 			}
 
 		private:

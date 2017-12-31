@@ -216,18 +216,21 @@ void Government::SetupGameplay()
 		= DefineUIFrame(
 			"Inventory",
 			DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
-	uiFrameComponent.m_dataStrings[{0, 0}] = { { 40,30 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 1}] = {{ 40,60 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 2}] = {{ 40,90 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 3}] = {{ 40,120 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 4}] = {{ 40,150 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 5}] = {{ 40,180 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 6}] = {{ 40,210 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 7}] = {{ 40,240 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 0}] = { { 40,0 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 1}] = {{ 40,30 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 2}] = {{ 40,60 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 3}] = {{ 40,90 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 4}] = {{ 40,120 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 5}] = {{ 40,150 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 6}] = {{ 40,180 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 7}] = {{ 40,210 }, std::make_shared<sf::Text>() };
+
+	uiFrameComponent.m_topLeftCorner = { 50,50 };
+	uiFrameComponent.m_size = { 200, 240 };
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayerGovernment);
 
 	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayerGovernment);
-	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(300, 300));
+	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
 	resourceWindowBackground->setFillColor({});
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ resourceWindowBackground, {} });
 	for (auto&& dataStr : uiFrameComponent.m_dataStrings)

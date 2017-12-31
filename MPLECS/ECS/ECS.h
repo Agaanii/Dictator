@@ -168,6 +168,8 @@ namespace ECS_Core
 			std::unique_ptr<UIFrame> m_frame;
 			std::map<std::vector<int>, DataString> m_dataStrings;
 			CartesianVector2<f64> m_topLeftCorner;
+			CartesianVector2<f64> m_size;
+			std::optional<CartesianVector2<f64>> m_currentDragPosition;
 		};
 
 		struct C_TimeTracker

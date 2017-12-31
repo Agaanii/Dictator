@@ -25,7 +25,7 @@ void Time::SetupGameplay()
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(index);
 	uiFrameComponent.m_frame
 		= DefineUIFrame(
-			"Inventory",
+			"Calendar",
 			DataBinding(ECS_Core::Components::C_TimeTracker, m_year),
 			DataBinding(ECS_Core::Components::C_TimeTracker, m_month),
 			DataBinding(ECS_Core::Components::C_TimeTracker, m_day));
@@ -33,6 +33,7 @@ void Time::SetupGameplay()
 	uiFrameComponent.m_dataStrings[{1}] = { { 0,35 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_dataStrings[{2}] = { { 50,35 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_topLeftCorner = { 1400, 100 };
+	uiFrameComponent.m_size = { 100, 70 };
 	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
 	auto timeBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(100, 70));
 	timeBackground->setFillColor({});
