@@ -15,6 +15,7 @@
 
 #include <iostream>
 
+void UI::ProgramInit() {}
 void UI::SetupGameplay() {
 
 }
@@ -57,6 +58,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					if (uiFrame.m_currentDragPosition)
 					{
 						uiFrame.m_currentDragPosition.reset();
+						uiFrame.m_focus = true;
 						inputComponent.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
 					}
 				}
@@ -67,6 +69,10 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION_RESPONSE:
 	{
 		auto inputEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>();
+		// Will crash if the windowInfo entity hasn't been created
+		auto windowInfoIndex = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_WindowInfo>().front();
+		auto& windowInfo = m_managerRef.getComponent<ECS_Core::Components::C_WindowInfo>(windowInfoIndex);
+
 		for (auto&& entityIndex : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_UIFrame>())
 		{
 			auto& uiEntity = m_managerRef.getComponent<ECS_Core::Components::C_UIFrame>(entityIndex);
@@ -82,6 +88,12 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			{
 				auto& input = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
 				uiEntity.m_topLeftCorner = input.m_currentMousePosition.m_screenPosition - *uiEntity.m_currentDragPosition;
+				uiEntity.m_topLeftCorner.m_x = max<f64>(uiEntity.m_topLeftCorner.m_x, 0);
+				uiEntity.m_topLeftCorner.m_y = max<f64>(uiEntity.m_topLeftCorner.m_y, 0);
+
+				auto maxTopLeft = windowInfo.m_windowSize - uiEntity.m_size;
+				uiEntity.m_topLeftCorner.m_x = min<f64>(uiEntity.m_topLeftCorner.m_x, maxTopLeft.m_x);
+				uiEntity.m_topLeftCorner.m_y = min<f64>(uiEntity.m_topLeftCorner.m_y, maxTopLeft.m_y);
 			}
 		}
 		break;

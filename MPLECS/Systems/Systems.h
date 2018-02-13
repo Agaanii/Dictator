@@ -23,6 +23,7 @@ class SystemName : public SystemBase													\
 public:																					\
 	SystemName() : SystemBase() { }														\
 	virtual ~SystemName() {}															\
+    virtual void ProgramInit() override;                                               \
 	virtual void SetupGameplay() override;												\
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;	\
 	virtual bool ShouldExit() override;													\

@@ -204,6 +204,8 @@ void GainIncomes(ECS_Core::Manager& manager)
 	});
 }
 
+void Government::ProgramInit() {}
+
 extern sf::Font s_font;
 void Government::SetupGameplay()
 {
@@ -227,6 +229,7 @@ void Government::SetupGameplay()
 
 	uiFrameComponent.m_topLeftCorner = { 50,50 };
 	uiFrameComponent.m_size = { 200, 240 };
+	uiFrameComponent.m_global = true;
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayerGovernment);
 
 	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayerGovernment);

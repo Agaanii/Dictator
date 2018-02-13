@@ -34,7 +34,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration);
 namespace EventResponse
 {
 	using namespace sf;
-	void OnWindowResize(const Event::SizeEvent& size);
+	void OnWindowResize(const Event::SizeEvent& size, ECS_Core::Manager& manager);
 
 	void OnLoseFocus(ECS_Core::Components::C_UserInputs& input);
 	void OnGainFocus();
@@ -334,7 +334,7 @@ namespace sf
 	}
 }
 
-void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
+void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size, ECS_Core::Manager& manager)
 { 
 	auto& currentViewSize = s_worldView.getSize();
 	auto newViewSize = currentViewSize;
@@ -345,6 +345,14 @@ void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size)
 	s_worldView = sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y});
 
 	s_UIView = sf::View({ 0, 0, static_cast<float>(size.width), static_cast<float>(size.height) });
+
+	// update window info
+	for (auto&& index : manager.entitiesMatching<ECS_Core::Signatures::S_WindowInfo>())
+	{
+		auto& windowInfo = manager.getComponent<ECS_Core::Components::C_WindowInfo>(index);
+
+		windowInfo.m_windowSize = CartesianVector2<unsigned int>{ s_window.getSize().x, s_window.getSize().y }.cast<f64>();
+	}
 }
 
 void EventResponse::OnLoseFocus(ECS_Core::Components::C_UserInputs& input)
@@ -504,6 +512,13 @@ void EventResponse::OnJoystickDisconnect(const sf::Event::JoystickConnectEvent& 
 {
 }
 
+void SFMLManager::ProgramInit() 
+{
+	auto windowInfoIndex = m_managerRef.createIndex();
+	auto& windowInfo = m_managerRef.addComponent<ECS_Core::Components::C_WindowInfo>(windowInfoIndex);
+	windowInfo.m_windowSize = CartesianVector2<unsigned int>{ s_window.getSize().x, s_window.getSize().y }.cast<f64>();
+}
+
 void SFMLManager::SetupGameplay()
 {
 	sf::Font tempFont;
@@ -558,7 +573,7 @@ void ReadSFMLInput(ECS_Core::Manager& manager)
 
 		// Window Management
 		case sf::Event::Resized:
-			EventResponse::OnWindowResize(event.size); break;
+			EventResponse::OnWindowResize(event.size, manager); break;
 		case sf::Event::LostFocus:
 			EventResponse::OnLoseFocus(inputComponent); break;
 		case sf::Event::GainedFocus:

@@ -14,6 +14,7 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+void SystemTemplate::ProgramInit() {}
 void SystemTemplate::SetupGameplay() {}
 
 void SystemTemplate::Operate(GameLoopPhase phase, const timeuS& frameDuration)

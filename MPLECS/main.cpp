@@ -56,12 +56,20 @@ int main()
 
 	// Kill units last, other things may want to refer to them
 	RegisterSystem<UnitDeath>();
+
+	for (auto&& system : s_systems)
+	{
+		system->ProgramInit();
+	}
+	s_manager.refresh();
+
 	auto loopStart = chrono::high_resolution_clock::now();
 
 	for (auto&& system : s_systems)
 	{
 		system->SetupGameplay();
 	}
+	s_manager.refresh();
 
 	while(true)
 	{
