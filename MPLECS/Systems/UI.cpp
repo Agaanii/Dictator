@@ -13,12 +13,8 @@
 
 #include "../ECS/System.h"
 
-#include <iostream>
-
 void UI::ProgramInit() {}
-void UI::SetupGameplay() {
-
-}
+void UI::SetupGameplay() {}
 
 void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
