@@ -81,6 +81,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 	});
 }
 
+void BuildingCreation::ProgramInit() {}
 void BuildingCreation::SetupGameplay() {}
 
 void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)

@@ -852,6 +852,7 @@ void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 	}
 }
 
+void WorldTile::ProgramInit() {}
 void WorldTile::SetupGameplay() {}
 
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)

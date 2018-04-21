@@ -98,16 +98,24 @@ protected:
 		}
 	}
 
-	template <int i> void ReadFields(FieldStrings& result, ecs::EntityIndex mI, ECS_Core::Manager& manager) const
+	template <int i> void ReadFields(
+		FieldStrings& result, 
+		ecs::EntityIndex mI, 
+		ECS_Core::Manager& manager) const
 	{
-		auto& component = manager.getComponent<std::tuple_element<i, BindingTuple>::type::ComponentType>(mI);
+		auto& component = manager.getComponent
+			<std::tuple_element<i, BindingTuple>::type::ComponentType>(mI);
 		GetFieldEntry(i, std::get<i>(m_bindings).ReadValue(component), result);
 		ReadFields<i - 1>(result, mI, manager);
 	}
 
-	template <> void ReadFields<0>(FieldStrings& result, ecs::EntityIndex mI, ECS_Core::Manager& manager) const
+	template <> void ReadFields<0>(
+		FieldStrings& result,
+		ecs::EntityIndex mI,
+		ECS_Core::Manager& manager) const
 	{
-		auto& component = manager.getComponent<std::tuple_element<0, BindingTuple>::type::ComponentType>(mI);
+		auto& component = manager.getComponent
+			<std::tuple_element<0, BindingTuple>::type::ComponentType>(mI);
 		GetFieldEntry(0, std::get<0>(m_bindings).ReadValue(component), result);
 	}
 
@@ -122,7 +130,9 @@ public:
 	{
 	}
 	
-	virtual FieldStrings ReadData(ecs::EntityIndex mI, ECS_Core::Manager& manager) const override
+	virtual FieldStrings ReadData(
+		ecs::EntityIndex mI,
+		ECS_Core::Manager& manager) const override
 	{
 		FieldStrings result;
 		// Recursively go through the fields, put string in map
@@ -139,5 +149,7 @@ protected:
 template<typename ...Args>
 auto DefineUIFrame(std::string&& title, Args&&... args)
 {
-	return std::make_unique<UIFrameDefinition<Args...>>(std::forward<std::string>(title), std::forward<Args>(args)...);
+	return std::make_unique<UIFrameDefinition<Args...>>(
+		std::forward<std::string>(title), 
+		std::forward<Args>(args)...);
 }

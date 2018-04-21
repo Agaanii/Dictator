@@ -170,6 +170,8 @@ namespace ECS_Core
 			CartesianVector2<f64> m_topLeftCorner;
 			CartesianVector2<f64> m_size;
 			std::optional<CartesianVector2<f64>> m_currentDragPosition;
+			bool m_focus{ false };
+			bool m_global{ false };
 		};
 
 		struct C_TimeTracker
@@ -185,7 +187,6 @@ namespace ECS_Core
 			int m_gameSpeed{ 1 };
 			bool m_paused{ true };
 		};
-
 		enum PopulationClass
 		{
 			CHILDREN,
@@ -231,7 +232,11 @@ namespace ECS_Core
 			PopulationAgenda m_popAgenda{ PopulationAgenda::TRAINING };
 			std::vector<YieldType> m_yieldPriority;
 		};
-	}
+		struct C_WindowInfo
+		{
+			CartesianVector2<f64> m_windowSize;
+		};
+}
 
 	namespace Tags
 	{
@@ -266,6 +271,7 @@ namespace ECS_Core
 		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
 		using S_UIFrame = ecs::Signature<Components::C_UIFrame>;
 		using S_TimeTracker = ecs::Signature<Components::C_TimeTracker>;
+		using S_WindowInfo = ecs::Signature<Components::C_WindowInfo>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -290,7 +296,8 @@ namespace ECS_Core
 		Components::C_UIFrame,
 		Components::C_TimeTracker,
 		Components::C_Population,
-		Components::C_Agenda
+		Components::C_Agenda,
+		Components::C_WindowInfo
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -317,7 +324,8 @@ namespace ECS_Core
 		Signatures::S_PlayerGovernor,
 		Signatures::S_UIFrame,
 		Signatures::S_UIDrawable,
-		Signatures::S_TimeTracker
+		Signatures::S_TimeTracker,
+		Signatures::S_WindowInfo
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

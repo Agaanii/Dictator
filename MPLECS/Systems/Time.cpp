@@ -16,6 +16,8 @@
 
 #include "../Components/UIComponents.h"
 
+void Time::ProgramInit() {}
+
 extern sf::Font s_font;
 void Time::SetupGameplay()
 {
@@ -34,6 +36,7 @@ void Time::SetupGameplay()
 	uiFrameComponent.m_dataStrings[{2}] = { { 50,35 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_topLeftCorner = { 1400, 100 };
 	uiFrameComponent.m_size = { 100, 70 };
+	uiFrameComponent.m_global = true;
 	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
 	auto timeBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(100, 70));
 	timeBackground->setFillColor({});
@@ -86,7 +89,7 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
 		{
 			auto& inputs = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
-			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::PAUSE_BREAK))
+			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::BACKSPACE))
 			{
 				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
 					ecs::EntityIndex mI,
@@ -94,9 +97,9 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				{
 					time.m_paused = !time.m_paused;
 				});
-				inputs.ProcessKey(ECS_Core::Components::InputKeys::PAUSE_BREAK);
+				inputs.ProcessKey(ECS_Core::Components::InputKeys::BACKSPACE);
 			}
-			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::NUM_PLUS))
+			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::EQUAL))
 			{
 				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
 					ecs::EntityIndex mI,
@@ -105,9 +108,9 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					time.m_gameSpeed = min<int>(5, ++time.m_gameSpeed);
 
 				});
-				inputs.ProcessKey(ECS_Core::Components::InputKeys::NUM_PLUS);
+				inputs.ProcessKey(ECS_Core::Components::InputKeys::EQUAL);
 			}
-			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::NUM_DASH))
+			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::DASH))
 			{
 				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
 					ecs::EntityIndex mI,
@@ -115,7 +118,7 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				{
 					time.m_gameSpeed = max<int>(1, --time.m_gameSpeed);
 				});
-				inputs.ProcessKey(ECS_Core::Components::InputKeys::NUM_DASH);
+				inputs.ProcessKey(ECS_Core::Components::InputKeys::DASH);
 			}
 		}
 	}

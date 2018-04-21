@@ -16,6 +16,7 @@
 
 void KillDyingUnits(ECS_Core::Manager& manager);
 
+void UnitDeath::ProgramInit() {}
 void UnitDeath::SetupGameplay() {}
 
 void UnitDeath::Operate(GameLoopPhase phase, const timeuS& frameDuration)
