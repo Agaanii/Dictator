@@ -50,6 +50,7 @@ int main()
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
 	RegisterSystem<Government>();
+	RegisterSystem<PopulationGrowth>();
 	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
 	RegisterSystem<SFMLManager>();

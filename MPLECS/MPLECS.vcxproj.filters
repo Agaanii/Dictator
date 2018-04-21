@@ -81,6 +81,9 @@
     <ClCompile Include="Systems\Time.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="Systems\PopulationGrowth.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\typedef.h">
