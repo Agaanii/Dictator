@@ -272,7 +272,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 					for (auto&& skillLevel : skillMap[yield])
 					{
 						if (amountToWork == 0)
+						{
 							break;
+						}
 
 						AssignYieldWorkers(skillLevel, assignments, amountToWork, yield);
 					}
@@ -283,7 +285,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 					for (auto&& skillLevel : reverse(skillMap[yield]))
 					{
 						if (amountToWork == 0)
+						{
 							break;
+						}
 
 						AssignYieldWorkers(skillLevel, assignments, amountToWork, yield);
 					}
