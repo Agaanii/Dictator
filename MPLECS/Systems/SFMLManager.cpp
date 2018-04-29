@@ -634,25 +634,26 @@ void ReadSFMLInput(ECS_Core::Manager& manager)
 
 void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
+	f32 scalar = 150. * s_worldView.getSize().x / 400;
 	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 	{
-		s_worldView.move({ 0, 150.f * frameDuration / 1000000 });
+		s_worldView.move({ 0, scalar * frameDuration / 1000000 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
 	{
-		s_worldView.move({ 0, -150.f * frameDuration / 1000000 });
+		s_worldView.move({ 0, -scalar * frameDuration / 1000000 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
 	{
-		s_worldView.move({ -150.f * frameDuration / 1000000, 0 });
+		s_worldView.move({ -scalar * frameDuration / 1000000, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
 	}
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
 	{
-		s_worldView.move({ 150.f * frameDuration / 1000000, 0 });
+		s_worldView.move({ scalar * frameDuration / 1000000, 0 });
 		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 	}
 	EventResponse::UpdateMouseWorldPosition(inputComponent);
