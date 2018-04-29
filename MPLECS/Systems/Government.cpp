@@ -166,6 +166,40 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 	}
 }
 
+
+using WorkerKey = s32;
+
+struct WorkerAssignment
+{
+	using AssignmentMap = std::map<ECS_Core::Components::SpecialtyId, s32>;
+	AssignmentMap m_assignments;
+};
+
+using WorkerAssignmentMap = std::map<WorkerKey, WorkerAssignment>;
+
+struct WorkerSkillKey
+{
+	ECS_Core::Components::SpecialtyLevel m_level;
+	ECS_Core::Components::SpecialtyExperience m_xp;
+
+	bool operator< (const WorkerSkillKey& other) const
+	{
+		if (m_level < other.m_level) return true;
+		if (m_level > other.m_level) return false;
+
+		if (m_xp < other.m_xp) return true;
+		if (m_xp > other.m_xp) return false;
+		return false;
+	}
+};
+using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerKey>>;
+using SkillMap = std::map<ECS_Core::Components::SpecialtyId, WorkerSkillMap>;
+void AssignYieldWorkers(
+	std::pair<const WorkerSkillKey, std::vector<int>> & skillLevel,
+	WorkerAssignmentMap &assignments,
+	s32 &amountToWork,
+	const int& yield);
+
 void GainIncomes(ECS_Core::Manager& manager)
 {
 	// Get current time
@@ -180,7 +214,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 		[&manager, &time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_Realm& realm,
-			ECS_Core::Components::C_ResourceInventory& inventory)
+			ECS_Core::Components::C_ResourceInventory& inventory,
+			ECS_Core::Components::C_Population& population,
+			const ECS_Core::Components::C_Agenda& agenda)
 	{
 		for (auto&& territoryHandle : realm.m_territories)
 		{
@@ -188,9 +224,77 @@ void GainIncomes(ECS_Core::Manager& manager)
 			{
 				continue;
 			}
+			WorkerAssignmentMap assignments;
+
+			SkillMap skillMap;
 
 			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
-			for (auto&& yield : territoryYield.m_availableYields)
+			// Choose which yields will be worked based on government priorities
+			// If production is the focus, highest skill works first
+			// If training is the focus, lowest skill works first
+			// After yields are determined, increase experience for the workers
+			// Experience advances more slowly for higher skill
+			s32 totalWorkerCount{ 0 };
+			for (auto&& pop : population.m_populations)
+			{
+				if (pop.second.m_class == ECS_Core::Components::PopulationClass::WORKERS)
+				{
+					auto totalPeople = pop.second.m_numWomen + pop.second.m_numMen;
+					totalWorkerCount += totalPeople;
+					assignments[pop.first].m_assignments[-1] = totalPeople;
+					for (auto&& yieldType : agenda.m_yieldPriority)
+					{
+						// Make sure there are entries in the specialties for every skill needed to work the region
+						pop.second.m_specialties[yieldType];
+					}
+					for (auto&& skill : pop.second.m_specialties)
+					{
+						skillMap[skill.first][{skill.second.m_level, skill.second.m_experience}].push_back(pop.first);
+					}
+				}
+			}
+			
+			ECS_Core::Components::YieldMap workedYields;
+			for (auto&& yield : agenda.m_yieldPriority)
+			{
+				auto availableYield = territoryYield.m_availableYields.find(yield);
+				if (availableYield == territoryYield.m_availableYields.end())
+				{
+					continue;
+				}
+
+				auto amountToWork = availableYield->second.m_value;
+
+				switch (agenda.m_popAgenda)
+				{
+				case ECS_Core::Components::PopulationAgenda::TRAINING:
+					// Iterate from lowest skill to highest
+					for (auto&& skillLevel : skillMap[yield])
+					{
+						if (amountToWork == 0)
+						{
+							break;
+						}
+
+						AssignYieldWorkers(skillLevel, assignments, amountToWork, yield);
+					}
+					break;
+
+				case ECS_Core::Components::PopulationAgenda::PRODUCTION:
+					// Iterate from highest skill to lowest
+					for (auto&& skillLevel : reverse(skillMap[yield]))
+					{
+						if (amountToWork == 0)
+						{
+							break;
+						}
+
+						AssignYieldWorkers(skillLevel, assignments, amountToWork, yield);
+					}
+					break;
+				}
+			}
+			for (auto&& yield : workedYields)
 			{
 				yield.second.m_productionProgress += time.m_frameDuration;
 				if (yield.second.m_productionProgress > yield.second.m_productionInterval)
@@ -199,12 +303,33 @@ void GainIncomes(ECS_Core::Manager& manager)
 					inventory.m_collectedYields[yield.first] += yield.second.m_value;
 				}
 			}
-			inventory.m_yield0 = inventory.m_collectedYields[1];
 		}
 	});
 }
 
 void Government::ProgramInit() {}
+
+
+void AssignYieldWorkers(
+	std::pair<const WorkerSkillKey, std::vector<int>> & skillLevel,
+	WorkerAssignmentMap &assignments,
+	s32 &amountToWork,
+	const int & yield)
+{
+	for (auto&& workerKey : skillLevel.second)
+	{
+		auto assignment = assignments.find(workerKey);
+		if (assignment == assignments.end())
+		{
+			continue;
+		}
+		// Find how many people are still unassigned
+		auto countWorkingYield = min<s32>(amountToWork, assignment->second.m_assignments[-1]);
+		assignment->second.m_assignments[yield] += countWorkingYield;
+		assignment->second.m_assignments[-1] -= countWorkingYield;
+		amountToWork -= countWorkingYield;
+	}
+}
 
 extern sf::Font s_font;
 void Government::SetupGameplay()
@@ -212,6 +337,8 @@ void Government::SetupGameplay()
 	auto localPlayerGovernment = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
 	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment).m_collectedYields = { {1, 100},{2,100} };
+	m_managerRef.addComponent<ECS_Core::Components::C_Population>(localPlayerGovernment);
+	m_managerRef.addComponent<ECS_Core::Components::C_Agenda>(localPlayerGovernment).m_yieldPriority = { 0,1,2,3,4,5,6,7 };
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment);
 	uiFrameComponent.m_frame
@@ -253,6 +380,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		InterpretLocalInput(m_managerRef);
 		break;
 	case GameLoopPhase::ACTION:
+
 		GainIncomes(m_managerRef);
 		break;
 	case GameLoopPhase::PREPARATION:
