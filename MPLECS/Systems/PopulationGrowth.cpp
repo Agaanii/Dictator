@@ -15,6 +15,7 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+void PopulationGrowth::ProgramInit() {}
 void PopulationGrowth::SetupGameplay() {}
 
 void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)

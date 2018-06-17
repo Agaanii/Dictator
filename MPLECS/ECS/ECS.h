@@ -126,9 +126,9 @@ namespace ECS_Core
 		using YieldType = s32;
 		struct Yield
 		{
-			f64 m_productionInterval{ 1 };
+			f64 m_productionInterval{ 0.01 }; // 100 Days of 1 level 1 worker = 1 produced
 			f64 m_productionProgress{ 0 };
-			s32 m_value{ 0 };
+			s32 m_value{ 1 };
 		};
 		using YieldMap = std::map<YieldType, Yield>;
 		struct C_YieldPotential
@@ -199,7 +199,7 @@ namespace ECS_Core
 
 		struct SpecialtyProgress
 		{
-			SpecialtyLevel m_level{ 0 };
+			SpecialtyLevel m_level{ 1 };
 			SpecialtyExperience m_experience{ 0 };
 		};
 
@@ -214,7 +214,7 @@ namespace ECS_Core
 			PopulationClass m_class{ PopulationClass::CHILDREN };
 		};
 
-		// Age
+		// Age (months)
 		using PopulationKey = s32;
 
 		struct C_Population

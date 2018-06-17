@@ -194,7 +194,7 @@ struct WorkerSkillKey
 };
 using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerKey>>;
 using SkillMap = std::map<ECS_Core::Components::SpecialtyId, WorkerSkillMap>;
-void AssignYieldWorkers(
+int AssignYieldWorkers(
 	std::pair<const WorkerSkillKey, std::vector<int>> & skillLevel,
 	WorkerAssignmentMap &assignments,
 	s32 &amountToWork,
@@ -254,7 +254,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 				}
 			}
 			
-			ECS_Core::Components::YieldMap workedYields;
+			// We know who we want to work first
+			// Decide where they're working
+			// Figure out the actual amount yielded by this work
 			for (auto&& yield : agenda.m_yieldPriority)
 			{
 				auto availableYield = territoryYield.m_availableYields.find(yield);
@@ -276,7 +278,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 							break;
 						}
 
-						AssignYieldWorkers(skillLevel, assignments, amountToWork, yield);
+						availableYield->second.m_productionProgress += 
+							AssignYieldWorkers(skillLevel, assignments, amountToWork, yield)
+							* time.m_frameDuration;
 					}
 					break;
 
@@ -289,18 +293,28 @@ void GainIncomes(ECS_Core::Manager& manager)
 							break;
 						}
 
-						AssignYieldWorkers(skillLevel, assignments, amountToWork, yield);
+						availableYield->second.m_productionProgress +=
+							AssignYieldWorkers(skillLevel, assignments, amountToWork, yield)
+							* time.m_frameDuration;
 					}
 					break;
 				}
 			}
-			for (auto&& yield : workedYields)
+
+			for (auto&& yield : territoryYield.m_availableYields)
 			{
-				yield.second.m_productionProgress += time.m_frameDuration;
-				if (yield.second.m_productionProgress > yield.second.m_productionInterval)
+				s32 gainAmount = static_cast<s32>(yield.second.m_productionProgress / yield.second.m_productionInterval);
+				inventory.m_collectedYields[yield.first] += gainAmount;
+				yield.second.m_productionProgress -= yield.second.m_productionInterval * gainAmount;
+			}
+
+			// And assign experience to workers
+			for (auto&& workers : assignments)
+			{
+				for (auto& assignment : workers.second.m_assignments)
 				{
-					yield.second.m_productionProgress -= yield.second.m_productionInterval;
-					inventory.m_collectedYields[yield.first] += yield.second.m_value;
+					population.m_populations[workers.first].m_specialties[assignment.first]
+						.m_experience += assignment.second;
 				}
 			}
 		}
@@ -309,13 +323,13 @@ void GainIncomes(ECS_Core::Manager& manager)
 
 void Government::ProgramInit() {}
 
-
-void AssignYieldWorkers(
+int AssignYieldWorkers(
 	std::pair<const WorkerSkillKey, std::vector<int>> & skillLevel,
 	WorkerAssignmentMap &assignments,
 	s32 &amountToWork,
 	const int & yield)
 {
+	int totalYieldAmount = 0;
 	for (auto&& workerKey : skillLevel.second)
 	{
 		auto assignment = assignments.find(workerKey);
@@ -328,7 +342,9 @@ void AssignYieldWorkers(
 		assignment->second.m_assignments[yield] += countWorkingYield;
 		assignment->second.m_assignments[-1] -= countWorkingYield;
 		amountToWork -= countWorkingYield;
+		totalYieldAmount += countWorkingYield * static_cast<s32>(sqrt(skillLevel.first.m_level));
 	}
+	return totalYieldAmount;
 }
 
 extern sf::Font s_font;
@@ -337,7 +353,11 @@ void Government::SetupGameplay()
 	auto localPlayerGovernment = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
 	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment).m_collectedYields = { {1, 100},{2,100} };
-	m_managerRef.addComponent<ECS_Core::Components::C_Population>(localPlayerGovernment);
+	auto& pop = m_managerRef.addComponent<ECS_Core::Components::C_Population>(localPlayerGovernment);
+	auto& agePop = pop.m_populations[16 * 12];
+	agePop.m_numMen = 5;
+	agePop.m_numWomen = 5;
+	agePop.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 	m_managerRef.addComponent<ECS_Core::Components::C_Agenda>(localPlayerGovernment).m_yieldPriority = { 0,1,2,3,4,5,6,7 };
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment);
@@ -380,7 +400,6 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		InterpretLocalInput(m_managerRef);
 		break;
 	case GameLoopPhase::ACTION:
-
 		GainIncomes(m_managerRef);
 		break;
 	case GameLoopPhase::PREPARATION:

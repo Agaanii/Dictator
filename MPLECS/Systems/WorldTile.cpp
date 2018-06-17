@@ -654,7 +654,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		if (territory.m_nextGrowthTile)
 		{
 			auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
-			territory.m_nextGrowthTile->m_progress += (0.2 * time.m_frameDuration);
+			territory.m_nextGrowthTile->m_progress += (0.2 * time.m_frameDuration / sqrt(territory.m_ownedTiles.size()));
 			if (territory.m_nextGrowthTile->m_progress >= 1)
 			{
 				territory.m_ownedTiles.insert(territory.m_nextGrowthTile->m_tile);
