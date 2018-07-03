@@ -18,20 +18,40 @@
 void PopulationGrowth::ProgramInit() {}
 void PopulationGrowth::SetupGameplay() {}
 
+void GainLevels(ECS_Core::Manager& manager)
+{
+	auto& governorList = manager.entitiesMatching<ECS_Core::Signatures::S_Governor>();
+	for (auto&& govHandle : governorList)
+	{
+		auto& population = manager.getComponent<ECS_Core::Components::C_Population>(govHandle);
+		for (auto&& popSegment : population.m_populations)
+		{
+			for (auto&& specialty : popSegment.second.m_specialties)
+			{
+				// TODO: Manually configured XP thresholds
+				s32 xpThreshold = specialty.second.m_level * specialty.second.m_level * 10000;
+				if (specialty.second.m_experience >= xpThreshold)
+				{
+					++specialty.second.m_level;
+					specialty.second.m_experience -= xpThreshold;
+				}
+			}
+		}
+	}
+}
+
 void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
-		// TODO System: run skill upgrade checks
-		// Roll against % experience, advance. reduce XP% and try again if success
-		// Reduce new location's experience fractionally, increase pop
-		// Reduce old location's experience fractionally, reduce pop
 	case GameLoopPhase::PREPARATION:
 	case GameLoopPhase::INPUT:
-	case GameLoopPhase::ACTION:
 	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:
+		return;
+	case GameLoopPhase::ACTION:
+		GainLevels(m_managerRef);
 		return;
 	}
 }

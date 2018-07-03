@@ -634,7 +634,7 @@ void ReadSFMLInput(ECS_Core::Manager& manager)
 
 void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
-	f32 scalar = 150. * s_worldView.getSize().x / 400;
+	f32 scalar = static_cast<f32>(150. * s_worldView.getSize().x / 400);
 	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
 	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 	{
