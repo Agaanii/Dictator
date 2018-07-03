@@ -128,7 +128,7 @@ namespace ECS_Core
 		{
 			f64 m_productionInterval{ 0.01 }; // 100 Days of 1 level 1 worker = 1 produced
 			f64 m_productionProgress{ 0 };
-			s32 m_value{ 1 };
+			s32 m_value{ 1 };	
 		};
 		using YieldMap = std::map<YieldType, Yield>;
 		struct C_YieldPotential
@@ -186,6 +186,12 @@ namespace ECS_Core
 
 			int m_gameSpeed{ 1 };
 			bool m_paused{ true };
+
+			bool IsNewMonth() const
+			{
+				return m_day == 1
+					&& m_dayProgress < m_frameDuration;
+			}
 		};
 		enum PopulationClass
 		{

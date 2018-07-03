@@ -223,6 +223,8 @@ T max(const T& a, const T& b)
 	return a < b ? b : a;
 }
 
+f64 RandDouble();
+
 // Reverse iterator from https://stackoverflow.com/questions/8542591/c11-reverse-range-based-for-loop
 
 template <typename T>
