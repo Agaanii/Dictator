@@ -57,7 +57,12 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			building.m_buildingProgress = 1.0;
 			// We're done building, give it territory, put it in a realm, and, at the end of this function, remove the construction tag
 			manager.addComponent<ECS_Core::Components::C_YieldPotential>(mI);
-			manager.addComponent<ECS_Core::Components::C_Territory>(mI).m_ownedTiles.insert(buildingTilePosition.m_position);
+			auto& territory = manager.addComponent<ECS_Core::Components::C_Territory>(mI);
+			territory.m_ownedTiles.insert(buildingTilePosition.m_position);
+			auto& foundingPopulation = territory.m_populations[16 * 12];
+			foundingPopulation.m_numMen = 5;
+			foundingPopulation.m_numWomen = 5;
+			foundingPopulation.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 			auto& creatorRealm = manager.getComponent<ECS_Core::Components::C_Realm>(construction.m_placingGovernor);
 			creatorRealm.m_territories.insert(manager.getHandle(mI));
 

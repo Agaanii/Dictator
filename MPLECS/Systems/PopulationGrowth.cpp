@@ -20,11 +20,11 @@ void PopulationGrowth::SetupGameplay() {}
 
 void GainLevels(ECS_Core::Manager& manager)
 {
-	auto& governorList = manager.entitiesMatching<ECS_Core::Signatures::S_Governor>();
-	for (auto&& govHandle : governorList)
+	auto& governorList = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
+	for (auto&& terrHandle : governorList)
 	{
-		auto& population = manager.getComponent<ECS_Core::Components::C_Population>(govHandle);
-		for (auto&& popSegment : population.m_populations)
+		auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(terrHandle);
+		for (auto&& popSegment : territory.m_populations)
 		{
 			for (auto&& specialty : popSegment.second.m_specialties)
 			{
@@ -42,7 +42,7 @@ void GainLevels(ECS_Core::Manager& manager)
 
 void AgePopulations(ECS_Core::Manager& manager)
 {
-	for (auto&& govHandle : manager.entitiesMatching<ECS_Core::Signatures::S_Governor>())
+	for (auto&& terrHandle : manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>())
 	{
 		// Potential for optimization here:
 		// We need to remove and re-insert every element
@@ -50,17 +50,17 @@ void AgePopulations(ECS_Core::Manager& manager)
 		// We don't need to move them all
 		// That would mean we need to do reverse iteration though, to go for increasing age
 		// Or could use -birthMonth as key
-		auto& population = manager.getComponent<ECS_Core::Components::C_Population>(govHandle);
-		for (auto popSegment = population.m_populations.rbegin();
-			popSegment != population.m_populations.rend();
+		auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(terrHandle);
+		for (auto popSegment = territory.m_populations.rbegin();
+			popSegment != territory.m_populations.rend();
 			++popSegment)
 		{
 			auto segmentCopy = popSegment->second;
 			auto newAge = popSegment->first + 1;
-			population.m_populations.emplace(newAge, segmentCopy);
-			population.m_populations.erase(popSegment->first);
+			territory.m_populations.emplace(newAge, segmentCopy);
+			territory.m_populations.erase(popSegment->first);
 		}
-		for (auto&& popSegment : population.m_populations)
+		for (auto&& popSegment : territory.m_populations)
 		{
 			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::CHILDREN 
 				&& popSegment.first >= 15 * 12)
@@ -78,12 +78,12 @@ void AgePopulations(ECS_Core::Manager& manager)
 
 void BirthChildren(ECS_Core::Manager& manager)
 {
-	for (auto&& govHandle : manager.entitiesMatching<ECS_Core::Signatures::S_Governor>())
+	for (auto&& terrHandle : manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>())
 	{
-		auto& population = manager.getComponent<ECS_Core::Components::C_Population>(govHandle);
+		auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(terrHandle);
 		s32 potentialMotherCount{ 0 };
 		s32 potentialFatherCount{ 0 };
-		for (auto&& popSegment : population.m_populations)
+		for (auto&& popSegment : territory.m_populations)
 		{
 			// Age keys are in months
 			auto popAge = popSegment.first / 12;
@@ -114,7 +114,7 @@ void BirthChildren(ECS_Core::Manager& manager)
 		auto maleChildCount = childCount / 2;
 		auto femaleChildCount = childCount - maleChildCount;
 		
-		auto& newPopulation = population.m_populations[0];
+		auto& newPopulation = territory.m_populations[0];
 		newPopulation.m_numMen = maleChildCount;
 		newPopulation.m_numWomen = femaleChildCount;
 	}

@@ -41,7 +41,7 @@ std::map<int, std::map<ECS_Core::Components::YieldType, s64>> s_buildingCosts
 		0, 
 		{
 			{1, 50},
-			{2,50}
+			{2, 50}
 		}
 	}
 };
@@ -215,7 +215,6 @@ void GainIncomes(ECS_Core::Manager& manager)
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_Realm& realm,
 			ECS_Core::Components::C_ResourceInventory& inventory,
-			ECS_Core::Components::C_Population& population,
 			const ECS_Core::Components::C_Agenda& agenda)
 	{
 		for (auto&& territoryHandle : realm.m_territories)
@@ -229,13 +228,14 @@ void GainIncomes(ECS_Core::Manager& manager)
 			SkillMap skillMap;
 
 			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
+			auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(territoryHandle);
 			// Choose which yields will be worked based on government priorities
 			// If production is the focus, highest skill works first
 			// If training is the focus, lowest skill works first
 			// After yields are determined, increase experience for the workers
 			// Experience advances more slowly for higher skill
 			s32 totalWorkerCount{ 0 };
-			for (auto&& pop : population.m_populations)
+			for (auto&& pop : territory.m_populations)
 			{
 				if (pop.second.m_class == ECS_Core::Components::PopulationClass::WORKERS)
 				{
@@ -313,7 +313,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 			{
 				for (auto& assignment : workers.second.m_assignments)
 				{
-					population.m_populations[workers.first].m_specialties[assignment.first]
+					territory.m_populations[workers.first].m_specialties[assignment.first]
 						.m_experience += assignment.second;
 				}
 			}
@@ -353,11 +353,6 @@ void Government::SetupGameplay()
 	auto localPlayerGovernment = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
 	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment).m_collectedYields = { {1, 100},{2,100} };
-	auto& pop = m_managerRef.addComponent<ECS_Core::Components::C_Population>(localPlayerGovernment);
-	auto& agePop = pop.m_populations[16 * 12];
-	agePop.m_numMen = 5;
-	agePop.m_numWomen = 5;
-	agePop.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 	m_managerRef.addComponent<ECS_Core::Components::C_Agenda>(localPlayerGovernment).m_yieldPriority = { 0,1,2,3,4,5,6,7 };
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment);

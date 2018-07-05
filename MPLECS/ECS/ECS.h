@@ -116,11 +116,41 @@ namespace ECS_Core
 			f64 m_progress{ 0 };
 			TilePosition m_tile;
 		};
+		enum PopulationClass
+		{
+			CHILDREN,
+			WORKERS,
+			ELDERS
+		};
+		using SpecialtyId = u32;
+		using SpecialtyLevel = s32;
+		using SpecialtyExperience = s32;
 
+		struct SpecialtyProgress
+		{
+			SpecialtyLevel m_level{ 1 };
+			SpecialtyExperience m_experience{ 0 };
+		};
+
+		using SpecialtyMap = std::map<SpecialtyId, SpecialtyProgress>;
+
+		struct PopulationSegment
+		{
+			// Age in months
+			s32 m_numWomen{ 1 };
+			s32 m_numMen{ 1 };
+			SpecialtyMap m_specialties;
+			PopulationClass m_class{ PopulationClass::CHILDREN };
+		};
+
+		// Age (months)
+		using PopulationKey = s32;
+		
 		struct C_Territory
 		{
 			std::set<TilePosition> m_ownedTiles;
 			std::optional<GrowthTile> m_nextGrowthTile;
+			std::map<PopulationKey, PopulationSegment> m_populations;
 		};
 
 		using YieldType = s32;
@@ -193,40 +223,6 @@ namespace ECS_Core
 					&& m_dayProgress < m_frameDuration;
 			}
 		};
-		enum PopulationClass
-		{
-			CHILDREN,
-			WORKERS,
-			ELDERS
-		};
-		using SpecialtyId = u32;
-		using SpecialtyLevel = s32;
-		using SpecialtyExperience = s32;
-
-		struct SpecialtyProgress
-		{
-			SpecialtyLevel m_level{ 1 };
-			SpecialtyExperience m_experience{ 0 };
-		};
-
-		using SpecialtyMap = std::map<SpecialtyId, SpecialtyProgress>;
-
-		struct PopulationSegment
-		{
-			// Age in months
-			s32 m_numWomen{ 1 };
-			s32 m_numMen{ 1 };
-			SpecialtyMap m_specialties;
-			PopulationClass m_class{ PopulationClass::CHILDREN };
-		};
-
-		// Age (months)
-		using PopulationKey = s32;
-
-		struct C_Population
-		{
-			std::map<PopulationKey, PopulationSegment> m_populations;
-		};
 
 		enum class PopulationAgenda
 		{
@@ -273,7 +269,7 @@ namespace ECS_Core
 		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
 		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
-		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Components::C_Population, Components::C_Agenda>;
+		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Components::C_Agenda>;
 		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
 		using S_UIFrame = ecs::Signature<Components::C_UIFrame>;
 		using S_TimeTracker = ecs::Signature<Components::C_TimeTracker>;
@@ -301,7 +297,6 @@ namespace ECS_Core
 		Components::C_BuildingConstruction,
 		Components::C_UIFrame,
 		Components::C_TimeTracker,
-		Components::C_Population,
 		Components::C_Agenda,
 		Components::C_WindowInfo
 	>;
