@@ -361,11 +361,12 @@ namespace ecs {
                 return getComponent<T>(getEntityIndex(mX));
             }
 
-            template <typename T>
-            void delComponent(EntityIndex mI) noexcept {
-                static_assert(Settings::template isComponent<T>(), "");
-                getEntity(mI).bitset[Settings::template componentBit<T>()] = false;
-            }
+			template <typename T>
+			void delComponent(EntityIndex mI) noexcept {
+				static_assert(Settings::template isComponent<T>(), "");
+				getEntity(mI).bitset[Settings::template componentBit<T>()] = false;
+				components.template getComponent<T>(getEntity(mI).dataIndex).~T();
+			}
 
             template <typename T>
             void delComponent(const Handle& mX) noexcept {

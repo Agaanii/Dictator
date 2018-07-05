@@ -171,7 +171,6 @@ namespace ECS_Core
 			std::map<YieldType, s64> m_collectedYields;
 		};
 
-
 		struct C_BuildingGhost
 		{
 			bool m_currentPlacementValid{ false };
@@ -202,6 +201,7 @@ namespace ECS_Core
 			std::optional<CartesianVector2<f64>> m_currentDragPosition;
 			bool m_focus{ false };
 			bool m_global{ false };
+			bool m_closable{ false };
 		};
 
 		struct C_TimeTracker
