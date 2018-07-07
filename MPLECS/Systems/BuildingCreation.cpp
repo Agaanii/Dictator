@@ -43,12 +43,12 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			ECS_Core::Components::C_BuildingDescription& building,
 			ECS_Core::Components::C_TilePosition& buildingTilePosition,
 			ECS_Core::Components::C_SFMLDrawable& drawable,
-			ECS_Core::Components::C_BuildingConstruction& construction)
+			ECS_Core::Components::C_BuildingConstruction& construction) -> ecs::IterationBehavior
 	{
 		if (!manager.isHandleValid(construction.m_placingGovernor))
 		{
-			manager.kill(mI);
-			return;
+			manager.addTag<ECS_Core::Tags::T_Dead>(mI);
+			return ecs::IterationBehavior::CONTINUE;
 		}
 		building.m_buildingProgress += time.m_frameDuration / 30; 
 
@@ -83,6 +83,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 				}
 			}
 		}
+		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 

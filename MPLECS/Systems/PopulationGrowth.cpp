@@ -20,10 +20,14 @@ void PopulationGrowth::SetupGameplay() {}
 
 void GainLevels(ECS_Core::Manager& manager)
 {
-	auto& governorList = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
-	for (auto&& terrHandle : governorList)
+	using namespace ECS_Core;
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>([](
+		const ecs::EntityIndex&,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition&,
+		Components::C_Territory& territory,
+		const Components::C_YieldPotential&)
 	{
-		auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(terrHandle);
 		for (auto&& popSegment : territory.m_populations)
 		{
 			for (auto&& specialty : popSegment.second.m_specialties)
@@ -37,12 +41,19 @@ void GainLevels(ECS_Core::Manager& manager)
 				}
 			}
 		}
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 void AgePopulations(ECS_Core::Manager& manager)
 {
-	for (auto&& terrHandle : manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>())
+	using namespace ECS_Core;
+	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([](
+		const ecs::EntityIndex&,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition&,
+		Components::C_Territory& territory,
+		const Components::C_YieldPotential&)
 	{
 		// Potential for optimization here:
 		// We need to remove and re-insert every element
@@ -50,7 +61,6 @@ void AgePopulations(ECS_Core::Manager& manager)
 		// We don't need to move them all
 		// That would mean we need to do reverse iteration though, to go for increasing age
 		// Or could use -birthMonth as key
-		auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(terrHandle);
 		for (auto popSegment = territory.m_populations.rbegin();
 			popSegment != territory.m_populations.rend();
 			++popSegment)
@@ -73,14 +83,20 @@ void AgePopulations(ECS_Core::Manager& manager)
 				popSegment.second.m_class = ECS_Core::Components::PopulationClass::ELDERS;
 			}
 		}
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 void BirthChildren(ECS_Core::Manager& manager)
 {
-	for (auto&& terrHandle : manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>())
+	using namespace ECS_Core;
+	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([](
+		const ecs::EntityIndex&,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition&,
+		Components::C_Territory& territory,
+		const Components::C_YieldPotential&) -> ecs::IterationBehavior
 	{
-		auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(terrHandle);
 		s32 potentialMotherCount{ 0 };
 		s32 potentialFatherCount{ 0 };
 		for (auto&& popSegment : territory.m_populations)
@@ -108,7 +124,7 @@ void BirthChildren(ECS_Core::Manager& manager)
 			}
 			else
 			{
-				continue;
+				return ecs::IterationBehavior::CONTINUE;
 			}
 		}
 		auto maleChildCount = childCount / 2;
@@ -117,7 +133,8 @@ void BirthChildren(ECS_Core::Manager& manager)
 		auto& newPopulation = territory.m_populations[0];
 		newPopulation.m_numMen = maleChildCount;
 		newPopulation.m_numWomen = femaleChildCount;
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
@@ -132,7 +149,6 @@ void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		return;
 	case GameLoopPhase::ACTION:
 		GainLevels(m_managerRef);
-
 		{
 			auto&& timeEntity = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(
 				m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front());

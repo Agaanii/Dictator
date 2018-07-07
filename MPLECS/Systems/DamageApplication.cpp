@@ -79,6 +79,7 @@ void TakeDamage(ECS_Core::Manager& manager)
 			dot.m_secondsRemaining -= dotSecondFraction;
 		}
 		health.m_currentHealth = (health.m_currentHealth < health.m_maxHealth) ? health.m_currentHealth : health.m_maxHealth;
+		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 
@@ -111,6 +112,7 @@ void ClearPendingDamage(ECS_Core::Manager& manager)
 		{
 			damage.m_dots.pop_back();
 		}
+		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 DEFINE_SYSTEM_INSTANTIATION(DamageApplication);

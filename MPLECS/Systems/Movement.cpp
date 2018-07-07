@@ -38,6 +38,7 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 			ECS_Core::Components::C_PositionCartesian& position,
 			const ECS_Core::Components::C_VelocityCartesian& velocity) {
 		position.m_position += velocity.m_velocity * time.m_frameDuration;
+		return ecs::IterationBehavior::CONTINUE;
 	});
 
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_ApplyNewtonianMotion>(
@@ -47,6 +48,7 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 			ECS_Core::Components::C_VelocityCartesian& velocity,
 			const ECS_Core::Components::C_AccelerationCartesian& acceleration) {
 		position.m_position += ((velocity.m_velocity) + (acceleration.m_acceleration * time.m_frameDuration)) * time.m_frameDuration;
+		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 

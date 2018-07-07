@@ -553,33 +553,48 @@ CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& se
 
 void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 {
-	auto& completedBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
 	auto& inProgressBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>();
 	auto& ghostBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>();
 
-	for (auto& ghost : ghostBuildings)
+	using namespace ECS_Core;
+	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>([&manager](
+		const ecs::EntityIndex&,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition& ghostTilePosition,
+		Components::C_BuildingGhost& ghost)
 	{
-		auto& tilePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(ghost).m_position;
-		auto& tile = GetTile(tilePosition, manager);
+		auto& tile = GetTile(ghostTilePosition.m_position, manager);
 		bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost};
-		for (auto& complete : completedBuildings)
+		manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&collisionFound, &ghostTilePosition](
+			const ecs::EntityIndex&,
+			const Components::C_BuildingDescription&,
+			const Components::C_TilePosition& buildingTilePosition,
+			const Components::C_Territory&,
+			const Components::C_YieldPotential&) -> ecs::IterationBehavior
 		{
-			if (tilePosition == manager.getComponent<ECS_Core::Components::C_TilePosition>(complete).m_position)
+			if (ghostTilePosition.m_position == buildingTilePosition.m_position)
 			{
 				collisionFound = true;
-				break;
+				return ecs::IterationBehavior::BREAK;
 			}
-		}
-		for (auto& inProgress : inProgressBuildings)
+			return ecs::IterationBehavior::CONTINUE;
+		});
+		manager.forEntitiesMatching<Signatures::S_InProgressBuilding>([&collisionFound, &ghostTilePosition](
+			const ecs::EntityIndex&,
+			const Components::C_BuildingDescription&,
+			const Components::C_TilePosition& constructingTilePosition,
+			const Components::C_BuildingConstruction&) -> ecs::IterationBehavior
 		{
-			if (tilePosition == manager.getComponent<ECS_Core::Components::C_TilePosition>(inProgress).m_position)
+			if (ghostTilePosition.m_position == constructingTilePosition.m_position)
 			{
 				collisionFound = true;
-				break;
+				return ecs::IterationBehavior::BREAK;
 			}
-		}
-		manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghost).m_currentPlacementValid = !collisionFound;
-	}
+			return ecs::IterationBehavior::CONTINUE;
+		});
+		ghost.m_currentPlacementValid = !collisionFound;
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords)
@@ -594,6 +609,7 @@ std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords
 
 void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 {
+	using namespace ECS_Core;
 	// Get current time
 	// Assume the first entity is the one that has a valid time
 	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
@@ -602,24 +618,32 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		return;
 	}
 	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
-	auto& territoryEntities = manager.entitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>();
 
 	// Run through the buildings that are in progress, make sure they contain their own building placement
-	for (auto&& buildingEntity : manager.entitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>())
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>([&manager](
+		const ecs::EntityIndex& entity,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition& tilePos,
+		const Components::C_BuildingConstruction&)
 	{
-		auto& buildingTilePos = manager.getComponent<C_TilePosition>(buildingEntity);
-		auto& placementTile = GetTile(buildingTilePos.m_position, manager);
+		auto& placementTile = GetTile(tilePos.m_position, manager);
 		if (!placementTile.m_owningBuilding)
 		{
-			placementTile.m_owningBuilding = buildingEntity;
+			placementTile.m_owningBuilding = entity;
 		}
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 
-	for (auto& territoryEntity : territoryEntities)
+	std::random_device rd;
+	std::mt19937 g(rd());
+	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&manager, &time, &g](
+		const ecs::EntityIndex& territoryEntity,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition& buildingTilePos,
+		Components::C_Territory& territory,
+		Components::C_YieldPotential& yieldPotential)
 	{
 		// Make sure territory is growing into a valid spot
-		auto& territory = manager.getComponent<C_Territory>(territoryEntity);
-		auto& buildingTilePos = manager.getComponent<C_TilePosition>(territoryEntity);
 		bool needsGrowthTile = true;
 		if (!territory.m_nextGrowthTile)
 		{
@@ -639,8 +663,6 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 
 			if (availableGrowthTiles.size())
 			{
-				std::random_device rd;
-				std::mt19937 g(rd());
 				std::shuffle(availableGrowthTiles.begin(), availableGrowthTiles.end(), g);
 
 				territory.m_nextGrowthTile = { 0.f, availableGrowthTiles.front() };
@@ -661,7 +683,6 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 				territory.m_nextGrowthTile.reset();
 
 				// Update yield potential
-				auto& yieldPotential = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryEntity);
 				yieldPotential.m_availableYields.clear();
 				for (auto&& tilePos : territory.m_ownedTiles)
 				{
@@ -757,7 +778,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 				}
 			}
 		}
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 TileNED::Tile &TileNED::GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager)
@@ -832,12 +854,15 @@ void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
 
 void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 {
-	for (auto&& deadBuildingEntity : manager.entitiesMatching<ECS_Core::Signatures::S_DestroyedBuilding>())
+	using namespace ECS_Core;
+	manager.forEntitiesMatching<Signatures::S_DestroyedBuilding>([&manager](
+		const ecs::EntityIndex& deadBuildingEntity,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition& buildingPosition)
 	{
-		auto& buildingPosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(deadBuildingEntity).m_position;
-		auto& buildingTile = FetchQuadrant(buildingPosition.m_quadrantCoords, manager)
-			.m_sectors[buildingPosition.m_sectorCoords.m_x][buildingPosition.m_sectorCoords.m_y]
-			.m_tiles[buildingPosition.m_coords.m_x][buildingPosition.m_coords.m_y];
+		auto& buildingTile = FetchQuadrant(buildingPosition.m_position.m_quadrantCoords, manager)
+			.m_sectors[buildingPosition.m_position.m_sectorCoords.m_x][buildingPosition.m_position.m_sectorCoords.m_y]
+			.m_tiles[buildingPosition.m_position.m_coords.m_x][buildingPosition.m_position.m_coords.m_y];
 		buildingTile.m_owningBuilding.reset();
 
 		if (manager.hasComponent<ECS_Core::Components::C_Territory>(deadBuildingEntity))
@@ -849,7 +874,8 @@ void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 					.m_tiles[tile.m_coords.m_x][tile.m_coords.m_y].m_owningBuilding.reset();
 			}
 		}
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 void WorldTile::ProgramInit() {}
@@ -901,7 +927,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			auto worldPosition = CoordinatesToWorldPosition(tilePosition.m_position);
 			position.m_position.m_x = static_cast<f64>(worldPosition.m_x);
 			position.m_position.m_y = static_cast<f64>(worldPosition.m_y);
-
+			return ecs::IterationBehavior::CONTINUE;
 		});
 
 		TileNED::CheckBuildingPlacements(m_managerRef);

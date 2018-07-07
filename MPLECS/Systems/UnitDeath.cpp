@@ -46,6 +46,7 @@ void KillDyingUnits(ECS_Core::Manager& manager)
 		{
 			manager.kill(mI);
 		}
+		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 

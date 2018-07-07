@@ -44,6 +44,12 @@ namespace ecs {
     template <typename... Ts>
     using TagList = MPL::TypeList<Ts...>;
 
+	enum class IterationBehavior
+	{
+		CONTINUE,
+		BREAK
+	};
+
     namespace Impl {
 
         template <typename TSettings>
@@ -442,16 +448,19 @@ namespace ecs {
             }
 
             template <typename TF>
-            void inline forEntities(TF&& mFunction) {
-                for(EntityIndex i{0}; i < size; ++i) mFunction(i);
+			void inline forEntities(TF&& mFunction) {
+				for (EntityIndex i{ 0 }; i < size; ++i) {
+					if (mFunction(i) == IterationBehavior::BREAK) return;
+				}
             }
 
             template <typename T, typename TF>
             void forEntitiesMatching(TF&& mFunction) {
                 static_assert(Settings::template isSignature<T>(), "");
 
-                forEntities([this, &mFunction](auto i) {
-                    if(matchesSignature<T>(i)) expandSignatureCall<T>(i, mFunction);
+                forEntities([this, &mFunction](auto i) -> IterationBehavior{
+                    if(matchesSignature<T>(i)) return expandSignatureCall<T>(i, mFunction);
+					return IterationBehavior::CONTINUE;
                 });
             }
         
@@ -575,21 +584,21 @@ namespace ecs {
             template <typename... Ts>
             struct ExpandCallHelper {
                 template <typename TF>
-                static void call(EntityIndex mI, ThisType& mMgr, TF&& mFunction) {
+                static IterationBehavior call(EntityIndex mI, ThisType& mMgr, TF&& mFunction) {
                     auto di(mMgr.getEntity(mI).dataIndex);
-                    mFunction(mI, mMgr.components.template getComponent<Ts>(di)...);
+                    return mFunction(mI, mMgr.components.template getComponent<Ts>(di)...);
                 }
             };
 
             template <typename T, typename TF>
-            void expandSignatureCall(EntityIndex mI, TF&& mFunction) {
+            IterationBehavior expandSignatureCall(EntityIndex mI, TF&& mFunction) {
 
                 static_assert(Settings::template isSignature<T>(), "");
 
                 using RequiredComponents = typename Settings::SignatureBitsets::template SignatureComponents<T>;
                 using Helper = MPL::Rename<ExpandCallHelper, RequiredComponents>;
 
-                Helper::call(mI, *this, mFunction);
+                return Helper::call(mI, *this, mFunction);
             }
 
 

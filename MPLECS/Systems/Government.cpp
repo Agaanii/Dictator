@@ -53,14 +53,25 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	{
 		return false;
 	}
+	using namespace ECS_Core;
+	bool governorHasPending{ false };
 	// Look through current ghosts, make sure this governor doesn't yet have one active
-	for (auto&& entityIndex : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
+	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
+		[&governor, &governorHasPending](
+			const ecs::EntityIndex&,
+			const Components::C_BuildingDescription&,
+			const Components::C_TilePosition&,
+			const Components::C_BuildingGhost& ghost)
 	{
-		auto& ghost = manager.getComponent<ECS_Core::Components::C_BuildingGhost>(entityIndex);
 		if (ghost.m_placingGovernor == governor)
 		{
-			return false;
+			governorHasPending = true;
 		}
+		return ecs::IterationBehavior::CONTINUE;
+	});
+	if (governorHasPending)
+	{
+		return false;
 	}
 
 	auto buildingCostIter = s_buildingCosts.find(buildingType);
@@ -128,6 +139,7 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 	// Should only be one input component, only one computer running this
 	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
 	
+	using namespace ECS_Core;
 	// First try to place a pending building from local player
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
@@ -157,13 +169,19 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 		}
 	}
 
-	for (auto&& ghost : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
+	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
+		[&inputComponent, &playerGovernorHandle](
+			const ecs::EntityIndex& entity,
+			const Components::C_BuildingDescription&,
+			Components::C_TilePosition& position,
+			const Components::C_BuildingGhost& ghost)
 	{
-		if (manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghost).m_placingGovernor == playerGovernorHandle)
+		if (ghost.m_placingGovernor == playerGovernorHandle)
 		{
-			manager.getComponent<ECS_Core::Components::C_TilePosition>(ghost) = *inputComponent.m_currentMousePosition.m_tilePosition;
+			position.m_position = *inputComponent.m_currentMousePosition.m_tilePosition;
 		}
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 
@@ -318,6 +336,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 				}
 			}
 		}
+		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 
@@ -402,13 +421,15 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::RENDER:
 		break;
 	case GameLoopPhase::CLEANUP:
-		for (auto&& governor : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Governor>())
+		using namespace ECS_Core;
+		m_managerRef.forEntitiesMatching<Signatures::S_Governor>([&manager = m_managerRef](const ecs::EntityIndex& entity,
+			Components::C_Realm& realm,
+			const Components::C_ResourceInventory&,
+			const Components::C_Agenda&)
 		{
-			auto& realm = m_managerRef.getComponent<ECS_Core::Components::C_Realm>(governor);
-			auto& managerRef = m_managerRef;
 			for (auto iter = realm.m_territories.begin(); iter != realm.m_territories.end();)
 			{
-				if (managerRef.isHandleValid(*iter))
+				if (manager.isHandleValid(*iter))
 				{
 					++iter;
 				}
@@ -417,7 +438,8 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					realm.m_territories.erase(iter++);
 				}
 			}
-		}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		return;
 	}
 }

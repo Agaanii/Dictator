@@ -22,76 +22,82 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	{
 	case GameLoopPhase::ACTION:
 	{
-		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([&manager = m_managerRef](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_UserInputs& inputs) -> ecs::IterationBehavior
 		{
-			auto& inputComponent = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
-			if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
+			if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
 			{
 				// Click happened this frame. See whether it's on any UI frame
-				for (auto&& uiEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_UIFrame>())
+				manager.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager, &inputs](
+					const ecs::EntityIndex&,
+					ECS_Core::Components::C_UIFrame& uiFrame)
 				{
-					auto& uiFrame = m_managerRef.getComponent<ECS_Core::Components::C_UIFrame>(uiEntity);
 					auto& bottomRightCorner = uiFrame.m_topLeftCorner + uiFrame.m_size;
-					if (!IsInRectangle(inputComponent.m_currentMousePosition.m_screenPosition,
+					if (!IsInRectangle(inputs.m_currentMousePosition.m_screenPosition,
 						uiFrame.m_topLeftCorner,
 						bottomRightCorner))
 					{
-						continue;
+						return ecs::IterationBehavior::CONTINUE;
 					}
 
-					uiFrame.m_currentDragPosition = inputComponent.m_currentMousePosition.m_screenPosition - uiFrame.m_topLeftCorner;
-					inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-					break;
-				}
+					uiFrame.m_currentDragPosition = inputs.m_currentMousePosition.m_screenPosition - uiFrame.m_topLeftCorner;
+					inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
+					return ecs::IterationBehavior::BREAK;
+				});
 			}
 
-			if (inputComponent.m_unprocessedThisFrameUpMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
+			if (inputs.m_unprocessedThisFrameUpMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
 			{
 				bool mouseUpCaptured = false;
-				for (auto&& uiEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_UIFrame>())
+				manager.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager, &inputs, &mouseUpCaptured](
+					const ecs::EntityIndex& entityIndex,
+					ECS_Core::Components::C_UIFrame& uiFrame) -> ecs::IterationBehavior
 				{
-					auto& uiFrame = m_managerRef.getComponent<ECS_Core::Components::C_UIFrame>(uiEntity);
 					if (uiFrame.m_currentDragPosition)
 					{
 						uiFrame.m_currentDragPosition.reset();
 						uiFrame.m_focus = true;
-						inputComponent.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
+						inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
 						mouseUpCaptured = true;
-						break;
+						return ecs::IterationBehavior::BREAK;
 					}
-				}
+					return ecs::IterationBehavior::CONTINUE;
+				});
 				if (!mouseUpCaptured)
 				{
 					// We weren't dragging a UI frame
 					// Check if we should close one
-					for (auto&& uiEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_UIFrame>())
+					manager.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager, &inputs](
+						const ecs::EntityIndex& entityIndex,
+						ECS_Core::Components::C_UIFrame& uiFrame) -> ecs::IterationBehavior
 					{
-						auto& uiFrame = m_managerRef.getComponent<ECS_Core::Components::C_UIFrame>(uiEntity);
 						if (!uiFrame.m_closable)
 						{
-							continue;
+							return ecs::IterationBehavior::CONTINUE;
 						}
 						auto topRightCorner = uiFrame.m_topLeftCorner;
 						topRightCorner.m_x += uiFrame.m_size.m_x;
 						auto closeButtonOppositeCorner = topRightCorner - CartesianVector2<f64>(75, 75);
 						if (IsInRectangle(
-								inputComponent.m_currentMousePosition.m_screenPosition,
+							inputs.m_currentMousePosition.m_screenPosition,
 								topRightCorner,
 								closeButtonOppositeCorner)
 							&& IsInRectangle(
-								inputComponent.m_heldMouseButtonInitialPositions[ECS_Core::Components::MouseButtons::LEFT].m_position.m_screenPosition,
+								inputs.m_heldMouseButtonInitialPositions[ECS_Core::Components::MouseButtons::LEFT].m_position.m_screenPosition,
 								topRightCorner,
 								closeButtonOppositeCorner))
 						{
-							m_managerRef.delComponent<ECS_Core::Components::C_UIFrame>(uiEntity);
-							m_managerRef.delComponent<ECS_Core::Components::C_SFMLDrawable>(uiEntity);
-							inputComponent.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
-							break;
+							manager.delComponent<ECS_Core::Components::C_UIFrame>(entityIndex);
+							manager.delComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex);
+							inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
+							return ecs::IterationBehavior::BREAK;
 						}
-					}
+					});
 				}
 			}
-		}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 	}
 	break;
 	case GameLoopPhase::ACTION_RESPONSE:
@@ -101,10 +107,11 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		auto windowInfoIndex = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_WindowInfo>().front();
 		auto& windowInfo = m_managerRef.getComponent<ECS_Core::Components::C_WindowInfo>(windowInfoIndex);
 
-		for (auto&& entityIndex : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_UIFrame>())
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager = m_managerRef, &inputEntities, &windowInfo](
+			const ecs::EntityIndex& entityIndex,
+			ECS_Core::Components::C_UIFrame& uiEntity)
 		{
-			auto& uiEntity = m_managerRef.getComponent<ECS_Core::Components::C_UIFrame>(entityIndex);
-			for (auto&& str : uiEntity.m_frame->ReadData(entityIndex, m_managerRef))
+			for (auto&& str : uiEntity.m_frame->ReadData(entityIndex, manager))
 			{
 				auto displayIter = uiEntity.m_dataStrings.find(str.first);
 				if (displayIter != uiEntity.m_dataStrings.end())
@@ -114,7 +121,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			}
 			if (uiEntity.m_currentDragPosition && inputEntities.size())
 			{
-				auto& input = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
+				auto& input = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
 				uiEntity.m_topLeftCorner = input.m_currentMousePosition.m_screenPosition - *uiEntity.m_currentDragPosition;
 				uiEntity.m_topLeftCorner.m_x = max<f64>(uiEntity.m_topLeftCorner.m_x, 0);
 				uiEntity.m_topLeftCorner.m_y = max<f64>(uiEntity.m_topLeftCorner.m_y, 0);
@@ -123,7 +130,8 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				uiEntity.m_topLeftCorner.m_x = min<f64>(uiEntity.m_topLeftCorner.m_x, maxTopLeft.m_x);
 				uiEntity.m_topLeftCorner.m_y = min<f64>(uiEntity.m_topLeftCorner.m_y, maxTopLeft.m_y);
 			}
-		}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		break;
 	}
 	case GameLoopPhase::PREPARATION:

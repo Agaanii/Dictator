@@ -81,46 +81,51 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					}
 				}
 			}
+			return ecs::IterationBehavior::CONTINUE;
 		});
 		break;
 	case GameLoopPhase::ACTION:
 		// Adjust timescale, pause/unpause
 	{
-		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([&manager = m_managerRef](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_UserInputs& inputs)
 		{
-			auto& inputs = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
 			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::BACKSPACE))
 			{
-				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+				manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
 					ecs::EntityIndex mI,
 					ECS_Core::Components::C_TimeTracker& time)
 				{
 					time.m_paused = !time.m_paused;
+					return ecs::IterationBehavior::CONTINUE;
 				});
 				inputs.ProcessKey(ECS_Core::Components::InputKeys::BACKSPACE);
 			}
 			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::EQUAL))
 			{
-				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+				manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
 					ecs::EntityIndex mI,
 					ECS_Core::Components::C_TimeTracker& time)
 				{
 					time.m_gameSpeed = min<int>(5, ++time.m_gameSpeed);
-
+					return ecs::IterationBehavior::CONTINUE;
 				});
 				inputs.ProcessKey(ECS_Core::Components::InputKeys::EQUAL);
 			}
 			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::DASH))
 			{
-				m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+				manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
 					ecs::EntityIndex mI,
 					ECS_Core::Components::C_TimeTracker& time)
 				{
 					time.m_gameSpeed = max<int>(1, --time.m_gameSpeed);
+					return ecs::IterationBehavior::CONTINUE;
 				});
 				inputs.ProcessKey(ECS_Core::Components::InputKeys::DASH);
 			}
-		}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 	}
 	break;
 

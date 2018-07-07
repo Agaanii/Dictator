@@ -347,12 +347,14 @@ void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size, ECS_Core::M
 	s_UIView = sf::View({ 0, 0, static_cast<float>(size.width), static_cast<float>(size.height) });
 
 	// update window info
-	for (auto&& index : manager.entitiesMatching<ECS_Core::Signatures::S_WindowInfo>())
+	using namespace ECS_Core;
+	manager.forEntitiesMatching<Signatures::S_WindowInfo>([](
+		const ecs::EntityIndex&,
+		Components::C_WindowInfo& windowInfo)
 	{
-		auto& windowInfo = manager.getComponent<ECS_Core::Components::C_WindowInfo>(index);
-
 		windowInfo.m_windowSize = CartesianVector2<unsigned int>{ s_window.getSize().x, s_window.getSize().y }.cast<f64>();
-	}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 void EventResponse::OnLoseFocus(ECS_Core::Components::C_UserInputs& input)
@@ -820,6 +822,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 				}
 			}
 		}
+		return ecs::IterationBehavior::CONTINUE;
 	});
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_UIDrawable>([&manager](
 		ecs::EntityIndex mI,
@@ -846,6 +849,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 				}
 			}
 		}
+		return ecs::IterationBehavior::CONTINUE;
 	});
 	for (auto& layerMap : drawablesByLayer)
 	{
