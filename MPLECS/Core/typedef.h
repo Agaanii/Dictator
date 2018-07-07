@@ -245,7 +245,7 @@ f64 RandDouble();
 // Reverse iterator from https://stackoverflow.com/questions/8542591/c11-reverse-range-based-for-loop
 
 template <typename T>
-struct reversion_wrapper { T& iterable; };
+struct reversion_wrapper { T& iterable; }; 
 
 template <typename T>
 auto begin(reversion_wrapper<T> w) { return std::rbegin(w.iterable); }
