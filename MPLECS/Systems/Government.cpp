@@ -18,7 +18,7 @@
 
 #include <iostream>
 
-void BeginBuildingConstruction(ECS_Core::Manager & manager, ecs::EntityIndex & ghostEntity)
+void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityIndex& ghostEntity)
 {
 	manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(ghostEntity).m_placingGovernor =
 		manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor;
@@ -143,22 +143,25 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 	// First try to place a pending building from local player
 	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
-		for (auto&& ghostEntity : manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>())
+		manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &playerGovernorHandle, &inputComponent](
+			const ecs::EntityIndex& ghostEntity,
+			const Components::C_BuildingDescription&,
+			const Components::C_TilePosition&,
+			const Components::C_BuildingGhost& ghost)
 		{
-			auto& ghost = manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
 			if (ghost.m_placingGovernor != playerGovernorHandle)
 			{
-				continue;
+				return ecs::IterationBehavior::CONTINUE;
 			}
 			if (!ghost.m_currentPlacementValid)
 			{
 				// TODO: Surface error
-				continue;
+				return ecs::IterationBehavior::CONTINUE;
 			}
 			BeginBuildingConstruction(manager, ghostEntity);
 			inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-			break;
-		}
+			return ecs::IterationBehavior::BREAK;
+		});
 	}
 
 	if (inputComponent.m_newKeyDown.count(ECS_Core::Components::InputKeys::B))
