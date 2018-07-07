@@ -16,23 +16,6 @@
 void UI::ProgramInit() {}
 void UI::SetupGameplay() {}
 
-template<typename T>
-bool IsInRectangle(
-	CartesianVector2<T> point,
-	CartesianVector2<T> corner,
-	CartesianVector2<T> oppositeCorner)
-{
-	T lowXBound = min(corner.m_x, oppositeCorner.m_x);
-	T highXBound = max(corner.m_x, oppositeCorner.m_x);
-	T lowYBound = min(corner.m_y, oppositeCorner.m_y);
-	T highYBound = max(corner.m_y, oppositeCorner.m_y);
-
-	return point.m_x <= highXBound
-		&& point.m_x >= lowXBound
-		&& point.m_y <= highYBound
-		&& point.m_y >= lowYBound;
-}
-
 void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
