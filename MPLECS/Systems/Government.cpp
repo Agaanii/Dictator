@@ -187,7 +187,6 @@ void InterpretLocalInput(ECS_Core::Manager& manager)
 	});
 }
 
-
 using WorkerKey = s32;
 
 struct WorkerAssignment
@@ -213,6 +212,7 @@ struct WorkerSkillKey
 		return false;
 	}
 };
+
 using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerKey>>;
 using SkillMap = std::map<ECS_Core::Components::SpecialtyId, WorkerSkillMap>;
 int AssignYieldWorkers(
@@ -372,12 +372,14 @@ int AssignYieldWorkers(
 extern sf::Font s_font;
 void Government::SetupGameplay()
 {
-	auto localPlayerGovernment = m_managerRef.createHandle();
-	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayerGovernment);
-	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayerGovernment).m_collectedYields = { {1, 100},{2,100} };
-	m_managerRef.addComponent<ECS_Core::Components::C_Agenda>(localPlayerGovernment).m_yieldPriority = { 0,1,2,3,4,5,6,7 };
+	auto localPlayer = m_managerRef.createHandle();
+	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayer);
+	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayer).m_collectedYields = { {1, 100},{2,100} };
+	m_managerRef.addComponent<ECS_Core::Components::C_Agenda>(localPlayer).m_yieldPriority = { 0,1,2,3,4,5,6,7 };
+	m_managerRef.addComponent<ECS_Core::Components::C_UserInputs>(localPlayer);
+	m_managerRef.addComponent<ECS_Core::Components::C_ActionPlan>(localPlayer);
 
-	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayerGovernment);
+	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayer);
 	uiFrameComponent.m_frame
 		= DefineUIFrame(
 			"Inventory",
@@ -394,9 +396,9 @@ void Government::SetupGameplay()
 	uiFrameComponent.m_topLeftCorner = { 50,50 };
 	uiFrameComponent.m_size = { 200, 240 };
 	uiFrameComponent.m_global = true;
-	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayerGovernment);
+	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayer);
 
-	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayerGovernment);
+	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
 	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
 	resourceWindowBackground->setFillColor({});
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ resourceWindowBackground, {} });

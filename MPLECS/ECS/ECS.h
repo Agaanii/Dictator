@@ -238,7 +238,11 @@ namespace ECS_Core
 		{
 			CartesianVector2<f64> m_windowSize;
 		};
-}
+		struct C_ActionPlan
+		{
+			
+		};
+	}
 
 	namespace Tags
 	{
@@ -274,6 +278,7 @@ namespace ECS_Core
 		using S_UIFrame = ecs::Signature<Components::C_UIFrame>;
 		using S_TimeTracker = ecs::Signature<Components::C_TimeTracker>;
 		using S_WindowInfo = ecs::Signature<Components::C_WindowInfo>;
+		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -298,7 +303,8 @@ namespace ECS_Core
 		Components::C_UIFrame,
 		Components::C_TimeTracker,
 		Components::C_Agenda,
-		Components::C_WindowInfo
+		Components::C_WindowInfo,
+		Components::C_ActionPlan
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -326,7 +332,8 @@ namespace ECS_Core
 		Signatures::S_UIFrame,
 		Signatures::S_UIDrawable,
 		Signatures::S_TimeTracker,
-		Signatures::S_WindowInfo
+		Signatures::S_WindowInfo,
+		Signatures::S_UserIO
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

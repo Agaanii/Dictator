@@ -70,8 +70,6 @@ namespace EventResponse
 
 	void OnJoystickConnect(const Event::JoystickConnectEvent& joyConnect);
 	void OnJoystickDisconnect(const Event::JoystickConnectEvent& joyDisconnect);
-
-	std::optional<ecs::EntityIndex> s_inputObject;
 }
 
 std::optional<ECS_Core::Components::InputKeys> GetInputKey(sf::Keyboard::Key sfKey)
@@ -532,11 +530,6 @@ void SFMLManager::SetupGameplay()
 
 void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
-	if (!EventResponse::s_inputObject)
-	{
-		EventResponse::s_inputObject = m_managerRef.createIndex();
-		m_managerRef.addComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
-	}
 	switch (phase)
 	{
 	case GameLoopPhase::PREPARATION:
@@ -552,8 +545,13 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 	case GameLoopPhase::CLEANUP:
 	{
-		auto& inputComponent = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
-		inputComponent.Reset();
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_UserInputs& input)
+		{
+			input.Reset();
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		close = closingTriggered;
 	}
 		break;
@@ -563,102 +561,115 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 void ReadSFMLInput(ECS_Core::Manager& manager)
 {
-	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
 	sf::Event event;
 	while (s_window.pollEvent(event))
 	{
-		switch (event.type)
+		manager.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&event, &manager](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_UserInputs& inputComponent,
+			const ECS_Core::Components::C_ActionPlan&)
 		{
-		case sf::Event::Closed:
-			closingTriggered = true;
-			break;
 
-		// Window Management
-		case sf::Event::Resized:
-			EventResponse::OnWindowResize(event.size, manager); break;
-		case sf::Event::LostFocus:
-			EventResponse::OnLoseFocus(inputComponent); break;
-		case sf::Event::GainedFocus:
-			EventResponse::OnGainFocus(); break;
+			switch (event.type)
+			{
+			case sf::Event::Closed:
+				closingTriggered = true;
+				break;
 
-		case sf::Event::TextEntered:
-			EventResponse::OnTextEntered(event.text); break;
+				// Window Management
+			case sf::Event::Resized:
+				EventResponse::OnWindowResize(event.size, manager); break;
+			case sf::Event::LostFocus:
+				EventResponse::OnLoseFocus(inputComponent); break;
+			case sf::Event::GainedFocus:
+				EventResponse::OnGainFocus(); break;
 
-		case sf::Event::KeyPressed:
-			EventResponse::OnKeyDown(inputComponent, event.key); break;
-		case sf::Event::KeyReleased:
-			EventResponse::OnKeyUp(inputComponent, event.key); break;
+			case sf::Event::TextEntered:
+				EventResponse::OnTextEntered(event.text); break;
 
-		case sf::Event::MouseWheelMoved:
-			EventResponse::OnMouseWheelMove(inputComponent, event.mouseWheel); break;
-		case sf::Event::MouseWheelScrolled:
-			EventResponse::OnMouseWheelScroll(inputComponent, event.mouseWheelScroll); break;
-		case sf::Event::MouseButtonPressed:
-			EventResponse::OnMouseButtonDown(inputComponent, event.mouseButton); break;
-		case sf::Event::MouseButtonReleased:
-			EventResponse::OnMouseButtonUp(inputComponent, event.mouseButton); break;
+			case sf::Event::KeyPressed:
+				EventResponse::OnKeyDown(inputComponent, event.key); break;
+			case sf::Event::KeyReleased:
+				EventResponse::OnKeyUp(inputComponent, event.key); break;
 
-		case sf::Event::MouseMoved:
-			EventResponse::OnMouseMove(inputComponent, event.mouseMove); break;
+			case sf::Event::MouseWheelMoved:
+				EventResponse::OnMouseWheelMove(inputComponent, event.mouseWheel); break;
+			case sf::Event::MouseWheelScrolled:
+				EventResponse::OnMouseWheelScroll(inputComponent, event.mouseWheelScroll); break;
+			case sf::Event::MouseButtonPressed:
+				EventResponse::OnMouseButtonDown(inputComponent, event.mouseButton); break;
+			case sf::Event::MouseButtonReleased:
+				EventResponse::OnMouseButtonUp(inputComponent, event.mouseButton); break;
 
-		case sf::Event::MouseEntered:
-			EventResponse::OnMouseEnter(); break;
-		case sf::Event::MouseLeft:
-			EventResponse::OnMouseLeave(inputComponent); break;
+			case sf::Event::MouseMoved:
+				EventResponse::OnMouseMove(inputComponent, event.mouseMove); break;
 
-		case sf::Event::TouchBegan:
-			EventResponse::OnTouchBegin(event.touch); break;
-		case sf::Event::TouchMoved:
-			EventResponse::OnTouchMove(event.touch); break;
-		case sf::Event::TouchEnded:
-			EventResponse::OnTouchEnd(event.touch); break;
+			case sf::Event::MouseEntered:
+				EventResponse::OnMouseEnter(); break;
+			case sf::Event::MouseLeft:
+				EventResponse::OnMouseLeave(inputComponent); break;
 
-		case sf::Event::SensorChanged:
-			EventResponse::OnSensor(event.sensor); break;
+			case sf::Event::TouchBegan:
+				EventResponse::OnTouchBegin(event.touch); break;
+			case sf::Event::TouchMoved:
+				EventResponse::OnTouchMove(event.touch); break;
+			case sf::Event::TouchEnded:
+				EventResponse::OnTouchEnd(event.touch); break;
 
-		case sf::Event::JoystickButtonPressed:
-			EventResponse::OnJoystickButtonDown(event.joystickButton); break;
-		case sf::Event::JoystickButtonReleased:
-			EventResponse::OnJoystickButtonUp(event.joystickButton); break;
-		case sf::Event::JoystickMoved:
-			EventResponse::OnJoystickMove(event.joystickMove); break;
-		case sf::Event::JoystickConnected:
-			EventResponse::OnJoystickConnect(event.joystickConnect); break;
-		case sf::Event::JoystickDisconnected:
-			EventResponse::OnJoystickDisconnect(event.joystickConnect); break;
+			case sf::Event::SensorChanged:
+				EventResponse::OnSensor(event.sensor); break;
 
-		case sf::Event::Count:
-			// wat. This shouldn't ever happen, this isn't an action but a utility
-			break;
-		}
+			case sf::Event::JoystickButtonPressed:
+				EventResponse::OnJoystickButtonDown(event.joystickButton); break;
+			case sf::Event::JoystickButtonReleased:
+				EventResponse::OnJoystickButtonUp(event.joystickButton); break;
+			case sf::Event::JoystickMoved:
+				EventResponse::OnJoystickMove(event.joystickMove); break;
+			case sf::Event::JoystickConnected:
+				EventResponse::OnJoystickConnect(event.joystickConnect); break;
+			case sf::Event::JoystickDisconnected:
+				EventResponse::OnJoystickDisconnect(event.joystickConnect); break;
+
+			case sf::Event::Count:
+				// wat. This shouldn't ever happen, this isn't an action but a utility
+				break;
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 	}
 }
 
 void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
 {
 	f32 scalar = static_cast<f32>(150. * s_worldView.getSize().x / 400);
-	auto& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject);
-	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&scalar, &manager, &frameDuration](
+		const ecs::EntityIndex&,
+		ECS_Core::Components::C_UserInputs& inputComponent,
+		const ECS_Core::Components::C_ActionPlan&)
 	{
-		s_worldView.move({ 0, scalar * frameDuration / 1000000 });
-		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
-	}
-	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
-	{
-		s_worldView.move({ 0, -scalar * frameDuration / 1000000 });
-		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
-	}
-	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
-	{
-		s_worldView.move({ -scalar * frameDuration / 1000000, 0 });
-		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
-	}
-	if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
-	{
-		s_worldView.move({ scalar * frameDuration / 1000000, 0 });
-		inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
-	}
-	EventResponse::UpdateMouseWorldPosition(inputComponent);
+		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
+		{
+			s_worldView.move({ 0, scalar * frameDuration / 1000000 });
+			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
+		}
+		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
+		{
+			s_worldView.move({ 0, -scalar * frameDuration / 1000000 });
+			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
+		}
+		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
+		{
+			s_worldView.move({ -scalar * frameDuration / 1000000, 0 });
+			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
+		}
+		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
+		{
+			s_worldView.move({ scalar * frameDuration / 1000000, 0 });
+			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
+		}
+		EventResponse::UpdateMouseWorldPosition(inputComponent);
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent, const timeuS& frameDuration)
@@ -895,7 +906,14 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 	}
 
 	s_window.setView(s_UIView);
-	DisplayCurrentInputs(manager.getComponent<ECS_Core::Components::C_UserInputs>(*EventResponse::s_inputObject), frameDuration);
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([frameDuration](
+		const ecs::EntityIndex&,
+		const ECS_Core::Components::C_UserInputs& inputs,
+		const ECS_Core::Components::C_ActionPlan&)
+	{
+		DisplayCurrentInputs(inputs, frameDuration);
+		return ecs::IterationBehavior::CONTINUE;
+	});	
 	s_window.display();
 }
 
