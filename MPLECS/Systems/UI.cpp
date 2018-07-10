@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------------------
-// All code is property of Matthew Loesby
+// All code is property of Dictator Developers Inc
 // Contact at Loesby.dev@gmail.com for permission to use
 // Or to discuss ideas
-// (c) 2017
+// (c) 2018
 
 // Systems/UI.cpp
 // Manages all UI elements, 
@@ -22,9 +22,10 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	{
 	case GameLoopPhase::ACTION:
 	{
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([&manager = m_managerRef](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&manager = m_managerRef](
 			const ecs::EntityIndex&,
-			ECS_Core::Components::C_UserInputs& inputs) -> ecs::IterationBehavior
+			ECS_Core::Components::C_UserInputs& inputs,
+			ECS_Core::Components::C_ActionPlan&) -> ecs::IterationBehavior
 		{
 			if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
 			{
@@ -68,6 +69,9 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				{
 					// We weren't dragging a UI frame
 					// Check if we should close one
+					// This is also where button-checking should go
+					// In fact, close window should just be one of the actions
+					// Struct is created for this, not yet hooked up
 					manager.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager, &inputs](
 						const ecs::EntityIndex& entityIndex,
 						ECS_Core::Components::C_UIFrame& uiFrame) -> ecs::IterationBehavior

@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------------------
-// All code is property of Matthew Loesby
+// All code is property of Dictator Developers Inc
 // Contact at Loesby.dev@gmail.com for permission to use
 // Or to discuss ideas
-// (c) 2017
+// (c) 2018
 
 // Systems/Systems.h
 // Listing of all System classes, just forward declarations
@@ -33,6 +33,7 @@ template <> std::unique_ptr<SystemName> InstantiateSystem();
 DECLARE_SYSTEM(DamageApplication);
 DECLARE_SYSTEM(NewtonianMovement);
 DECLARE_SYSTEM(SFMLManager);
+DECLARE_SYSTEM(InputTranslation);
 DECLARE_SYSTEM(UnitDeath);
 DECLARE_SYSTEM(BuildingCreation);
 DECLARE_SYSTEM(WorldTile);

@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------------------
-// All code is property of Matthew Loesby
+// All code is property of Dictator Developers Inc
 // Contact at Loesby.dev@gmail.com for permission to use
 // Or to discuss ideas
-// (c) 2017
+// (c) 2018
 
 // main.cpp 
 // entry point and core loop (obviously)
@@ -45,14 +45,20 @@ int main()
 	// And we'll read input before the Action phase
 	RegisterSystem<UI>();
 
+	// Translate non-UI inputs into reality before time advances
+	RegisterSystem<InputTranslation>();
+
 	// Adjust timescale before running any other system
 	RegisterSystem<Time>();
+
 	RegisterSystem<DamageApplication>();
 	RegisterSystem<NewtonianMovement>();
 	RegisterSystem<Government>();
 	RegisterSystem<PopulationGrowth>();
 	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
+
+	// Draw last
 	RegisterSystem<SFMLManager>();
 
 	// Kill units last, other things may want to refer to them

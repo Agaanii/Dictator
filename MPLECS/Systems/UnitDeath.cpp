@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------------------
-// All code is property of Matthew Loesby
+// All code is property of Dictator Developers Inc
 // Contact at Loesby.dev@gmail.com for permission to use
 // Or to discuss ideas
-// (c) 2017
+// (c) 2018
 
 // Systems/UnitDeath.cpp
 // Runs through units that have health, kills the ones that don't have any left.

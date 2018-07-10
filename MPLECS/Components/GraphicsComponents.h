@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------------------
-// All code is property of Matthew Loesby
+// All code is property of Dictator Developers Inc
 // Contact at Loesby.dev@gmail.com for permission to use
 // Or to discuss ideas
-// (c) 2017
+// (c) 2018
 
 // Components/GraphicsComponents.h
 // All components needed to be able to draw an object to the screen in SFML

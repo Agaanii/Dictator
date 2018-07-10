@@ -4,6 +4,7 @@
 
 #include "../Core/typedef.h"
 
+#include "../Components/ActionComponents.h"
 #include "../Components/GraphicsComponents.h"
 #include "../Components/InputComponents.h"
 
@@ -240,7 +241,7 @@ namespace ECS_Core
 		};
 		struct C_ActionPlan
 		{
-			
+			Action::Plan m_plan;
 		};
 	}
 

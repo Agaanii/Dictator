@@ -1,8 +1,8 @@
 //-----------------------------------------------------------------------------
-// All code is property of Matthew Loesby
+// All code is property of Dictator Developers Inc
 // Contact at Loesby.dev@gmail.com for permission to use
 // Or to discuss ideas
-// (c) 2017
+// (c) 2018
 
 // Systems/Government.cpp
 // The best system of government ever created
@@ -124,64 +124,45 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	return true;
 }
 
-void InterpretLocalInput(ECS_Core::Manager& manager)
+void ConstructRequestedBuildings(ECS_Core::Manager& manager)
 {
-	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
-	auto playerGovernorEntities = manager.entitiesMatching<ECS_Core::Signatures::S_PlayerGovernor>();
-	if (playerGovernorEntities.size() != 1)
-	{
-		std::cout << "Pain and suffering: there are " << playerGovernorEntities.size() << " player governors";
-		return;
-	}
-	auto playerGovernorEntity = playerGovernorEntities.front();
-	auto playerGovernorHandle = manager.getHandle(playerGovernorEntity);
-	if (inputEntities.size() == 0) return;
-	// Should only be one input component, only one computer running this
-	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
-	
 	using namespace ECS_Core;
-	// First try to place a pending building from local player
-	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
+	manager.forEntitiesMatching<Signatures::S_UserIO>([&manager](
+		const ecs::EntityIndex& governorIndex,
+		ECS_Core::Components::C_UserInputs&,
+		ECS_Core::Components::C_ActionPlan& actionPlan)
 	{
-		manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &playerGovernorHandle, &inputComponent](
-			const ecs::EntityIndex& ghostEntity,
-			const Components::C_BuildingDescription&,
-			const Components::C_TilePosition&,
-			const Components::C_BuildingGhost& ghost)
-		{
-			if (ghost.m_placingGovernor != playerGovernorHandle)
-			{
-				return ecs::IterationBehavior::CONTINUE;
-			}
-			if (!ghost.m_currentPlacementValid)
-			{
-				// TODO: Surface error
-				return ecs::IterationBehavior::CONTINUE;
-			}
-			BeginBuildingConstruction(manager, ghostEntity);
-			inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-			return ecs::IterationBehavior::BREAK;
-		});
-	}
+		auto governorHandle = manager.getHandle(governorIndex);
 
-	if (inputComponent.m_newKeyDown.count(ECS_Core::Components::InputKeys::B))
-	{
-		if (CreateBuildingGhost(manager, playerGovernorHandle, *inputComponent.m_currentMousePosition.m_tilePosition, 0))
+		for (auto&& action : actionPlan.m_plan)
 		{
-			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::B);
-		}
-	}
-
-	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
-		[&inputComponent, &playerGovernorHandle](
-			const ecs::EntityIndex& entity,
-			const Components::C_BuildingDescription&,
-			Components::C_TilePosition& position,
-			const Components::C_BuildingGhost& ghost)
-	{
-		if (ghost.m_placingGovernor == playerGovernorHandle)
-		{
-			position.m_position = *inputComponent.m_currentMousePosition.m_tilePosition;
+			// Man do I want metaclasses for safe_union
+			if (std::holds_alternative<Action::LocalPlayer::CreateBuildingFromGhost>(action))
+			{
+				auto& create = std::get<Action::LocalPlayer::CreateBuildingFromGhost>(action);
+				manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>([&manager, &governorHandle](
+					const ecs::EntityIndex& ghostEntity,
+					const Components::C_BuildingDescription&,
+					const Components::C_TilePosition&,
+					const Components::C_BuildingGhost& ghost)
+				{
+					if (ghost.m_placingGovernor != governorHandle)
+					{
+						return ecs::IterationBehavior::CONTINUE;
+					}
+					if (!ghost.m_currentPlacementValid)
+					{
+						return ecs::IterationBehavior::CONTINUE;
+					}
+					BeginBuildingConstruction(manager, ghostEntity);
+					return ecs::IterationBehavior::BREAK;
+				});
+			}
+			else if (std::holds_alternative<Action::LocalPlayer::CreateBuildingGhost>(action))
+			{
+				auto& ghost = std::get<Action::LocalPlayer::CreateBuildingGhost>(action);
+				CreateBuildingGhost(manager, governorHandle, ghost.m_position, ghost.m_buildingClassId);
+			}
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
@@ -416,7 +397,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	switch (phase)
 	{
 	case GameLoopPhase::INPUT:
-		InterpretLocalInput(m_managerRef);
+		ConstructRequestedBuildings(m_managerRef);
 		break;
 	case GameLoopPhase::ACTION:
 		GainIncomes(m_managerRef);

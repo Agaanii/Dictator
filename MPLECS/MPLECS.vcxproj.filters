@@ -84,6 +84,9 @@
     <ClCompile Include="Systems\PopulationGrowth.cpp">
       <Filter>Source Files\Systems</Filter>
     </ClCompile>
+    <ClCompile Include="Systems\InputTranslation.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\typedef.h">
@@ -163,6 +166,9 @@
     </ClInclude>
     <ClInclude Include="ECS\ECS.h">
       <Filter>Source Files\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\ActionComponents.h">
+      <Filter>Header Files\Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
