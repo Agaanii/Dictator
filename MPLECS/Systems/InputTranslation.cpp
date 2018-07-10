@@ -57,13 +57,46 @@ void CreateBuildingGhost(
 	actionPlan.m_plan.push_back(ghost);
 }
 
+void TogglePause(
+	ECS_Core::Components::C_UserInputs& inputs,
+	ECS_Core::Components::C_ActionPlan& actionPlan,
+	ECS_Core::Manager& manager)
+{
+	Action::LocalPlayer::TimeManipulation action;
+	action.m_pauseAction = Action::LocalPlayer::PauseAction::TOGGLE_PAUSE;
+	actionPlan.m_plan.push_back(action);
+}
+
+void IncreaseGameSpeed(
+	ECS_Core::Components::C_UserInputs& inputs,
+	ECS_Core::Components::C_ActionPlan& actionPlan,
+	ECS_Core::Manager& manager)
+{
+	Action::LocalPlayer::TimeManipulation action;
+	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SPEED_UP;
+	actionPlan.m_plan.push_back(action);
+}
+
+void DecreaseGameSpeed(
+	ECS_Core::Components::C_UserInputs& inputs,
+	ECS_Core::Components::C_ActionPlan& actionPlan,
+	ECS_Core::Manager& manager)
+{
+	Action::LocalPlayer::TimeManipulation action;
+	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SLOW_DOWN;
+	actionPlan.m_plan.push_back(action);
+}
+
 std::map < ECS_Core::Components::InputKeys, std::function<void(
 	ECS_Core::Components::C_UserInputs&,
 	ECS_Core::Components::C_ActionPlan&,
 	ECS_Core::Manager&)>> functions
 	=
 {
-	{ECS_Core::Components::InputKeys::B, CreateBuildingGhost}
+	{ECS_Core::Components::InputKeys::B, CreateBuildingGhost},
+	{ECS_Core::Components::InputKeys::BACKSPACE, TogglePause},
+	{ECS_Core::Components::InputKeys::EQUAL, IncreaseGameSpeed },
+	{ECS_Core::Components::InputKeys::DASH, DecreaseGameSpeed} 
 };
 
 void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
@@ -93,6 +126,7 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				if (functionIter != functions.end())
 				{
 					functionIter->second(inputs, actionPlan, manager);
+					inputs.ProcessKey(button);
 				}
 			}
 

@@ -127,9 +127,8 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 void ConstructRequestedBuildings(ECS_Core::Manager& manager)
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_UserIO>([&manager](
+	manager.forEntitiesMatching<Signatures::S_Planner>([&manager](
 		const ecs::EntityIndex& governorIndex,
-		ECS_Core::Components::C_UserInputs&,
 		ECS_Core::Components::C_ActionPlan& actionPlan)
 	{
 		auto governorHandle = manager.getHandle(governorIndex);

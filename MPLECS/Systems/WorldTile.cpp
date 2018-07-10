@@ -136,7 +136,6 @@ namespace TileNED
 	void GrowTerritories(ECS_Core::Manager& manager);
 	TileNED::Tile & GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager);
 	TileNED::Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
-	void CheckWorldClick(ECS_Core::Manager& manager);
 	void SpawnBetween(
 		CoordinateVector2 origin,
 		CoordinateVector2 target,
@@ -837,21 +836,6 @@ TileNED::Quadrant& TileNED::FetchQuadrant(const CoordinateVector2 & quadrantCoor
 	return s_spawnedQuadrants[quadrantCoords];
 }
 
-void TileNED::CheckWorldClick(ECS_Core::Manager& manager)
-{
-	auto inputEntities = manager.entitiesMatching<ECS_Core::Signatures::S_Input>();
-	if (inputEntities.size() == 0) return;
-	ECS_Core::Components::C_UserInputs& inputComponent = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
-	if (inputComponent.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
-	{
-		auto&& quadrantCoords = inputComponent.m_currentMousePosition.m_tilePosition->m_quadrantCoords;
-
-		FetchQuadrant(quadrantCoords, manager);
-
-		inputComponent.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-	}
-}
-
 void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 {
 	using namespace ECS_Core;
@@ -887,9 +871,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	{
 	case GameLoopPhase::INPUT:
 		// Fill in tile position of the mouse
-		for (auto&& inputEntity : m_managerRef.entitiesMatching<ECS_Core::Signatures::S_Input>())
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_UserInputs& inputComponent)
 		{
-			auto& inputComponent = m_managerRef.getComponent<ECS_Core::Components::C_UserInputs>(inputEntity);
 			inputComponent.m_currentMousePosition.m_tilePosition =
 				WorldPositionToCoordinates(inputComponent.m_currentMousePosition.m_worldPosition.cast<s64>());
 			for (auto&& mouseInputs : inputComponent.m_heldMouseButtonInitialPositions)
@@ -900,7 +885,8 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						WorldPositionToCoordinates(mouseInputs.second.m_position.m_worldPosition.cast<s64>());
 				}
 			}
-		}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		break;
 	case GameLoopPhase::PREPARATION:
 		if (!TileNED::baseQuadrantSpawned)
@@ -912,8 +898,6 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION:
 		// Grow territories that are able to do so before taking any actions
 		TileNED::GrowTerritories(m_managerRef);
-
-		TileNED::CheckWorldClick(m_managerRef);
 		break;
 
 	case GameLoopPhase::ACTION_RESPONSE:

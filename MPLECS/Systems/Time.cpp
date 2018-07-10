@@ -87,42 +87,73 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION:
 		// Adjust timescale, pause/unpause
 	{
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([&manager = m_managerRef](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef](
 			const ecs::EntityIndex&,
-			ECS_Core::Components::C_UserInputs& inputs)
+			ECS_Core::Components::C_ActionPlan& plan)
 		{
-			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::BACKSPACE))
+			for (auto&& action : plan.m_plan)
 			{
-				manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
-					ecs::EntityIndex mI,
-					ECS_Core::Components::C_TimeTracker& time)
+				if (std::holds_alternative<Action::LocalPlayer::TimeManipulation>(action))
 				{
-					time.m_paused = !time.m_paused;
-					return ecs::IterationBehavior::CONTINUE;
-				});
-				inputs.ProcessKey(ECS_Core::Components::InputKeys::BACKSPACE);
-			}
-			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::EQUAL))
-			{
-				manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
-					ecs::EntityIndex mI,
-					ECS_Core::Components::C_TimeTracker& time)
-				{
-					time.m_gameSpeed = min<int>(5, ++time.m_gameSpeed);
-					return ecs::IterationBehavior::CONTINUE;
-				});
-				inputs.ProcessKey(ECS_Core::Components::InputKeys::EQUAL);
-			}
-			if (inputs.m_newKeyUp.count(ECS_Core::Components::InputKeys::DASH))
-			{
-				manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
-					ecs::EntityIndex mI,
-					ECS_Core::Components::C_TimeTracker& time)
-				{
-					time.m_gameSpeed = max<int>(1, --time.m_gameSpeed);
-					return ecs::IterationBehavior::CONTINUE;
-				});
-				inputs.ProcessKey(ECS_Core::Components::InputKeys::DASH);
+					auto& timeManip = std::get<Action::LocalPlayer::TimeManipulation>(action);
+					if (timeManip.m_gameSpeedAction)
+					{
+						switch (*timeManip.m_gameSpeedAction)
+						{
+						case Action::LocalPlayer::GameSpeedAction::SPEED_UP:
+							manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+								ecs::EntityIndex mI,
+								ECS_Core::Components::C_TimeTracker& time)
+							{
+								time.m_gameSpeed = min<int>(5, ++time.m_gameSpeed);
+								return ecs::IterationBehavior::CONTINUE;
+							});
+							break;
+						case Action::LocalPlayer::GameSpeedAction::SLOW_DOWN:
+							manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+								ecs::EntityIndex mI,
+								ECS_Core::Components::C_TimeTracker& time)
+							{
+								time.m_gameSpeed = max<int>(1, --time.m_gameSpeed);
+								return ecs::IterationBehavior::CONTINUE;
+							});
+							break;
+						}
+					}
+					if (timeManip.m_pauseAction)
+					{
+						switch (*timeManip.m_pauseAction)
+						{
+						case Action::LocalPlayer::PauseAction::PAUSE:
+							manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+								ecs::EntityIndex mI,
+								ECS_Core::Components::C_TimeTracker& time)
+							{
+								time.m_paused = true;
+								return ecs::IterationBehavior::CONTINUE;
+							});
+							break;
+						case Action::LocalPlayer::PauseAction::UNPAUSE:
+							manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+								ecs::EntityIndex mI,
+								ECS_Core::Components::C_TimeTracker& time)
+							{
+								time.m_paused = false;
+								return ecs::IterationBehavior::CONTINUE;
+							});
+							break;
+						case Action::LocalPlayer::PauseAction::TOGGLE_PAUSE:
+							manager.forEntitiesMatching<ECS_Core::Signatures::S_TimeTracker>([](
+								ecs::EntityIndex mI,
+								ECS_Core::Components::C_TimeTracker& time)
+							{
+								time.m_paused = !time.m_paused;
+								return ecs::IterationBehavior::CONTINUE;
+							});
+							break;
+						}
+					}
+				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});

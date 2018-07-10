@@ -40,7 +40,7 @@ namespace Action
 		{
 			PAUSE,
 			UNPAUSE,
-			SWAP_PAUSE
+			TOGGLE_PAUSE
 		};
 		enum class GameSpeedAction
 		{

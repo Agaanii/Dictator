@@ -280,6 +280,7 @@ namespace ECS_Core
 		using S_TimeTracker = ecs::Signature<Components::C_TimeTracker>;
 		using S_WindowInfo = ecs::Signature<Components::C_WindowInfo>;
 		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
+		using S_Planner = ecs::Signature<Components::C_ActionPlan>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -334,7 +335,8 @@ namespace ECS_Core
 		Signatures::S_UIDrawable,
 		Signatures::S_TimeTracker,
 		Signatures::S_WindowInfo,
-		Signatures::S_UserIO
+		Signatures::S_UserIO,
+		Signatures::S_Planner
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;
