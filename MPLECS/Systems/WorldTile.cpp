@@ -918,6 +918,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 
 	case GameLoopPhase::RENDER:
+		break;
 	case GameLoopPhase::CLEANUP:
 		TileNED::ReturnDeadBuildingTiles(m_managerRef);
 		return;
