@@ -48,37 +48,26 @@ void GainLevels(ECS_Core::Manager& manager)
 void AgePopulations(ECS_Core::Manager& manager)
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([](
+	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	if (timeEntity.size() == 0) return;
+	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&time](
 		const ecs::EntityIndex&,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition&,
 		Components::C_Territory& territory,
 		const Components::C_YieldPotential&)
 	{
-		// Potential for optimization here:
-		// We need to remove and re-insert every element
-		// If we change things so that key is birth month index, and calculate age
-		// We don't need to move them all
-		// That would mean we need to do reverse iteration though, to go for increasing age
-		// Or could use -birthMonth as key
-		for (auto popSegment = territory.m_populations.rbegin();
-			popSegment != territory.m_populations.rend();
-			++popSegment)
-		{
-			auto segmentCopy = popSegment->second;
-			auto newAge = popSegment->first + 1;
-			territory.m_populations.emplace(newAge, segmentCopy);
-			territory.m_populations.erase(popSegment->first);
-		}
 		for (auto&& popSegment : territory.m_populations)
 		{
+			auto yearsOld = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
 			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::CHILDREN 
-				&& popSegment.first >= 15 * 12)
+				&& yearsOld >= 15)
 			{
 				popSegment.second.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 			}
 			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::WORKERS
-				&& popSegment.first >= 65 * 12)
+				&& yearsOld >= 65)
 			{
 				popSegment.second.m_class = ECS_Core::Components::PopulationClass::ELDERS;
 			}
@@ -90,7 +79,10 @@ void AgePopulations(ECS_Core::Manager& manager)
 void BirthChildren(ECS_Core::Manager& manager)
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([](
+	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	if (timeEntity.size() == 0) return;
+	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&time](
 		const ecs::EntityIndex&,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition&,
@@ -99,10 +91,12 @@ void BirthChildren(ECS_Core::Manager& manager)
 	{
 		s32 potentialMotherCount{ 0 };
 		s32 potentialFatherCount{ 0 };
+		s32 boyCount{ 0 };
+		s32 girlCount{ 0 };
 		for (auto&& popSegment : territory.m_populations)
 		{
 			// Age keys are in months
-			auto popAge = popSegment.first / 12;
+			auto popAge = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
 			if (popAge >= 15 && popAge <= 45)
 			{
 				// Women are of birthing age
@@ -110,7 +104,13 @@ void BirthChildren(ECS_Core::Manager& manager)
 			}
 			if (popAge >= 15 && popAge <= 60)
 			{
+				// Fathers are still potent
 				potentialFatherCount += popSegment.second.m_numMen;
+			}
+			if (popAge < 15)
+			{
+				boyCount += popSegment.second.m_numMen;
+				girlCount += popSegment.second.m_numWomen;
 			}
 		}
 		f64 childFloat = 1. * min(potentialMotherCount, potentialFatherCount * 2) / 12;
@@ -127,10 +127,19 @@ void BirthChildren(ECS_Core::Manager& manager)
 				return ecs::IterationBehavior::CONTINUE;
 			}
 		}
-		auto maleChildCount = childCount / 2;
-		auto femaleChildCount = childCount - maleChildCount;
-		
-		auto& newPopulation = territory.m_populations[0];
+		s32 maleChildCount{ 0 };
+		s32 femaleChildCount{ 0 };
+		if (boyCount > girlCount)
+		{
+			maleChildCount = childCount / 2;
+			femaleChildCount = childCount - maleChildCount;
+		}
+		else
+		{
+			femaleChildCount = childCount / 2;
+			maleChildCount = childCount - femaleChildCount;
+		}
+		auto& newPopulation = territory.m_populations[-12 * time.m_year - time.m_month];
 		newPopulation.m_numMen = maleChildCount;
 		newPopulation.m_numWomen = femaleChildCount;
 		return ecs::IterationBehavior::CONTINUE;

@@ -816,6 +816,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		auto handle = manager.getHandleData(mI);
 		for (auto&& layer : drawables.m_drawables)
 		{
+			if (layer.first == ECS_Core::Components::DrawLayer::MENU) continue;
 			for (auto&& priority : layer.second)
 			{
 				for (auto&& drawable : priority.second)
@@ -843,6 +844,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		auto handle = manager.getHandleData(mI);
 		for (auto&& layer : drawables.m_drawables)
 		{
+			if (layer.first != ECS_Core::Components::DrawLayer::MENU) continue;
 			for (auto&& priority : layer.second)
 			{
 				for (auto&& drawable : priority.second)

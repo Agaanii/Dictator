@@ -105,7 +105,7 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 								ecs::EntityIndex mI,
 								ECS_Core::Components::C_TimeTracker& time)
 							{
-								time.m_gameSpeed = min<int>(5, ++time.m_gameSpeed);
+								time.m_gameSpeed = min<int>(15, ++time.m_gameSpeed);
 								return ecs::IterationBehavior::CONTINUE;
 							});
 							break;

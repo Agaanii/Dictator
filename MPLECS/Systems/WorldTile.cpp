@@ -866,6 +866,7 @@ void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 void WorldTile::ProgramInit() {}
 void WorldTile::SetupGameplay() {}
 
+extern sf::Font s_font;
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -931,23 +932,72 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& tile = TileNED::GetTile(select.m_position, manager);
 					if (tile.m_owningBuilding)
 					{
-						if (!manager.hasComponent<ECS_Core::Components::C_UIFrame>(*tile.m_owningBuilding))
+						using namespace ECS_Core::Components;
+						if (manager.hasComponent<C_Territory>(*tile.m_owningBuilding)
+							&& !manager.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
 						{
-							auto& uiFrame = manager.addComponent<ECS_Core::Components::C_UIFrame>(*tile.m_owningBuilding);
+							auto& uiFrame = manager.addComponent<C_UIFrame>(*tile.m_owningBuilding);
 							uiFrame.m_frame = DefineUIFrame("Building",
-								UIDataReader<ECS_Core::Components::C_Territory, s32>([](const ECS_Core::Components::C_Territory& territory) -> s32 {
+								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
 								s32 result{ 0 };
 								for (auto&& population : territory.m_populations)
 								{
-									result += population.second.m_numMen;
+									if (population.second.m_class == PopulationClass::WORKERS)
+										result += population.second.m_numMen;
+								}
+								return result;
+							}),
+								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								s32 result{ 0 };
+								for (auto&& population : territory.m_populations)
+								{
+									if (population.second.m_class == PopulationClass::WORKERS)
+										result += population.second.m_numWomen;
+								}
+								return result;
+							}),
+								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								s32 result{ 0 };
+								for (auto&& population : territory.m_populations)
+								{
+									if (population.second.m_class == PopulationClass::CHILDREN)
+										result += population.second.m_numMen + population.second.m_numWomen;
+								}
+								return result;
+							}),
+								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								s32 result{ 0 };
+								for (auto&& population : territory.m_populations)
+								{
+									if (population.second.m_class == PopulationClass::ELDERS)
+										result += population.second.m_numMen + population.second.m_numWomen;
 								}
 								return result;
 							}));
+							uiFrame.m_dataStrings[{0}] = { { 20,0 }, std::make_shared<sf::Text>() };
+							uiFrame.m_dataStrings[{1}] = { { 20,30 }, std::make_shared<sf::Text>() };
+							uiFrame.m_dataStrings[{2}] = { { 20,60 }, std::make_shared<sf::Text>() };
+							uiFrame.m_dataStrings[{3}] = { { 20,90 }, std::make_shared<sf::Text>() };
+
+							uiFrame.m_topLeftCorner = { 0, 300 };
+							uiFrame.m_size = { 70, 120 };
+							uiFrame.m_closable = true;
 							if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
 							{
 								manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
 							}
 							auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
+							auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(70, 120));
+							windowBackground->setFillColor({});
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
+
+							for (auto&& dataStr : uiFrame.m_dataStrings)
+							{
+								dataStr.second.m_text->setFillColor({ 255,255,255 });
+								dataStr.second.m_text->setOutlineColor({ 128,128,128 });
+								dataStr.second.m_text->setFont(s_font);
+								drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.second.m_text, dataStr.second.m_relativePosition });
+							}
 						}
 					}
 					return ecs::IterationBehavior::BREAK;

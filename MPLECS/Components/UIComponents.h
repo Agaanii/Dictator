@@ -33,18 +33,6 @@ protected:
 #define DataBinding(Type, MemberName) UIDataBind<Type, decltype(Type::MemberName)>(&Type::MemberName)
 // Example: auto dataBinding = DataBinding(ECS_Core::Components::C_BuildingGhost, m_currentPlacementValid);
 
-template<class T> 
-struct is_map
-{
-	static constexpr bool value = false;
-};
-
-template<class Key, class Value>
-struct is_map<std::map<Key, Value>> 
-{
-	static constexpr bool value = true;
-};
-
 template<typename COMPONENT_TYPE, typename VALUE_TYPE>
 class UIDataReader
 {
@@ -59,6 +47,17 @@ protected:
 	ValueFunction m_func;
 };
 
+template<class T>
+struct is_map
+{
+	static constexpr bool value = false;
+};
+
+template<class Key, class Value>
+struct is_map<std::map<Key, Value>>
+{
+	static constexpr bool value = true;
+};
 template<typename ...DataBindings>
 class UIFrameDefinition : public ECS_Core::Components::UIFrame
 {
