@@ -358,7 +358,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					{
 						f64 distance = static_cast<f64>(
 							(locationForSeeding - seed.m_position).MagnitudeSq());
-						weightBorders.push_back(totalWeight += 1.0 / (distance * distance * distance));
+						weightBorders.push_back(totalWeight += 100. / pow(distance, 10));
 					}
 
 					auto weightedValue = RandDouble() * totalWeight;
