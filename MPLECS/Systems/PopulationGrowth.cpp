@@ -113,7 +113,8 @@ void BirthChildren(ECS_Core::Manager& manager)
 				girlCount += popSegment.second.m_numWomen;
 			}
 		}
-		f64 childFloat = 1. * min(potentialMotherCount, potentialFatherCount * 2) / 12;
+		// Approximately 1 child every 2.5 years
+		f64 childFloat = 1. * min(potentialMotherCount, potentialFatherCount * 2) / 30;
 		s32 childCount = static_cast<s32>(round(childFloat));
 		if (childCount == 0)
 		{

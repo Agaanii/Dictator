@@ -105,6 +105,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
 							return ecs::IterationBehavior::BREAK;
 						}
+						return ecs::IterationBehavior::CONTINUE;
 					});
 				}
 			}

@@ -688,7 +688,6 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 				{
 					auto& ownedTile = GetTile(tilePos, manager);
 					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
-					yield.m_productionInterval = 5;
 					++yield.m_value;
 				}
 

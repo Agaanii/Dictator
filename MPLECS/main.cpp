@@ -39,6 +39,7 @@ void RegisterSystem()
 
 int main()
 {
+	srand(static_cast<unsigned int>(chrono::high_resolution_clock::now().time_since_epoch().count()));
 	// Systems registered in processing order
 	
 	// Give the UI first shot at any inputs. Draw order is separate from processing order
