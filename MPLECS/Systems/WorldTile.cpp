@@ -14,6 +14,7 @@
 
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
+#include "../Components/UIComponents.h"
 
 #include "../Util/Pathing.h"
 
@@ -869,6 +870,13 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
+	case GameLoopPhase::PREPARATION:
+		if (!TileNED::baseQuadrantSpawned)
+		{
+			SpawnQuadrant({ 0, 0 }, m_managerRef);
+			TileNED::baseQuadrantSpawned = true;
+		}
+		break;
 	case GameLoopPhase::INPUT:
 		// Fill in tile position of the mouse
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([](
@@ -887,13 +895,6 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
-		break;
-	case GameLoopPhase::PREPARATION:
-		if (!TileNED::baseQuadrantSpawned)
-		{
-			SpawnQuadrant({ 0, 0 }, m_managerRef);
-			TileNED::baseQuadrantSpawned = true;
-		}
 		break;
 	case GameLoopPhase::ACTION:
 		// Grow territories that are able to do so before taking any actions
@@ -915,6 +916,45 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		});
 
 		TileNED::CheckBuildingPlacements(m_managerRef);
+
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
+			[&manager = m_managerRef](
+				const ecs::EntityIndex& governorEntity,
+				ECS_Core::Components::C_UserInputs& inputs,
+				ECS_Core::Components::C_ActionPlan& actionPlan)
+		{
+			for (auto&& action : actionPlan.m_plan)
+			{
+				if (std::holds_alternative<Action::LocalPlayer::SelectTile>(action))
+				{
+					auto& select = std::get<Action::LocalPlayer::SelectTile>(action);
+					auto& tile = TileNED::GetTile(select.m_position, manager);
+					if (tile.m_owningBuilding)
+					{
+						if (!manager.hasComponent<ECS_Core::Components::C_UIFrame>(*tile.m_owningBuilding))
+						{
+							auto& uiFrame = manager.addComponent<ECS_Core::Components::C_UIFrame>(*tile.m_owningBuilding);
+							uiFrame.m_frame = DefineUIFrame("Building",
+								UIDataReader<ECS_Core::Components::C_Territory, s32>([](const ECS_Core::Components::C_Territory& territory) -> s32 {
+								s32 result{ 0 };
+								for (auto&& population : territory.m_populations)
+								{
+									result += population.second.m_numMen;
+								}
+								return result;
+							}));
+							if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
+							{
+								manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
+							}
+							auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
+						}
+					}
+					return ecs::IterationBehavior::BREAK;
+				}
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		break;
 
 	case GameLoopPhase::RENDER:

@@ -93,7 +93,15 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 								closeButtonOppositeCorner))
 						{
 							manager.delComponent<ECS_Core::Components::C_UIFrame>(entityIndex);
-							manager.delComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex);
+							if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex))
+							{
+								auto& drawableComponent = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex);
+								drawableComponent.m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
+								if (drawableComponent.m_drawables.size() == 0)
+								{
+									manager.delComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex);
+								}
+							}
 							inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
 							return ecs::IterationBehavior::BREAK;
 						}

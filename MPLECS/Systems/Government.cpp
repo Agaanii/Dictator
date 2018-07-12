@@ -378,7 +378,11 @@ void Government::SetupGameplay()
 	uiFrameComponent.m_global = true;
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayer);
 
-	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
+	if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer))
+	{
+		m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
+	}
+	auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
 	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
 	resourceWindowBackground->setFillColor({});
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ resourceWindowBackground, {} });

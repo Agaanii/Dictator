@@ -11,6 +11,8 @@
 
 #include "../ECS/ECS.h"
 
+#include <functional>
+
 template <typename COMPONENT_TYPE, typename VALUE_TYPE>
 class UIDataBind
 {
@@ -41,6 +43,20 @@ template<class Key, class Value>
 struct is_map<std::map<Key, Value>> 
 {
 	static constexpr bool value = true;
+};
+
+template<typename COMPONENT_TYPE, typename VALUE_TYPE>
+class UIDataReader
+{
+public:
+	using ComponentType = COMPONENT_TYPE;
+	using ValueType = VALUE_TYPE;
+	using ValueFunction = std::function<ValueType(const ComponentType&)>;
+	UIDataReader(const ValueFunction& function) : m_func(function) {}
+
+	ValueType ReadValue(const ComponentType& component) const { return m_func(component); }
+protected:
+	ValueFunction m_func;
 };
 
 template<typename ...DataBindings>

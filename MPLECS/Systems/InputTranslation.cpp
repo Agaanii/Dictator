@@ -28,21 +28,30 @@ void TranslateDownClicks(
 	using namespace ECS_Core;
 	if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{
-		manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &inputs, &actionPlan](
+		bool ghostFound{ false };
+		manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &inputs, &actionPlan, &ghostFound](
 			const ecs::EntityIndex& ghostEntity,
 			const Components::C_BuildingDescription&,
 			const Components::C_TilePosition&,
 			const Components::C_BuildingGhost& ghost)
-	{
-		if (!ghost.m_currentPlacementValid)
 		{
-			// TODO: Surface error
-			return ecs::IterationBehavior::CONTINUE;
+			if (!ghost.m_currentPlacementValid)
+			{
+				// TODO: Surface error
+				return ecs::IterationBehavior::CONTINUE;
+			}
+			actionPlan.m_plan.push_back(Action::LocalPlayer::CreateBuildingFromGhost());
+			inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
+			ghostFound = true;
+			return ecs::IterationBehavior::BREAK;
+		});
+
+		if (!ghostFound)
+		{
+			Action::LocalPlayer::SelectTile select;
+			select.m_position = *inputs.m_currentMousePosition.m_tilePosition;
+			actionPlan.m_plan.push_back(select);
 		}
-		actionPlan.m_plan.push_back(Action::LocalPlayer::CreateBuildingFromGhost());
-		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-		return ecs::IterationBehavior::BREAK;
-	});
 	}
 }
 
