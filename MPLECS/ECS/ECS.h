@@ -9,6 +9,7 @@
 #include "../Components/InputComponents.h"
 
 #include <SFML/Graphics.hpp>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <set>
@@ -192,17 +193,24 @@ namespace ECS_Core
 			CartesianVector2<f64> m_relativePosition;
 			std::shared_ptr<sf::Text> m_text;
 		};
+		struct Button
+		{
+			std::function<Action::Variant(const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& /*clickedEntity*/)> m_onClick;
+			// Position relative to containing frame
+			CartesianVector2<f64> m_topLeftCorner;
+			CartesianVector2<f64> m_size;
+		};
 
 		struct C_UIFrame
 		{
 			std::unique_ptr<UIFrame> m_frame;
 			std::map<std::vector<int>, DataString> m_dataStrings;
+			std::vector<Button> m_buttons;
 			CartesianVector2<f64> m_topLeftCorner;
 			CartesianVector2<f64> m_size;
 			std::optional<CartesianVector2<f64>> m_currentDragPosition;
 			bool m_focus{ false };
 			bool m_global{ false };
-			bool m_closable{ false };
 		};
 
 		struct C_TimeTracker

@@ -980,7 +980,16 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 							uiFrame.m_topLeftCorner = { 0, 300 };
 							uiFrame.m_size = { 70, 120 };
-							uiFrame.m_closable = true;
+
+							ECS_Core::Components::Button closeButton;
+							closeButton.m_topLeftCorner.m_x = uiFrame.m_size.m_x - 30;
+							closeButton.m_size = { 30, 30 };
+							closeButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+							{
+								return Action::LocalPlayer::CloseUIFrame(clickedEntity);
+							};
+							uiFrame.m_buttons.push_back(closeButton);
+
 							if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
 							{
 								manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
@@ -989,6 +998,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(70, 120));
 							windowBackground->setFillColor({});
 							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
+
+							auto closeGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+							closeGraphic->setFillColor({ 200, 30, 30 });
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ closeGraphic, closeButton.m_topLeftCorner });
 
 							for (auto&& dataStr : uiFrame.m_dataStrings)
 							{

@@ -23,9 +23,9 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION:
 	{
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&manager = m_managerRef](
-			const ecs::EntityIndex&,
+			const ecs::EntityIndex& userEntity,
 			ECS_Core::Components::C_UserInputs& inputs,
-			ECS_Core::Components::C_ActionPlan&) -> ecs::IterationBehavior
+			ECS_Core::Components::C_ActionPlan& actions) -> ecs::IterationBehavior
 		{
 			if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & static_cast<u8>(ECS_Core::Components::MouseButtons::LEFT))
 			{
@@ -40,6 +40,22 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						bottomRightCorner))
 					{
 						return ecs::IterationBehavior::CONTINUE;
+					}
+
+					// Don't drag if click is on a button
+					for (auto&& button : uiFrame.m_buttons)
+					{
+						auto absoluteButtonPosition = button.m_topLeftCorner + uiFrame.m_topLeftCorner;
+						auto buttonBottomRight = absoluteButtonPosition + button.m_size;
+						if (IsInRectangle(inputs.m_currentMousePosition.m_screenPosition,
+							absoluteButtonPosition,
+							buttonBottomRight)
+							&& IsInRectangle(inputs.m_heldMouseButtonInitialPositions[ECS_Core::Components::MouseButtons::LEFT].m_position.m_screenPosition,
+								absoluteButtonPosition,
+								buttonBottomRight))
+						{
+							return ecs::IterationBehavior::CONTINUE;
+						}
 					}
 
 					uiFrame.m_currentDragPosition = inputs.m_currentMousePosition.m_screenPosition - uiFrame.m_topLeftCorner;
@@ -68,42 +84,27 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				if (!mouseUpCaptured)
 				{
 					// We weren't dragging a UI frame
-					// Check if we should close one
+					// Check if we should activate a button
 					// This is also where button-checking should go
-					// In fact, close window should just be one of the actions
-					// Struct is created for this, not yet hooked up
-					manager.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager, &inputs](
+					manager.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager, &inputs, &userEntity, &actions](
 						const ecs::EntityIndex& entityIndex,
 						ECS_Core::Components::C_UIFrame& uiFrame) -> ecs::IterationBehavior
 					{
-						if (!uiFrame.m_closable)
+						for (auto&& button : uiFrame.m_buttons)
 						{
-							return ecs::IterationBehavior::CONTINUE;
-						}
-						auto topRightCorner = uiFrame.m_topLeftCorner;
-						topRightCorner.m_x += uiFrame.m_size.m_x;
-						auto closeButtonOppositeCorner = topRightCorner - CartesianVector2<f64>(75, 75);
-						if (IsInRectangle(
-							inputs.m_currentMousePosition.m_screenPosition,
-								topRightCorner,
-								closeButtonOppositeCorner)
-							&& IsInRectangle(
-								inputs.m_heldMouseButtonInitialPositions[ECS_Core::Components::MouseButtons::LEFT].m_position.m_screenPosition,
-								topRightCorner,
-								closeButtonOppositeCorner))
-						{
-							manager.delComponent<ECS_Core::Components::C_UIFrame>(entityIndex);
-							if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex))
+							auto absoluteButtonPosition = button.m_topLeftCorner + uiFrame.m_topLeftCorner;
+							auto buttonBottomRight = absoluteButtonPosition + button.m_size;
+							if (IsInRectangle(inputs.m_currentMousePosition.m_screenPosition,
+								absoluteButtonPosition,
+								buttonBottomRight)
+								&& IsInRectangle(inputs.m_heldMouseButtonInitialPositions[ECS_Core::Components::MouseButtons::LEFT].m_position.m_screenPosition,
+									absoluteButtonPosition,
+									buttonBottomRight))
 							{
-								auto& drawableComponent = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex);
-								drawableComponent.m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
-								if (drawableComponent.m_drawables.size() == 0)
-								{
-									manager.delComponent<ECS_Core::Components::C_SFMLDrawable>(entityIndex);
-								}
+								actions.m_plan.push_back(button.m_onClick(userEntity, entityIndex));
+								inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
+								return ecs::IterationBehavior::BREAK;
 							}
-							inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
-							return ecs::IterationBehavior::BREAK;
 						}
 						return ecs::IterationBehavior::CONTINUE;
 					});
@@ -119,6 +120,30 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		// Will crash if the windowInfo entity hasn't been created
 		auto windowInfoIndex = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_WindowInfo>().front();
 		auto& windowInfo = m_managerRef.getComponent<ECS_Core::Components::C_WindowInfo>(windowInfoIndex);
+
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_ActionPlan& plan)
+		{
+			for (auto&& action : plan.m_plan)
+			{
+				if (std::holds_alternative<Action::LocalPlayer::CloseUIFrame>(action))
+				{
+					auto& close = std::get<Action::LocalPlayer::CloseUIFrame>(action);					
+					manager.delComponent<ECS_Core::Components::C_UIFrame>(close.m_frameIndex);
+					if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(close.m_frameIndex))
+					{
+						auto& drawableComponent = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(close.m_frameIndex);
+						drawableComponent.m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
+						if (drawableComponent.m_drawables.size() == 0)
+						{
+							manager.delComponent<ECS_Core::Components::C_SFMLDrawable>(close.m_frameIndex);
+						}
+					}
+				}
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UIFrame>([&manager = m_managerRef, &inputEntities, &windowInfo](
 			const ecs::EntityIndex& entityIndex,

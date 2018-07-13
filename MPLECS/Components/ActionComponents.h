@@ -55,6 +55,7 @@ namespace Action
 
 		struct CloseUIFrame
 		{
+			CloseUIFrame(const ecs::EntityIndex& uiFrameIndex) : m_frameIndex(uiFrameIndex) {}
 			ecs::EntityIndex m_frameIndex;
 		};
 
