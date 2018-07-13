@@ -18,3 +18,7 @@ Entities may be created and marked for deletion by any system.
 
 No system should ever call a function in another system. Instead, an RPC-like communication can take place by generating an Entity with the proper Components to form a request, and then another system can replace the Request component with a Response.
 As much as possible, data should be kept within Entities and Components; some cached data for optimization outside of this is all right, but it's a risk for bugs.
+
+Most interactions with Entities should take the form:
+manager.forEntitiesMatching<SIGNATURE>([](){});
+This will force you to name each of the components in the argument list (), capture anything needed synchronously from the local scope in []. It will be very common to pass the manager by reference in the captures. This avoids any bugs where you try to read a component from an entity which does not exist. It's also extremely fast thanks to the library.
