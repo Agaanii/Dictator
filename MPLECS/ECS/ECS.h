@@ -107,10 +107,10 @@ namespace ECS_Core
 		struct C_BuildingDescription
 		{
 			u64 m_buildingType{ 0 };
-			f64 m_buildingProgress{ 0 };
 		};
 		struct C_BuildingConstruction {
 			ecs::Impl::Handle m_placingGovernor;
+			f64 m_buildingProgress{ 0 };
 		};
 
 		struct GrowthTile
@@ -200,7 +200,6 @@ namespace ECS_Core
 			CartesianVector2<f64> m_topLeftCorner;
 			CartesianVector2<f64> m_size;
 		};
-
 		struct C_UIFrame
 		{
 			std::unique_ptr<UIFrame> m_frame;
@@ -231,6 +230,10 @@ namespace ECS_Core
 				return m_day == 1
 					&& m_dayProgress < m_frameDuration;
 			}
+			bool IsNewDay() const
+			{
+				return m_dayProgress < m_frameDuration;
+			}
 		};
 
 		enum class PopulationAgenda
@@ -243,13 +246,37 @@ namespace ECS_Core
 			PopulationAgenda m_popAgenda{ PopulationAgenda::TRAINING };
 			std::vector<YieldType> m_yieldPriority;
 		};
+		
 		struct C_WindowInfo
 		{
 			CartesianVector2<f64> m_windowSize;
 		};
+		
 		struct C_ActionPlan
 		{
 			Action::Plan m_plan;
+		};
+
+		struct ExplorationPlan
+		{
+			Direction m_direction;
+			int m_leavingYear;
+			int m_leavingMonth;
+			int m_leavingDay;
+			// Once time matches days to explore + leaving time, turn around and return home
+			s64 m_daysToExplore;
+		};
+		struct MoveToPoint
+		{
+			TilePosition m_targetPosition;
+		};
+		using MovementCommand = std::variant<ExplorationPlan, MoveToPoint>;
+
+		struct C_MovingUnit
+		{
+			// # of tiles of movement cost 1 the unit can move in a day
+			s32 m_movementPerDay{ 5 };
+			std::optional<MovementCommand> m_currentMovement;
 		};
 	}
 
@@ -289,6 +316,9 @@ namespace ECS_Core
 		using S_WindowInfo = ecs::Signature<Components::C_WindowInfo>;
 		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
 		using S_Planner = ecs::Signature<Components::C_ActionPlan>;
+		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit>;
+		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription>;
+		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -314,7 +344,8 @@ namespace ECS_Core
 		Components::C_TimeTracker,
 		Components::C_Agenda,
 		Components::C_WindowInfo,
-		Components::C_ActionPlan
+		Components::C_ActionPlan,
+		Components::C_MovingUnit
 	>;
 
 	using MasterTagList = ecs::TagList<

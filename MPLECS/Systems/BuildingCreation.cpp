@@ -50,11 +50,11 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			manager.addTag<ECS_Core::Tags::T_Dead>(mI);
 			return ecs::IterationBehavior::CONTINUE;
 		}
-		building.m_buildingProgress += time.m_frameDuration / 30; 
+		construction.m_buildingProgress += time.m_frameDuration / 30; 
 
-		if (building.m_buildingProgress >= 1.0)
+		if (construction.m_buildingProgress >= 1.0)
 		{
-			building.m_buildingProgress = 1.0;
+			construction.m_buildingProgress = 1.0;
 			// We're done building, give it territory, put it in a realm, and, at the end of this function, remove the construction tag
 			manager.addComponent<ECS_Core::Components::C_YieldPotential>(mI);
 			auto& territory = manager.addComponent<ECS_Core::Components::C_Territory>(mI);
@@ -70,7 +70,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			manager.delComponent<ECS_Core::Components::C_BuildingConstruction>(mI);
 		}
 
-		auto alphaFloat = min(1.0, 0.1 + (0.9 * building.m_buildingProgress));
+		auto alphaFloat = min(1.0, 0.1 + (0.9 * construction.m_buildingProgress));
 		auto& buildingDrawables = drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING];
 		for (auto& prio : buildingDrawables)
 		{

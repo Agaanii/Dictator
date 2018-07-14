@@ -28,9 +28,13 @@ using timeuS = s64;
 enum class Direction
 {
 	NORTH,
-	SOUTH,
+	NORTHEAST,
 	EAST,
-	WEST
+	SOUTHEAST,
+	SOUTH,
+	SOUTHWEST,
+	WEST,
+	NORTHWEST
 };
 
 template<typename NUM_TYPE>
