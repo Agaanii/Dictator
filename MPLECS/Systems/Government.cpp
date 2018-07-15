@@ -491,8 +491,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					unitIcon->setOutlineColor({ 120,120,120 });
 					unitIcon->setOutlineThickness(-0.3f);
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({
-						unitIcon, {0, 0}
-						});
+						unitIcon, {0, 0}});
 
 					auto& cartesianPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(newEntity);
 

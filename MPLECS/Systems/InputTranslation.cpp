@@ -48,9 +48,7 @@ void TranslateDownClicks(
 
 		if (!ghostFound)
 		{
-			Action::LocalPlayer::SelectTile select;
-			select.m_position = *inputs.m_currentMousePosition.m_tilePosition;
-			actionPlan.m_plan.push_back(select);
+			actionPlan.m_plan.push_back(Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition));
 		}
 	}
 }

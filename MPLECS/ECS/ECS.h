@@ -151,7 +151,7 @@ namespace ECS_Core
 		{
 			std::map<PopulationKey, PopulationSegment> m_populations;
 		};
-		
+
 		struct C_Territory
 		{
 			std::set<TilePosition> m_ownedTiles;
@@ -163,7 +163,7 @@ namespace ECS_Core
 		{
 			f64 m_productionInterval{ 100 }; // # of Days of 1 level 1 worker = 1 produced
 			f64 m_productionProgress{ 0 };
-			s32 m_value{ 1 };	
+			s32 m_value{ 1 };
 		};
 		using YieldMap = std::map<YieldType, Yield>;
 		struct C_YieldPotential
@@ -249,12 +249,12 @@ namespace ECS_Core
 			PopulationAgenda m_popAgenda{ PopulationAgenda::TRAINING };
 			std::vector<YieldType> m_yieldPriority;
 		};
-		
+
 		struct C_WindowInfo
 		{
 			CartesianVector2<f64> m_windowSize;
 		};
-		
+
 		struct C_ActionPlan
 		{
 			Action::Plan m_plan;
@@ -280,6 +280,11 @@ namespace ECS_Core
 			// # of tiles of movement cost 1 the unit can move in a day
 			s32 m_movementPerDay{ 1 };
 			std::optional<MovementCommand> m_currentMovement;
+		};
+
+		struct C_Selection
+		{
+			ecs::Impl::Handle m_selector;
 		};
 	}
 
@@ -321,9 +326,10 @@ namespace ECS_Core
 		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
 		using S_Planner = ecs::Signature<Components::C_ActionPlan>;
 		using S_WealthPlanner = ecs::Signature<Components::C_ActionPlan, Components::C_ResourceInventory>;
-		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Territory>;
-		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Territory>;
-		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Territory>;
+		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population>;
+		using S_SelectedMovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Selection>;
+		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
+		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -351,7 +357,8 @@ namespace ECS_Core
 		Components::C_Agenda,
 		Components::C_WindowInfo,
 		Components::C_ActionPlan,
-		Components::C_MovingUnit
+		Components::C_MovingUnit,
+		Components::C_Selection
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -360,7 +367,7 @@ namespace ECS_Core
 		Tags::T_LocalPlayer
 	>;
 
-	using MasterSignatureList = ecs::SignatureList<
+	using MasterSignatureList = ecs::SignatureList <
 		Signatures::S_ApplyConstantMotion,
 		Signatures::S_ApplyNewtonianMotion,
 		Signatures::S_Drawable,
@@ -386,7 +393,8 @@ namespace ECS_Core
 		Signatures::S_WealthPlanner,
 		Signatures::S_BuilderUnit,
 		Signatures::S_CaravanUnit,
-		Signatures::S_MovingUnit
+		Signatures::S_MovingUnit,
+		Signatures::S_SelectedMovingUnit
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

@@ -291,7 +291,7 @@ std::vector<SectorSeedPosition> GetRelevantSeeds(
 				seedingSector.m_seedTileType,
 				{ seedingSector.m_seedPosition.m_x + ((x + 1) * TileConstants::SECTOR_SIDE_LENGTH),
 				seedingSector.m_seedPosition.m_y + ((y + 1) * TileConstants::SECTOR_SIDE_LENGTH) }
-			});
+				});
 		}
 	}
 	return relevantSeeds;
@@ -424,11 +424,11 @@ TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& wo
 		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
 		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
 
-		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
+	{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
+	min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
 
-		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
+	{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
+	min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
 	};
 }
 
@@ -564,7 +564,7 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 		Components::C_BuildingGhost& ghost)
 	{
 		auto& tile = GetTile(ghostTilePosition.m_position, manager);
-		bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost};
+		bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost };
 		manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&collisionFound, &ghostTilePosition](
 			const ecs::EntityIndex&,
 			const Components::C_BuildingDescription&,
@@ -600,10 +600,10 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords)
 {
 	return {
-		{coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::EAST},
-		{coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } }, Direction::SOUTH},
-		{coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::WEST},
-		{coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } }, Direction::NORTH},
+		{ coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::EAST },
+	{ coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } }, Direction::SOUTH },
+	{ coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::WEST },
+	{ coords - WorldCoordinates{ { 0,0 },{ 0,0 },{ 0,1 } }, Direction::NORTH },
 	};
 }
 
@@ -928,6 +928,103 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				if (std::holds_alternative<Action::LocalPlayer::SelectTile>(action))
 				{
 					auto& select = std::get<Action::LocalPlayer::SelectTile>(action);
+					bool unitFound = false;
+					manager.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>([&unitFound, &select, &manager, &governorEntity](
+						const ecs::EntityIndex& entity,
+						const ECS_Core::Components::C_TilePosition& position,
+						const ECS_Core::Components::C_MovingUnit&,
+						const ECS_Core::Components::C_Population&) {
+						if (select.m_position == position.m_position)
+						{
+							if (!manager.hasComponent<ECS_Core::Components::C_Selection>(entity))
+							{
+								auto&& governorHandle = manager.getHandle(governorEntity);
+								manager.forEntitiesMatching<ECS_Core::Signatures::S_SelectedMovingUnit>([&governorHandle, &manager](
+									const ecs::EntityIndex& selectedEntity,
+									const ECS_Core::Components::C_TilePosition& position,
+									const ECS_Core::Components::C_MovingUnit&,
+									const ECS_Core::Components::C_Population&,
+									const ECS_Core::Components::C_Selection& selector) {
+									if (selector.m_selector == governorHandle)
+									{
+										manager.delComponent<ECS_Core::Components::C_Selection>(selectedEntity);
+										if (manager.hasComponent<ECS_Core::Components::C_UIFrame>(selectedEntity))
+										{
+											manager.delComponent<ECS_Core::Components::C_UIFrame>(selectedEntity);
+										}
+									}
+									return ecs::IterationBehavior::CONTINUE;
+								});
+								if (!manager.hasComponent<ECS_Core::Components::C_UIFrame>(entity))
+								{
+									using namespace ECS_Core::Components;
+									auto& uiFrame = manager.addComponent<ECS_Core::Components::C_UIFrame>(entity);
+									uiFrame.m_frame = DefineUIFrame(
+										"Unit",
+										UIDataReader<C_MovingUnit, int>([](const C_MovingUnit& /*mover*/) {
+										return 0;
+									}));
+									uiFrame.m_dataStrings[{0}] = { {}, std::make_shared<sf::Text>() };
+									uiFrame.m_topLeftCorner = { 400, 500 };
+									uiFrame.m_size = { 120, 120 };
+
+									Button moveButton;
+									Button buildButton;
+
+									moveButton.m_topLeftCorner = { 90,0 };
+									moveButton.m_size = { 30,30 };
+									moveButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+										return Action::LocalPlayer::PlanMotion(clickedEntity);
+									};
+
+									buildButton.m_size = { 30,30 };
+									buildButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+										return Action::SettleBuildingUnit(clickedEntity);
+									};
+
+									uiFrame.m_buttons.push_back(moveButton);
+									uiFrame.m_buttons.push_back(buildButton);
+
+									if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(entity))
+									{
+										manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(entity);
+									}
+									auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(entity);
+
+									auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(120, 120));
+									auto moveGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+									auto buildGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+
+									windowBackground->setFillColor({});
+									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
+
+									moveGraphic->setFillColor({ 40, 40, 200 });
+									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ moveGraphic, moveButton.m_topLeftCorner });
+
+									buildGraphic->setFillColor({ 85, 180, 100 });
+									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
+									
+									for (auto&& dataStr : uiFrame.m_dataStrings)
+									{
+										dataStr.second.m_text->setFillColor({ 255,255,255 });
+										dataStr.second.m_text->setOutlineColor({ 128,128,128 });
+										dataStr.second.m_text->setFont(s_font);
+										drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.second.m_text, dataStr.second.m_relativePosition });
+									}
+								}
+								manager.addComponent<ECS_Core::Components::C_Selection>(entity).m_selector = governorHandle;
+
+								unitFound = true;
+							}
+							return ecs::IterationBehavior::BREAK;
+						}
+						return ecs::IterationBehavior::CONTINUE;
+					});
+					if (unitFound)
+					{
+						continue;
+					}
+
 					auto& tile = TileNED::GetTile(select.m_position, manager);
 					if (tile.m_owningBuilding)
 					{
@@ -1033,7 +1130,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							}
 						}
 					}
-					return ecs::IterationBehavior::BREAK;
+					continue;
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;

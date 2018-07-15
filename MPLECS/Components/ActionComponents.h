@@ -62,7 +62,14 @@ namespace Action
 
 		struct SelectTile
 		{
+			SelectTile(const TilePosition& position) : m_position(position) { }
 			TilePosition m_position;
+		};
+
+		struct PlanMotion
+		{
+			PlanMotion(const ecs::EntityIndex& moverIndex) : m_moverIndex(moverIndex) {}
+			ecs::EntityIndex m_moverIndex;
 		};
 	}
 
@@ -95,6 +102,12 @@ namespace Action
 		int m_buildingTypeId;
 	};
 
+	struct SettleBuildingUnit
+	{
+		SettleBuildingUnit(const ecs::EntityIndex& builderIndex) : m_builderIndex(builderIndex) {}
+		ecs::EntityIndex m_builderIndex;
+	};
+
 	// Would love to use a Named Union instead
 	// This'll do for now
 	// @Herb - Metaclasses when
@@ -104,9 +117,11 @@ namespace Action
 		LocalPlayer::TimeManipulation,
 		LocalPlayer::CloseUIFrame,
 		LocalPlayer::SelectTile,
+		LocalPlayer::PlanMotion,
 		PlaceBuilding, 
 		CreateBuildingUnit,
 		CreateCaravan,
-		CreateExplorationUnit>;
+		CreateExplorationUnit,
+		SettleBuildingUnit>;
 	using Plan = std::vector<Variant>;
 }
