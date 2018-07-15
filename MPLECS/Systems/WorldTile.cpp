@@ -932,41 +932,41 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					if (tile.m_owningBuilding)
 					{
 						using namespace ECS_Core::Components;
-						if (manager.hasComponent<C_Territory>(*tile.m_owningBuilding)
+						if (manager.hasComponent<C_Population>(*tile.m_owningBuilding)
 							&& !manager.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
 						{
 							auto& uiFrame = manager.addComponent<C_UIFrame>(*tile.m_owningBuilding);
 							uiFrame.m_frame = DefineUIFrame("Building",
-								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 								s32 result{ 0 };
-								for (auto&& population : territory.m_populations)
+								for (auto&& population : pop.m_populations)
 								{
 									if (population.second.m_class == PopulationClass::WORKERS)
 										result += population.second.m_numMen;
 								}
 								return result;
 							}),
-								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 								s32 result{ 0 };
-								for (auto&& population : territory.m_populations)
+								for (auto&& population : pop.m_populations)
 								{
 									if (population.second.m_class == PopulationClass::WORKERS)
 										result += population.second.m_numWomen;
 								}
 								return result;
 							}),
-								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 								s32 result{ 0 };
-								for (auto&& population : territory.m_populations)
+								for (auto&& population : pop.m_populations)
 								{
 									if (population.second.m_class == PopulationClass::CHILDREN)
 										result += population.second.m_numMen + population.second.m_numWomen;
 								}
 								return result;
 							}),
-								UIDataReader<C_Territory, s32>([](const C_Territory& territory) -> s32 {
+								UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 								s32 result{ 0 };
-								for (auto&& population : territory.m_populations)
+								for (auto&& population : pop.m_populations)
 								{
 									if (population.second.m_class == PopulationClass::ELDERS)
 										result += population.second.m_numMen + population.second.m_numWomen;
@@ -990,6 +990,23 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							};
 							uiFrame.m_buttons.push_back(closeButton);
 
+							ECS_Core::Components::Button newBuildingButton;
+							newBuildingButton.m_size = { 30,30 };
+							newBuildingButton.m_topLeftCorner = uiFrame.m_size - newBuildingButton.m_size;
+							newBuildingButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+							{
+								Action::CreateBuildingUnit create;
+								create.m_movementSpeed = 5;
+								create.m_popSource = clickedEntity;
+								create.m_buildingTypeId = 0;
+								if (manager.hasComponent<ECS_Core::Components::C_TilePosition>(clickedEntity))
+								{
+									create.m_spawningPosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(clickedEntity).m_position;
+								}
+								return create;
+							};
+							uiFrame.m_buttons.push_back(newBuildingButton);
+
 							if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
 							{
 								manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
@@ -1002,6 +1019,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto closeGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 							closeGraphic->setFillColor({ 200, 30, 30 });
 							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ closeGraphic, closeButton.m_topLeftCorner });
+
+							auto spawnGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+							spawnGraphic->setFillColor({ 30, 200, 30 });
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ spawnGraphic, newBuildingButton.m_topLeftCorner });
 
 							for (auto&& dataStr : uiFrame.m_dataStrings)
 							{

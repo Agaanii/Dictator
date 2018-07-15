@@ -59,7 +59,8 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			manager.addComponent<ECS_Core::Components::C_YieldPotential>(mI);
 			auto& territory = manager.addComponent<ECS_Core::Components::C_Territory>(mI);
 			territory.m_ownedTiles.insert(buildingTilePosition.m_position);
-			auto& foundingPopulation = territory.m_populations[-12 * (time.m_year - 15) - time.m_month];
+			auto& population = manager.addComponent<ECS_Core::Components::C_Population>(mI);
+			auto& foundingPopulation = population.m_populations[-12 * (time.m_year - 15) - time.m_month];
 			foundingPopulation.m_numMen = 5;
 			foundingPopulation.m_numWomen = 5;
 			foundingPopulation.m_class = ECS_Core::Components::PopulationClass::WORKERS;

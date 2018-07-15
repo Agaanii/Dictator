@@ -147,12 +147,15 @@ namespace ECS_Core
 
 		// Age (months)
 		using PopulationKey = s32;
+		struct C_Population
+		{
+			std::map<PopulationKey, PopulationSegment> m_populations;
+		};
 		
 		struct C_Territory
 		{
 			std::set<TilePosition> m_ownedTiles;
 			std::optional<GrowthTile> m_nextGrowthTile;
-			std::map<PopulationKey, PopulationSegment> m_populations;
 		};
 
 		using YieldType = s32;
@@ -275,7 +278,7 @@ namespace ECS_Core
 		struct C_MovingUnit
 		{
 			// # of tiles of movement cost 1 the unit can move in a day
-			s32 m_movementPerDay{ 5 };
+			s32 m_movementPerDay{ 1 };
 			std::optional<MovementCommand> m_currentMovement;
 		};
 	}
@@ -305,9 +308,10 @@ namespace ECS_Core
 		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
 		using S_DrawableBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable>;
 		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
-		using S_DrawableConstructingBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Components::C_BuildingConstruction>;
-		using S_InProgressBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
-		using S_CompleteBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
+		using S_DrawableConstructingBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Components::C_BuildingConstruction>;
+		using S_InProgressBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
+		using S_CompleteBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
+		using S_Population = ecs::Signature<Components::C_Population>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
 		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Components::C_Agenda>;
 		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
@@ -316,9 +320,10 @@ namespace ECS_Core
 		using S_WindowInfo = ecs::Signature<Components::C_WindowInfo>;
 		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
 		using S_Planner = ecs::Signature<Components::C_ActionPlan>;
-		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit>;
-		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription>;
-		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory>;
+		using S_WealthPlanner = ecs::Signature<Components::C_ActionPlan, Components::C_ResourceInventory>;
+		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Territory>;
+		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Territory>;
+		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Territory>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -336,6 +341,7 @@ namespace ECS_Core
 		Components::C_BuildingGhost,
 		Components::C_BuildingDescription,
 		Components::C_Territory,
+		Components::C_Population,
 		Components::C_YieldPotential,
 		Components::C_ResourceInventory,
 		Components::C_Realm,
@@ -366,6 +372,7 @@ namespace ECS_Core
 		Signatures::S_DrawableConstructingBuilding,
 		Signatures::S_InProgressBuilding,
 		Signatures::S_CompleteBuilding,
+		Signatures::S_Population,
 		Signatures::S_PlannedBuildingPlacement,
 		Signatures::S_DestroyedBuilding,
 		Signatures::S_Governor,
@@ -375,7 +382,11 @@ namespace ECS_Core
 		Signatures::S_TimeTracker,
 		Signatures::S_WindowInfo,
 		Signatures::S_UserIO,
-		Signatures::S_Planner
+		Signatures::S_Planner,
+		Signatures::S_WealthPlanner,
+		Signatures::S_BuilderUnit,
+		Signatures::S_CaravanUnit,
+		Signatures::S_MovingUnit
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

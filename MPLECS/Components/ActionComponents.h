@@ -11,6 +11,7 @@
 
 #include "../Core/typedef.h"
 
+#include <map>
 #include <optional>
 #include <variant>
 #include <vector>
@@ -72,15 +73,40 @@ namespace Action
 		int m_buildingClassId{ 0 };
 	};
 
+	struct CreateUnit
+	{
+		TilePosition m_spawningPosition;
+		ecs::EntityIndex m_popSource;
+		int m_movementSpeed;
+	};
+
+	struct CreateCaravan : CreateUnit
+	{
+		TilePosition m_deliveryPosition;
+		std::map<s32, s64> m_inventory;
+	};
+
+	struct CreateExplorationUnit : CreateUnit
+	{
+	};
+
+	struct CreateBuildingUnit : CreateUnit
+	{
+		int m_buildingTypeId;
+	};
+
 	// Would love to use a Named Union instead
 	// This'll do for now
 	// @Herb - Metaclasses when
 	using Variant = std::variant<
 		LocalPlayer::CreateBuildingGhost,
 		LocalPlayer::CreateBuildingFromGhost,
-		PlaceBuilding,
 		LocalPlayer::TimeManipulation,
 		LocalPlayer::CloseUIFrame,
-		LocalPlayer::SelectTile>;
+		LocalPlayer::SelectTile,
+		PlaceBuilding, 
+		CreateBuildingUnit,
+		CreateCaravan,
+		CreateExplorationUnit>;
 	using Plan = std::vector<Variant>;
 }

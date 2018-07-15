@@ -21,14 +21,11 @@ void PopulationGrowth::SetupGameplay() {}
 void GainLevels(ECS_Core::Manager& manager)
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>([](
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_Population>([](
 		const ecs::EntityIndex&,
-		const Components::C_BuildingDescription&,
-		const Components::C_TilePosition&,
-		Components::C_Territory& territory,
-		const Components::C_YieldPotential&)
+		Components::C_Population& population)
 	{
-		for (auto&& popSegment : territory.m_populations)
+		for (auto&& popSegment : population.m_populations)
 		{
 			for (auto&& specialty : popSegment.second.m_specialties)
 			{
@@ -51,14 +48,11 @@ void AgePopulations(ECS_Core::Manager& manager)
 	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
 	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
-	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&time](
+	manager.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
-		const Components::C_BuildingDescription&,
-		const Components::C_TilePosition&,
-		Components::C_Territory& territory,
-		const Components::C_YieldPotential&)
+		Components::C_Population& population)
 	{
-		for (auto&& popSegment : territory.m_populations)
+		for (auto&& popSegment : population.m_populations)
 		{
 			auto yearsOld = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
 			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::CHILDREN 
@@ -82,18 +76,15 @@ void BirthChildren(ECS_Core::Manager& manager)
 	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
 	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
-	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&time](
+	manager.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
-		const Components::C_BuildingDescription&,
-		const Components::C_TilePosition&,
-		Components::C_Territory& territory,
-		const Components::C_YieldPotential&) -> ecs::IterationBehavior
+		Components::C_Population& population) -> ecs::IterationBehavior
 	{
 		s32 potentialMotherCount{ 0 };
 		s32 potentialFatherCount{ 0 };
 		s32 boyCount{ 0 };
 		s32 girlCount{ 0 };
-		for (auto&& popSegment : territory.m_populations)
+		for (auto&& popSegment : population.m_populations)
 		{
 			// Age keys are in months
 			auto popAge = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
@@ -140,7 +131,7 @@ void BirthChildren(ECS_Core::Manager& manager)
 			femaleChildCount = childCount / 2;
 			maleChildCount = childCount - femaleChildCount;
 		}
-		auto& newPopulation = territory.m_populations[-12 * time.m_year - time.m_month];
+		auto& newPopulation = population.m_populations[-12 * time.m_year - time.m_month];
 		newPopulation.m_numMen = maleChildCount;
 		newPopulation.m_numWomen = femaleChildCount;
 		return ecs::IterationBehavior::CONTINUE;

@@ -230,13 +230,14 @@ void GainIncomes(ECS_Core::Manager& manager)
 
 			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
 			auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(territoryHandle);
+			auto& population = manager.getComponent<ECS_Core::Components::C_Population>(territoryHandle);
 			// Choose which yields will be worked based on government priorities
 			// If production is the focus, highest skill works first
 			// If training is the focus, lowest skill works first
 			// After yields are determined, increase experience for the workers
 			// Experience advances more slowly for higher skill
 			s32 totalWorkerCount{ 0 };
-			for (auto&& pop : territory.m_populations)
+			for (auto&& pop : population.m_populations)
 			{
 				if (pop.second.m_class == ECS_Core::Components::PopulationClass::WORKERS)
 				{
@@ -314,7 +315,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 			{
 				for (auto& assignment : workers.second.m_assignments)
 				{
-					territory.m_populations[workers.first].m_specialties[assignment.first]
+					population.m_populations[workers.first].m_specialties[assignment.first]
 						.m_experience += assignment.second;
 				}
 			}
@@ -399,14 +400,114 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
+	case GameLoopPhase::PREPARATION:
+		break;
 	case GameLoopPhase::INPUT:
-		ConstructRequestedBuildings(m_managerRef);
 		break;
 	case GameLoopPhase::ACTION:
+		ConstructRequestedBuildings(m_managerRef);
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_WealthPlanner>([&manager = m_managerRef](
+			const ecs::EntityIndex& entityIndex,
+			const ECS_Core::Components::C_ActionPlan& actionPlan,
+			ECS_Core::Components::C_ResourceInventory& inventory) {
+			for (auto&& action : actionPlan.m_plan)
+			{
+				if (std::holds_alternative<Action::CreateBuildingUnit>(action))
+				{
+					auto& builder = std::get<Action::CreateBuildingUnit>(action);
+					auto costIter = s_buildingCosts.find(builder.m_buildingTypeId);
+					if (costIter == s_buildingCosts.end())
+					{
+						continue;
+					}
+					bool hasResources = true;
+					for (auto&& cost : costIter->second)
+					{
+						// Check to see that all resources required are available
+						auto inventoryStore = inventory.m_collectedYields.find(cost.first);
+						if (inventoryStore == inventory.m_collectedYields.end()
+							|| inventoryStore->second < cost.second)
+						{
+							hasResources = false;
+							break;
+						}
+					}
+					if (!hasResources)
+					{
+						// TODO: Surface Error
+						continue;
+					}
+
+					// Make sure the population source entity is still around
+					if (!manager.hasComponent<ECS_Core::Components::C_Population>(builder.m_popSource))
+					{
+						// TODO: Surface Error
+						continue;
+					}
+					// Take the youngest workers, 10:5 male:female (more men die on the road)
+					auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(builder.m_popSource);
+					
+					// Spawn entity for the unit, then take costs and population
+					auto newEntity = manager.createIndex();
+					auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+
+					auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
+					int menMoved = 0;
+					int womenMoved = 0;
+					for (auto&& pop : populationSource.m_populations)
+					{
+						if (menMoved == 10 && womenMoved == 5)
+						{
+							break;
+						}
+						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+						{
+							continue;
+						}
+						auto menToMove = min<int>(10 - menMoved, pop.second.m_numMen / 2);
+						auto womenToMove = min<int>(5 - womenMoved, pop.second.m_numWomen / 2);
+
+						auto& popCopy = population.m_populations[pop.first];
+						popCopy = pop.second;
+						popCopy.m_numMen = menToMove;
+						popCopy.m_numWomen = womenToMove;
+
+						pop.second.m_numMen -= menToMove;
+						pop.second.m_numWomen -= womenToMove;
+
+
+						menMoved += menToMove;
+						womenMoved += womenToMove;
+					}
+
+					auto& buildingDesc = manager.addComponent<ECS_Core::Components::C_BuildingDescription>(newEntity);
+					buildingDesc.m_buildingType = builder.m_buildingTypeId;
+					auto& tilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(newEntity);
+					tilePosition.m_position = builder.m_spawningPosition;
+
+					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(newEntity);
+					auto unitIcon = std::make_shared<sf::CircleShape>(2.5f, 3);
+					unitIcon->setFillColor({ 45,45,45 });
+					unitIcon->setOutlineColor({ 120,120,120 });
+					unitIcon->setOutlineThickness(-0.3f);
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({
+						unitIcon, {0, 0}
+						});
+
+					auto& cartesianPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(newEntity);
+
+					for (auto&& cost : costIter->second)
+					{
+						inventory.m_collectedYields[cost.first] -= cost.second;
+					}
+				}
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
+		break;
+	case GameLoopPhase::ACTION_RESPONSE:
 		GainIncomes(m_managerRef);
 		break;
-	case GameLoopPhase::PREPARATION:
-	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
 		break;
 	case GameLoopPhase::CLEANUP:
