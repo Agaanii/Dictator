@@ -286,6 +286,12 @@ namespace ECS_Core
 		{
 			ecs::Impl::Handle m_selector;
 		};
+
+		struct C_MovementTarget
+		{
+			ecs::Impl::Handle m_moverHandle;
+			ecs::Impl::Handle m_governorHandle;
+		};
 	}
 
 	namespace Tags
@@ -330,6 +336,7 @@ namespace ECS_Core
 		using S_SelectedMovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Selection>;
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
 		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population>;
+		using S_MovementPlanIndicator = ecs::Signature<Components::C_MovementTarget, Components::C_TilePosition>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -358,7 +365,8 @@ namespace ECS_Core
 		Components::C_WindowInfo,
 		Components::C_ActionPlan,
 		Components::C_MovingUnit,
-		Components::C_Selection
+		Components::C_Selection,
+		Components::C_MovementTarget
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -394,7 +402,8 @@ namespace ECS_Core
 		Signatures::S_BuilderUnit,
 		Signatures::S_CaravanUnit,
 		Signatures::S_MovingUnit,
-		Signatures::S_SelectedMovingUnit
+		Signatures::S_SelectedMovingUnit,
+		Signatures::S_MovementPlanIndicator
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;

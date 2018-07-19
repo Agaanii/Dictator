@@ -151,6 +151,20 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				}
 				return ecs::IterationBehavior::CONTINUE;
 			});
+
+			// Same for any planned motions
+			manager.forEntitiesMatching<Signatures::S_MovementPlanIndicator>(
+				[&inputs, &governorHandle](
+					const ecs::EntityIndex& entity,
+					const Components::C_MovementTarget& mover,
+					Components::C_TilePosition& position)
+			{
+				if (mover.m_governorHandle == governorHandle)
+				{
+					position.m_position = *inputs.m_currentMousePosition.m_tilePosition;
+				}
+				return ecs::IterationBehavior::CONTINUE;
+			});
 			return ecs::IterationBehavior::CONTINUE;
 		});
 		break;

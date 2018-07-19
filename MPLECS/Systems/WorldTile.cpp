@@ -311,7 +311,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		// Quadrant is already here
 		return;
 	}
-	auto index = manager.createIndex();
+	auto index = manager.createHandle();
 	auto quadrantSideLength = QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH;
 	manager.addComponent<ECS_Core::Components::C_QuadrantPosition>(
 		index,
@@ -553,9 +553,6 @@ CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& se
 
 void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 {
-	auto& inProgressBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>();
-	auto& ghostBuildings = manager.entitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>();
-
 	using namespace ECS_Core;
 	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>([&manager](
 		const ecs::EntityIndex&,
@@ -1131,6 +1128,31 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						}
 					}
 					continue;
+				}
+				else if (std::holds_alternative<Action::LocalPlayer::PlanMotion>(action))
+				{
+					auto& planMotion = std::get<Action::LocalPlayer::PlanMotion>(action);
+					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(planMotion.m_moverIndex)
+						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverIndex))
+					{
+						// Only try to move if we have a mover unit with a tile position
+						continue;
+					}
+					auto targetingEntity = manager.createHandle();
+					auto& targetScreenPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
+					auto& targetTilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
+					targetTilePosition.m_position = manager.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverIndex).m_position;
+
+					auto& moverInfo = manager.addComponent<ECS_Core::Components::C_MovementTarget>(targetingEntity);
+					moverInfo.m_moverHandle = manager.getHandle(planMotion.m_moverIndex);
+					moverInfo.m_governorHandle = manager.getHandle(governorEntity);
+
+					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
+					auto targetGraphic = std::make_shared<sf::CircleShape>(2.5f, 6);
+					targetGraphic->setFillColor({ 128, 128, 0, 128 });
+					targetGraphic->setOutlineColor({ 128, 128, 0 });
+					targetGraphic->setOutlineThickness(-0.75f);
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic, {} });
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
