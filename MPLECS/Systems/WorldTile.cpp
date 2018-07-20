@@ -892,6 +892,42 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
+
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef](
+			const ecs::EntityIndex&,
+			ECS_Core::Components::C_ActionPlan& actionPlan)
+		{
+			for (auto&& action : actionPlan.m_plan)
+			{
+				if (std::holds_alternative<Action::SetTargetedMovement>(action))
+				{
+					auto& setMovement = std::get<Action::SetTargetedMovement>(action);
+					if (setMovement.m_path) continue;
+					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover)) continue;
+					auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover).m_position;
+
+					// Make sure you can get from source tile to target tile
+					// Are they in the same quadrant?
+					if (sourcePosition.m_quadrantCoords != setMovement.m_targetPosition.m_quadrantCoords)
+					{
+						auto& targetQuadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
+						auto& sourceQuadrant = TileNED::FetchQuadrant(sourcePosition.m_quadrantCoords, manager);
+
+						// Get shortest path between quadrants
+
+						// Then in each quadrant in path, find shortest sector path from entry to exit 
+						// (if in the same quadrant, find shortest sector path from source to target)
+
+						// For each sector in path, find shortest tile path entry to exit 
+						// (if in same sector, shortest tile path source to target)
+					}
+
+					// Return error because not yet implemented
+					setMovement.m_path = -1;
+				}
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		break;
 	case GameLoopPhase::ACTION:
 		// Grow territories that are able to do so before taking any actions

@@ -11,10 +11,16 @@
 
 #include "../Core/typedef.h"
 
+#include <deque>
 #include <map>
 #include <optional>
 #include <variant>
 #include <vector>
+
+namespace Pathing
+{
+	using Path = std::deque<CoordinateVector2>;
+}
 
 namespace Action
 {
@@ -108,6 +114,20 @@ namespace Action
 		ecs::EntityIndex m_builderIndex;
 	};
 
+	struct SetTargetedMovement
+	{
+		SetTargetedMovement(
+			const ecs::Impl::Handle& mover,
+			const TilePosition& position)
+			: m_mover(mover)
+			, m_targetPosition(position)
+		{}
+		ecs::Impl::Handle m_mover;
+		TilePosition m_targetPosition;
+		// If set, int indicates error, Path indicates reachable
+		std::optional<std::variant<Pathing::Path, int>> m_path;
+	};
+
 	// Would love to use a Named Union instead
 	// This'll do for now
 	// @Herb - Metaclasses when
@@ -122,6 +142,8 @@ namespace Action
 		CreateBuildingUnit,
 		CreateCaravan,
 		CreateExplorationUnit,
-		SettleBuildingUnit>;
+		SettleBuildingUnit,
+		SetTargetedMovement
+	>;
 	using Plan = std::vector<Variant>;
 }

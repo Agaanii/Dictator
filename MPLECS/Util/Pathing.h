@@ -67,9 +67,11 @@ namespace Pathing
 		{  0,-1 }, // WEST
 	};
 
+	using Path = std::deque<CoordinateVector2>;
+
 	// Movement Cost is cost to enter a node.
 	template<int X, int Y>
-	std::optional<std::deque<CoordinateVector2>> GetPath(
+	std::optional<Path> GetPath(
 		const MovementCostArray2<X, Y>& movementCosts,
 		const CoordinateVector2& origin,
 		const CoordinateVector2& goal)
