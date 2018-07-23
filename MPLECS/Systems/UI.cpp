@@ -25,7 +25,7 @@ void UI::SetupGameplay()
 	auto localPlayer = m_managerRef.createHandle();
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayer);
 
-	uiFrameComponent.m_origin = { 50,50 };
+	uiFrameComponent.m_origin = { 400,50 };
 	uiFrameComponent.m_size = { 200, 240 };
 	uiFrameComponent.m_global = true;
 
