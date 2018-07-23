@@ -185,4 +185,9 @@
       <Filter>Assets</Filter>
     </Font>
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\rock.png">
+      <Filter>Assets</Filter>
+    </Image>
+  </ItemGroup>
 </Project>

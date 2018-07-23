@@ -13,8 +13,50 @@
 
 #include "../ECS/System.h"
 
+#include "../Components/UIComponents.h"
+
+#include <iostream>
+
 void UI::ProgramInit() {}
-void UI::SetupGameplay() {}
+void UI::SetupGameplay()
+{
+	//is this the right place?
+	//use View components
+	auto localPlayer = m_managerRef.createHandle();
+	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayer);
+
+	uiFrameComponent.m_origin = { 50,50 };
+	uiFrameComponent.m_size = { 200, 240 };
+	uiFrameComponent.m_global = true;
+
+	//What does this do?
+	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayer);
+	if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer))
+	{
+		m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
+	}
+
+	auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
+
+	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
+	resourceWindowBackground->setFillColor({});
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ resourceWindowBackground, {} });
+
+
+	//load sprite
+	auto texture = std::make_shared<sf::Texture>();
+	auto sprite = std::make_shared<sf::Sprite>();
+	if (texture->loadFromFile("Assets/rock.png"))
+	{
+		sprite->setTexture(*texture);
+	}
+	else
+	{
+		std::cout << "Texture not found" << std::endl;
+	}
+
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ sprite, CartesianVector2<f64>(20, 20) });
+}
 
 void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
@@ -34,9 +76,9 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					const ecs::EntityIndex&,
 					ECS_Core::Components::C_UIFrame& uiFrame)
 				{
-					auto& bottomRightCorner = uiFrame.m_topLeftCorner + uiFrame.m_size;
+					auto& bottomRightCorner = uiFrame.m_origin + uiFrame.m_size;
 					if (!IsInRectangle(inputs.m_currentMousePosition.m_screenPosition,
-						uiFrame.m_topLeftCorner,
+						uiFrame.m_origin,
 						bottomRightCorner))
 					{
 						return ecs::IterationBehavior::CONTINUE;
@@ -45,7 +87,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					// Don't drag if click is on a button
 					for (auto&& button : uiFrame.m_buttons)
 					{
-						auto absoluteButtonPosition = button.m_topLeftCorner + uiFrame.m_topLeftCorner;
+						auto absoluteButtonPosition = button.m_origin + uiFrame.m_origin;
 						auto buttonBottomRight = absoluteButtonPosition + button.m_size;
 						if (IsInRectangle(inputs.m_currentMousePosition.m_screenPosition,
 							absoluteButtonPosition,
@@ -58,7 +100,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						}
 					}
 
-					uiFrame.m_currentDragPosition = inputs.m_currentMousePosition.m_screenPosition - uiFrame.m_topLeftCorner;
+					uiFrame.m_currentDragPosition = inputs.m_currentMousePosition.m_screenPosition - uiFrame.m_origin;
 					inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
 					return ecs::IterationBehavior::BREAK;
 				});
@@ -92,7 +134,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						for (auto&& button : uiFrame.m_buttons)
 						{
-							auto absoluteButtonPosition = button.m_topLeftCorner + uiFrame.m_topLeftCorner;
+							auto absoluteButtonPosition = button.m_origin + uiFrame.m_origin;
 							auto buttonBottomRight = absoluteButtonPosition + button.m_size;
 							if (IsInRectangle(inputs.m_currentMousePosition.m_screenPosition,
 								absoluteButtonPosition,
@@ -149,27 +191,33 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			const ecs::EntityIndex& entityIndex,
 			ECS_Core::Components::C_UIFrame& uiEntity)
 		{
-			for (auto&& str : uiEntity.m_frame->ReadData(entityIndex, manager))
+			//Only do data binding stuff if not null
+			if (uiEntity.m_dataBinding)
 			{
-				auto displayIter = uiEntity.m_dataStrings.find(str.first);
-				if (displayIter != uiEntity.m_dataStrings.end())
+				//TODO: Use a mapping here instead of assuming dataStrings exist
+				for (auto&& str : uiEntity.m_dataBinding->ReadData(entityIndex, manager))
 				{
-					displayIter->second.m_text->setString(str.second);
+					auto displayIter = uiEntity.m_dataStrings.find(str.first);
+					if (displayIter != uiEntity.m_dataStrings.end())
+					{
+						displayIter->second.m_text->setString(str.second);
+					}
 				}
 			}
 			if (uiEntity.m_currentDragPosition && inputEntities.size())
 			{
 				auto& input = manager.getComponent<ECS_Core::Components::C_UserInputs>(inputEntities.front());
-				uiEntity.m_topLeftCorner = input.m_currentMousePosition.m_screenPosition - *uiEntity.m_currentDragPosition;
-				uiEntity.m_topLeftCorner.m_x = max<f64>(uiEntity.m_topLeftCorner.m_x, 0);
-				uiEntity.m_topLeftCorner.m_y = max<f64>(uiEntity.m_topLeftCorner.m_y, 0);
+				uiEntity.m_origin = input.m_currentMousePosition.m_screenPosition - *uiEntity.m_currentDragPosition;
+				uiEntity.m_origin.m_x = max<f64>(uiEntity.m_origin.m_x, 0);
+				uiEntity.m_origin.m_y = max<f64>(uiEntity.m_origin.m_y, 0);
 
 				auto maxTopLeft = windowInfo.m_windowSize - uiEntity.m_size;
-				uiEntity.m_topLeftCorner.m_x = min<f64>(uiEntity.m_topLeftCorner.m_x, maxTopLeft.m_x);
-				uiEntity.m_topLeftCorner.m_y = min<f64>(uiEntity.m_topLeftCorner.m_y, maxTopLeft.m_y);
+				uiEntity.m_origin.m_x = min<f64>(uiEntity.m_origin.m_x, maxTopLeft.m_x);
+				uiEntity.m_origin.m_y = min<f64>(uiEntity.m_origin.m_y, maxTopLeft.m_y);
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
+
 		break;
 	}
 	case GameLoopPhase::PREPARATION:

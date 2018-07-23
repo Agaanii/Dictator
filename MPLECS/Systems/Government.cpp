@@ -361,20 +361,39 @@ void Government::SetupGameplay()
 	m_managerRef.addComponent<ECS_Core::Components::C_ActionPlan>(localPlayer);
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayer);
-	uiFrameComponent.m_frame
-		= DefineUIFrame(
+	uiFrameComponent.m_dataBinding
+		= DefineUIDataBinding(
 			"Inventory",
 			DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
-	uiFrameComponent.m_dataStrings[{0, 0}] = { { 40,0 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 1}] = {{ 40,30 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 2}] = {{ 40,60 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 3}] = {{ 40,90 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 4}] = {{ 40,120 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 5}] = {{ 40,150 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 6}] = {{ 40,180 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 7}] = {{ 40,210 }, std::make_shared<sf::Text>() };
 
-	uiFrameComponent.m_topLeftCorner = { 50,50 };
+
+	// How this is drawn
+	// Should use a separate system for layout
+
+	uiFrameComponent.m_dataStrings[{0, 0}] = { { 40,0 }, std::make_shared<sf::Text>() };
+
+	//load sprite
+	auto texture = std::make_shared<sf::Texture>();
+	auto sprite = std::make_shared<sf::Sprite>();
+	if (texture->loadFromFile("Assets/rock.png"))
+	{
+		sprite->setTexture(*texture);
+	}
+	else
+	{
+		std::cout << "Texture not found" << std::endl;
+	}
+	uiFrameComponent.m_dataSprites[{0, 0}] = { { 20, 0 }, std::move(texture), std::move(sprite) };
+
+	uiFrameComponent.m_dataStrings[{0, 1}] = { { 40,30 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 2}] = { { 40,60 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 3}] = { { 40,90 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 4}] = { { 40,120 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 5}] = { { 40,150 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 6}] = { { 40,180 }, std::make_shared<sf::Text>() };
+	uiFrameComponent.m_dataStrings[{0, 7}] = { { 40,210 }, std::make_shared<sf::Text>() };
+
+	uiFrameComponent.m_origin = { 50,50 };
 	uiFrameComponent.m_size = { 200, 240 };
 	uiFrameComponent.m_global = true;
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayer);
@@ -392,7 +411,11 @@ void Government::SetupGameplay()
 		dataStr.second.m_text->setFillColor({ 255,255,255 });
 		dataStr.second.m_text->setOutlineColor({ 128,128,128 });
 		dataStr.second.m_text->setFont(s_font);
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({dataStr.second.m_text, dataStr.second.m_relativePosition});
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.second.m_text, dataStr.second.m_relativePosition });
+	}
+	for (auto&& dataSprite : uiFrameComponent.m_dataSprites)
+	{
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataSprite.second.m_sprite, dataSprite.second.m_relativePosition });
 	}
 }
 

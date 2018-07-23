@@ -189,26 +189,33 @@ namespace ECS_Core
 			std::set<ecs::Impl::Handle> m_territories;
 		};
 
-		struct UIFrame;
+		struct UIDataBinding;
 
 		struct DataString
 		{
 			CartesianVector2<f64> m_relativePosition;
 			std::shared_ptr<sf::Text> m_text;
 		};
+		struct DataSprite
+		{
+			CartesianVector2<f64> m_relativePosition;
+			std::shared_ptr<sf::Texture> m_texture;
+			std::shared_ptr<sf::Sprite> m_sprite;
+		};
 		struct Button
 		{
 			std::function<Action::Variant(const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& /*clickedEntity*/)> m_onClick;
 			// Position relative to containing frame
-			CartesianVector2<f64> m_topLeftCorner;
+			CartesianVector2<f64> m_origin;
 			CartesianVector2<f64> m_size;
 		};
 		struct C_UIFrame
 		{
-			std::unique_ptr<UIFrame> m_frame;
+			std::unique_ptr<UIDataBinding> m_dataBinding;
 			std::map<std::vector<int>, DataString> m_dataStrings;
-			std::vector<Button> m_buttons;
-			CartesianVector2<f64> m_topLeftCorner;
+			std::map<std::vector<int>, DataSprite> m_dataSprites;
+			std::vector<Button> m_buttons; //??
+			CartesianVector2<f64> m_origin;
 			CartesianVector2<f64> m_size;
 			std::optional<CartesianVector2<f64>> m_currentDragPosition;
 			bool m_focus{ false };
@@ -402,7 +409,7 @@ namespace ECS_Core
 
 	namespace Components
 	{
-		struct UIFrame
+		struct UIDataBinding
 		{
 			using FieldStrings = std::map<std::vector<int> /*key, separated in description by colons*/, std::string>;
 			virtual FieldStrings ReadData(ecs::EntityIndex mI, ECS_Core::Manager& manager) const = 0;

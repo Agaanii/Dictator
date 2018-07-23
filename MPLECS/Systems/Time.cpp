@@ -25,8 +25,8 @@ void Time::SetupGameplay()
 	m_managerRef.addComponent<ECS_Core::Components::C_TimeTracker>(index);
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(index);
-	uiFrameComponent.m_frame
-		= DefineUIFrame(
+	uiFrameComponent.m_dataBinding
+		= DefineUIDataBinding(
 			"Calendar",
 			DataBinding(ECS_Core::Components::C_TimeTracker, m_year),
 			DataBinding(ECS_Core::Components::C_TimeTracker, m_month),
@@ -34,7 +34,7 @@ void Time::SetupGameplay()
 	uiFrameComponent.m_dataStrings[{0}] = { { 0,0 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_dataStrings[{1}] = { { 0,35 }, std::make_shared<sf::Text>() };
 	uiFrameComponent.m_dataStrings[{2}] = { { 50,35 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_topLeftCorner = { 1400, 100 };
+	uiFrameComponent.m_origin = { 1400, 100 };
 	uiFrameComponent.m_size = { 100, 70 };
 	uiFrameComponent.m_global = true;
 	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);

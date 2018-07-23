@@ -58,8 +58,9 @@ struct is_map<std::map<Key, Value>>
 {
 	static constexpr bool value = true;
 };
+
 template<typename ...DataBindings>
-class UIFrameDefinition : public ECS_Core::Components::UIFrame
+class UIDataBindingDefinition : public ECS_Core::Components::UIDataBinding
 {
 	using BindingTuple = typename std::tuple<DataBindings...>;
 	static constexpr int c_tupleCount = static_cast<int>(std::tuple_size<BindingTuple>::value);
@@ -67,7 +68,7 @@ class UIFrameDefinition : public ECS_Core::Components::UIFrame
 	static_assert(c_tupleCount > 0, "Don't Use Data Bindings if you don't need data bindings");
 protected:
 
-	template <typename FieldType> 
+	template <typename FieldType>
 	void GetFieldEntry(
 		int fieldIndex,
 		const FieldType& value,
@@ -114,8 +115,8 @@ protected:
 	}
 
 	template <int i> void ReadFields(
-		FieldStrings& result, 
-		ecs::EntityIndex mI, 
+		FieldStrings& result,
+		ecs::EntityIndex mI,
 		ECS_Core::Manager& manager) const
 	{
 		auto& component = manager.getComponent
@@ -138,8 +139,8 @@ public:
 	// Title gets printed at top of frame
 	// Description gets printed at bottom of frame, filling in values where {#} tokens are
 	// Example: "This unit has {0} hp and {1} mana"
-	UIFrameDefinition(std::string title, DataBindings&&... bindings)
-		: ECS_Core::Components::UIFrame()
+	UIDataBindingDefinition(std::string title, DataBindings&&... bindings)
+		: ECS_Core::Components::UIDataBinding()
 		, m_title(title)
 		, m_bindings(bindings...)
 	{
@@ -162,9 +163,9 @@ protected:
 
 // Thanks to reddit user /u/YouFeedTheFish
 template<typename ...Args>
-auto DefineUIFrame(std::string&& title, Args&&... args)
+auto DefineUIDataBinding(std::string&& title, Args&&... args)
 {
-	return std::make_unique<UIFrameDefinition<Args...>>(
+	return std::make_unique<UIDataBindingDefinition<Args...>>(
 		std::forward<std::string>(title), 
 		std::forward<Args>(args)...);
-}
+};

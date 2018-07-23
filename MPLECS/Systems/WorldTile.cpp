@@ -959,19 +959,19 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 								{
 									using namespace ECS_Core::Components;
 									auto& uiFrame = manager.addComponent<ECS_Core::Components::C_UIFrame>(entity);
-									uiFrame.m_frame = DefineUIFrame(
+									uiFrame.m_dataBinding = DefineUIDataBinding(
 										"Unit",
 										UIDataReader<C_MovingUnit, int>([](const C_MovingUnit& /*mover*/) {
 										return 0;
 									}));
 									uiFrame.m_dataStrings[{0}] = { {}, std::make_shared<sf::Text>() };
-									uiFrame.m_topLeftCorner = { 400, 500 };
+									uiFrame.m_origin = { 400, 500 };
 									uiFrame.m_size = { 120, 120 };
 
 									Button moveButton;
 									Button buildButton;
 
-									moveButton.m_topLeftCorner = { 90,0 };
+									moveButton.m_origin = { 90,0 };
 									moveButton.m_size = { 30,30 };
 									moveButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
 										return Action::LocalPlayer::PlanMotion(clickedEntity);
@@ -999,10 +999,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
 
 									moveGraphic->setFillColor({ 40, 40, 200 });
-									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ moveGraphic, moveButton.m_topLeftCorner });
+									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ moveGraphic, moveButton.m_origin });
 
 									buildGraphic->setFillColor({ 85, 180, 100 });
-									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
+									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_origin });
 									
 									for (auto&& dataStr : uiFrame.m_dataStrings)
 									{
@@ -1033,7 +1033,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							&& !manager.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
 						{
 							auto& uiFrame = manager.addComponent<C_UIFrame>(*tile.m_owningBuilding);
-							uiFrame.m_frame = DefineUIFrame("Building",
+							uiFrame.m_dataBinding = DefineUIDataBinding("Building",
 								UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 								s32 result{ 0 };
 								for (auto&& population : pop.m_populations)
@@ -1075,11 +1075,11 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							uiFrame.m_dataStrings[{2}] = { { 20,60 }, std::make_shared<sf::Text>() };
 							uiFrame.m_dataStrings[{3}] = { { 20,90 }, std::make_shared<sf::Text>() };
 
-							uiFrame.m_topLeftCorner = { 0, 300 };
+							uiFrame.m_origin = { 0, 300 };
 							uiFrame.m_size = { 70, 120 };
 
 							ECS_Core::Components::Button closeButton;
-							closeButton.m_topLeftCorner.m_x = uiFrame.m_size.m_x - 30;
+							closeButton.m_origin.m_x = uiFrame.m_size.m_x - 30;
 							closeButton.m_size = { 30, 30 };
 							closeButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
 							{
@@ -1089,7 +1089,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 							ECS_Core::Components::Button newBuildingButton;
 							newBuildingButton.m_size = { 30,30 };
-							newBuildingButton.m_topLeftCorner = uiFrame.m_size - newBuildingButton.m_size;
+							newBuildingButton.m_origin = uiFrame.m_size - newBuildingButton.m_size;
 							newBuildingButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
 							{
 								Action::CreateBuildingUnit create;
@@ -1115,11 +1115,11 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 							auto closeGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 							closeGraphic->setFillColor({ 200, 30, 30 });
-							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ closeGraphic, closeButton.m_topLeftCorner });
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ closeGraphic, closeButton.m_origin });
 
 							auto spawnGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 							spawnGraphic->setFillColor({ 30, 200, 30 });
-							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ spawnGraphic, newBuildingButton.m_topLeftCorner });
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ spawnGraphic, newBuildingButton.m_origin });
 
 							for (auto&& dataStr : uiFrame.m_dataStrings)
 							{
