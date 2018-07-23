@@ -24,3 +24,5 @@ namespace std
 			(right.m_airDistToTarget + right.m_costToPoint);
 	}
 };
+
+// Branch Test
