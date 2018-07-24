@@ -20,6 +20,7 @@
 
 #include <limits>
 #include <random>
+#include <thread>
 
 // Terms:
 // * Tile: Unit of the world terrain
@@ -68,23 +69,31 @@ namespace TileNED
 		std::optional<ecs::EntityIndex> m_owningBuilding; // If notset, no building owns this tile
 	};
 
-	using Pathability = bool[Pathing::PathingSide::_COUNT][Pathing::PathingSide::_COUNT];
-
 	struct Sector
 	{
-		Pathability m_pathability;
 		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
-		[TileConstants::SECTOR_SIDE_LENGTH];
+			[TileConstants::SECTOR_SIDE_LENGTH];
+		std::optional<int> m_tileMovementCosts
+			[TileConstants::SECTOR_SIDE_LENGTH]
+			[TileConstants::SECTOR_SIDE_LENGTH];
+
+		// Relevant index of the tile on each border being used for 
+		// pathing between sectors
+		std::optional<int> m_pathingBorderTiles[Pathing::PathingSide::_COUNT];
 	};
 	struct Quadrant
 	{
-		Pathability m_pathability;
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH];
+			[TileConstants::QUADRANT_SIDE_LENGTH];
 
 		sf::Texture m_texture;
+		std::optional<int> m_sectorMovementCosts
+			[TileConstants::SECTOR_SIDE_LENGTH]
+			[TileConstants::SECTOR_SIDE_LENGTH]
+			[Pathing::PathingSide::_COUNT]
+			[Pathing::PathingSide::_COUNT];
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 	SpawnedQuadrantMap s_spawnedQuadrants;
@@ -337,7 +346,6 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 
 			auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
 			assert(relevantSeeds.size() > 0);
-
 			std::optional<int> movementCosts[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
 			for (auto tileX = 0; tileX < TileConstants::SECTOR_SIDE_LENGTH; ++tileX)
 			{
@@ -400,6 +408,92 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 	rect->setTexture(&quadrant.m_texture);
 	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({ rect,{ 0,0 } });
+
+	// Kick off threads to spawn pathing information
+	std::thread pathingInfoThread([&quadrant]() {
+		// Threads to fill in movement costs in the sector data
+		std::vector<std::thread> movementFillThreads;
+		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
+		{
+			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH; ++sectorJ)
+			{
+				auto& sector = quadrant.m_sectors[sectorI][sectorJ];
+				movementFillThreads.emplace_back(std::thread([&sector]() {
+					for (int i = 0; i < SECTOR_SIDE_LENGTH; ++i)
+					{
+						for (int j = 0; j < SECTOR_SIDE_LENGTH; ++j)
+						{
+							sector.m_tileMovementCosts[i][j] = sector.m_tiles[i][j].m_movementCost;
+						}
+					}
+				}));
+			}
+		}
+		for (auto&& thread : movementFillThreads)
+		{
+			thread.join();
+		}
+		
+		// First, pick the points for input/output on each border
+		// Go along each horizontal border, and each vertical
+		std::vector<std::thread> borderThreads;
+
+		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
+		{
+			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
+			{
+				// Horizontal border
+				borderThreads.emplace_back(std::thread([sectorI, sectorJ, &quadrant]() {
+					auto& upperSector = quadrant.m_sectors[sectorI][sectorJ];
+					auto& lowerSector = quadrant.m_sectors[sectorI][sectorJ + 1];
+
+					auto middleIndex = SECTOR_SIDE_LENGTH / 2;
+					for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+					{
+						auto borderIndex = [&i, &middleIndex]() {
+							if (i % 2 == 0) return middleIndex + (i / 2);
+							else return middleIndex - (i / 2); 
+						}();
+						if (upperSector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 1]
+							&& lowerSector.m_tileMovementCosts[borderIndex][0])
+						{
+							upperSector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH] = borderIndex;
+							lowerSector.m_pathingBorderTiles[Pathing::PathingSide::NORTH] = borderIndex;
+							break;
+						}
+					}
+				}));
+
+				// Vertical border
+				borderThreads.emplace_back(std::thread([sectorI, sectorJ, &quadrant]() {
+					auto& leftSector = quadrant.m_sectors[sectorJ][sectorI];
+					auto& rightSector = quadrant.m_sectors[sectorJ + 1][sectorI];
+
+					auto middleIndex = SECTOR_SIDE_LENGTH / 2;
+					for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+					{
+						auto borderIndex = [&i, &middleIndex]() {
+							if (i % 2 == 0) return middleIndex + (i / 2);
+							else return middleIndex - (i / 2);
+						}();
+						if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex]
+							&& rightSector.m_tileMovementCosts[0][borderIndex])
+						{
+							leftSector.m_pathingBorderTiles[Pathing::PathingSide::EAST] = borderIndex;
+							rightSector.m_pathingBorderTiles[Pathing::PathingSide::WEST] = borderIndex;
+							break;
+						}
+					}
+				}));
+			}
+		}
+		for (auto&& thread : borderThreads)
+		{
+			// Make sure all finish before we start finding paths
+			thread.join();
+		}
+	});
+	pathingInfoThread.detach();
 }
 
 template<class T>
@@ -870,8 +964,8 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::PREPARATION:
 		if (!TileNED::baseQuadrantSpawned)
 		{
-			SpawnQuadrant({ 0, 0 }, m_managerRef);
 			TileNED::baseQuadrantSpawned = true;
+			std::thread([&manager = m_managerRef]() {SpawnQuadrant({ 0, 0 }, manager); }).detach();			
 		}
 		break;
 	case GameLoopPhase::INPUT:
