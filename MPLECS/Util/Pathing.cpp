@@ -25,4 +25,16 @@ namespace std
 	}
 };
 
-// Branch Test
+auto Pathing::PathingSide::Opposite(Enum d) -> Enum
+{
+	{
+		switch (d)
+		{
+		case NORTH: return SOUTH;
+		case SOUTH: return NORTH;
+		case EAST: return WEST;
+		case WEST: return EAST;
+		}
+		return _COUNT;
+	}
+}

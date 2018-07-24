@@ -9,6 +9,8 @@
 
 // A* Algorithm implemented thanks to the kind people who wrote the wikipedia page
 
+#pragma once
+
 #include "../Core/typedef.h"
 #include "../ECS/ECS.h"
 
@@ -38,10 +40,16 @@ namespace Pathing
 
 			_COUNT
 		};
+
+		Enum Opposite(Enum d);
 	}
 
 	template<int X, int Y>
 	using MovementCostArray2 = std::optional<int>[X][Y];
+
+	// Used for items where movement cost varies depending on direction entered and exited
+	template <int X, int Y>
+	using DirectionMovementCostArray = std::optional<int>[X][Y][PathingSide::_COUNT][PathingSide::_COUNT];
 
 	struct SortedCoordinate
 	{
@@ -173,6 +181,129 @@ namespace Pathing
 					costToNeighbor,
 					pointHeuristic[neighborCoords.m_x][neighborCoords.m_y]
 				});
+			}
+
+			openPoints.erase(currentNode);
+		}
+		return std::nullopt;
+	}
+
+	// Movement cost is cost to move through the previous node from a certain side to
+	// the side adjacent to the current node
+	template<int X, int Y>
+	std::optional<Path> GetPath(
+		const DirectionMovementCostArray<X, Y>& movementCosts,
+		const CoordinateVector2& origin,
+		const CoordinateVector2& goal)
+	{
+		bool triviallyReachable = false;
+		for (int direction = PathingSide::NORTH; direction < PathingSide::_COUNT; ++direction)
+		{
+			auto& neighborOffset = neighborOffsets[direction];
+			auto neighborCoords = goal + neighborOffset;
+			if (neighborCoords.m_x < 0 || neighborCoords.m_x >= X ||
+				neighborCoords.m_y < 0 || neighborCoords.m_y >= Y)
+			{
+				continue;
+			}
+			auto& neighborMovementCosts = movementCosts[neighborCoords.m_x][neighborCoords.m_y];
+			for (int enterDirection = PathingSide::NORTH; enterDirection < PathingSide::_COUNT; ++enterDirection)
+			{
+				if (enterDirection == PathingSide::Opposite(direction))
+				{
+					continue;
+				}
+				if (neighborMovementCosts[enterDirection][PathingSide::Opposite(direction)])
+				{
+					triviallyReachable = true;
+					break;
+				}
+			}
+			if (triviallyReachable) break;
+		}
+		if (!triviallyReachable)
+		{
+			return std::nullopt;
+		}
+		bool visited[X][Y];
+		int costToPoint[X][Y];
+		int pointHeuristic[X][Y];
+		PathingSide::Enum fastestDirectionIntoNode[X][Y];
+		for (auto i = 0; i < X; ++i)
+		{
+			for (auto j = 0; j < Y; ++j)
+			{
+				visited[i][j] = false;
+				costToPoint[i][j] = std::numeric_limits<int>::max();
+				pointHeuristic[i][j] = static_cast<int>((goal - CoordinateVector2(i, j)).MagnitudeSq());
+				fastestDirectionIntoNode[i][j] = PathingSide::_COUNT;
+			}
+		}
+		// Cost to enter the current node is always 0
+		costToPoint[origin.m_x][origin.m_y] = 0;
+		std::set<SortedCoordinate> openPoints;
+		openPoints.insert({ origin, 0, pointHeuristic[origin.m_x][origin.m_y] });
+
+		while (!openPoints.empty())
+		{
+			const auto& currentNode = *openPoints.begin();
+			if (currentNode.m_coordinates == goal)
+			{
+				std::deque<CoordinateVector2> result;
+				auto currentCoords = currentNode.m_coordinates;
+				while (true) // because I'm evil
+				{
+					result.push_front(currentCoords);
+					if (origin == currentCoords)
+					{
+						return result;
+					}
+					currentCoords -= neighborOffsets[fastestDirectionIntoNode
+						[currentCoords.m_x][currentCoords.m_y]];
+				}
+			}
+
+			if (visited[currentNode.m_coordinates.m_x][currentNode.m_coordinates.m_y])
+			{
+				openPoints.erase(currentNode);
+				continue;
+			}
+
+			visited[currentNode.m_coordinates.m_x][currentNode.m_coordinates.m_y] = true;
+
+			for (int direction = PathingSide::NORTH; direction < PathingSide::_COUNT; ++direction)
+			{
+				auto& neighborOffset = neighborOffsets[direction];
+				auto neighborCoords = currentNode.m_coordinates + neighborOffset;
+				if (neighborCoords.m_x < 0 || neighborCoords.m_x >= X ||
+					neighborCoords.m_y < 0 || neighborCoords.m_y >= Y)
+				{
+					continue;
+				}
+				if (visited[neighborCoords.m_x][neighborCoords.m_y])
+				{
+					continue;
+				}
+				auto nodeMovementCosts = movementCosts[currentNode.m_coordinates.m_x][currentNode.m_coordinates.m_y];
+				auto originDirection = fastestDirectionIntoNode[currentNode.m_coordinates.m_x][currentNode.m_coordinates.m_y];
+				if (!nodeMovementCosts[originDirection][direction])
+				{
+					continue;
+				}
+
+				auto costToNeighbor = currentNode.m_costToPoint + *nodeMovementCosts[originDirection][direction];
+				if (costToNeighbor >= costToPoint[neighborCoords.m_x][neighborCoords.m_y])
+				{
+					continue;
+				}
+
+				fastestDirectionIntoNode[neighborCoords.m_x][neighborCoords.m_y] = static_cast<PathingSide::Enum>(direction);
+				costToPoint[neighborCoords.m_x][neighborCoords.m_y] = costToNeighbor;
+				openPoints.insert({
+					neighborCoords,
+					costToNeighbor,
+					pointHeuristic[neighborCoords.m_x][neighborCoords.m_y]
+					});
 			}
 
 			openPoints.erase(currentNode);
