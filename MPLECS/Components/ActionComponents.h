@@ -19,7 +19,11 @@
 
 namespace Pathing
 {
-	using Path = std::deque<CoordinateVector2>;
+	struct Path
+	{
+		std::deque<CoordinateVector2> m_path;
+		int m_totalPathCost;
+	};
 }
 
 namespace Action

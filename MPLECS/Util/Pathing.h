@@ -75,8 +75,6 @@ namespace Pathing
 		{  0,-1 }, // WEST
 	};
 
-	using Path = std::deque<CoordinateVector2>;
-
 	// Movement Cost is cost to enter a node.
 	template<int X, int Y>
 	std::optional<Path> GetPath(
@@ -128,11 +126,12 @@ namespace Pathing
 			const auto& currentNode = *openPoints.begin();
 			if (currentNode.m_coordinates == goal)
 			{
-				std::deque<CoordinateVector2> result;
+				Path result;
+				result.m_totalPathCost = costToPoint[goal.m_x][goal.m_y];
 				auto currentCoords = currentNode.m_coordinates;
 				while (true) // because I'm evil
 				{
-					result.push_front(currentCoords);
+					result.m_path.push_front(currentCoords);
 					if (origin == currentCoords)
 					{
 						return result;
@@ -249,11 +248,12 @@ namespace Pathing
 			const auto& currentNode = *openPoints.begin();
 			if (currentNode.m_coordinates == goal)
 			{
-				std::deque<CoordinateVector2> result;
+				Path result;
+				result.m_totalPathCost = costToPoint[goal.m_x][goal.m_y];
 				auto currentCoords = currentNode.m_coordinates;
 				while (true) // because I'm evil
 				{
-					result.push_front(currentCoords);
+					result.m_path.push_front(currentCoords);
 					if (origin == currentCoords)
 					{
 						return result;

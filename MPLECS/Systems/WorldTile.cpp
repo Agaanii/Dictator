@@ -89,9 +89,14 @@ namespace TileNED
 			[TileConstants::QUADRANT_SIDE_LENGTH];
 
 		sf::Texture m_texture;
-		std::optional<int> m_sectorMovementCosts
-			[TileConstants::SECTOR_SIDE_LENGTH]
-			[TileConstants::SECTOR_SIDE_LENGTH]
+		std::optional<int> m_sectorCrossingPathCosts
+			[TileConstants::QUADRANT_SIDE_LENGTH]
+			[TileConstants::QUADRANT_SIDE_LENGTH]
+			[Pathing::PathingSide::_COUNT]
+			[Pathing::PathingSide::_COUNT];
+		std::optional<std::deque<CoordinateVector2>> m_sectorCrossingPaths
+			[TileConstants::QUADRANT_SIDE_LENGTH]
+			[TileConstants::QUADRANT_SIDE_LENGTH]
 			[Pathing::PathingSide::_COUNT]
 			[Pathing::PathingSide::_COUNT];
 	};
@@ -418,7 +423,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH; ++sectorJ)
 			{
 				auto& sector = quadrant.m_sectors[sectorI][sectorJ];
-				movementFillThreads.emplace_back(std::thread([&sector]() {
+				movementFillThreads.emplace_back([&sector]() {
 					for (int i = 0; i < SECTOR_SIDE_LENGTH; ++i)
 					{
 						for (int j = 0; j < SECTOR_SIDE_LENGTH; ++j)
@@ -426,7 +431,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 							sector.m_tileMovementCosts[i][j] = sector.m_tiles[i][j].m_movementCost;
 						}
 					}
-				}));
+				});
 			}
 		}
 		for (auto&& thread : movementFillThreads)
@@ -443,7 +448,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
 			{
 				// Horizontal border
-				borderThreads.emplace_back(std::thread([sectorI, sectorJ, &quadrant]() {
+				borderThreads.emplace_back([sectorI, sectorJ, &quadrant]() {
 					auto& upperSector = quadrant.m_sectors[sectorI][sectorJ];
 					auto& lowerSector = quadrant.m_sectors[sectorI][sectorJ + 1];
 
@@ -462,10 +467,10 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 							break;
 						}
 					}
-				}));
+				});
 
 				// Vertical border
-				borderThreads.emplace_back(std::thread([sectorI, sectorJ, &quadrant]() {
+				borderThreads.emplace_back([sectorI, sectorJ, &quadrant]() {
 					auto& leftSector = quadrant.m_sectors[sectorJ][sectorI];
 					auto& rightSector = quadrant.m_sectors[sectorJ + 1][sectorI];
 
@@ -484,7 +489,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 							break;
 						}
 					}
-				}));
+				});
 			}
 		}
 		for (auto&& thread : borderThreads)
@@ -492,6 +497,51 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 			// Make sure all finish before we start finding paths
 			thread.join();
 		}
+
+		std::vector<std::thread> pathFindingThreads;
+
+		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
+		{
+			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
+			{
+				auto& sector = quadrant.m_sectors[sectorI][sectorJ];
+				for (int sourceSide = Pathing::PathingSide::NORTH; sourceSide < Pathing::PathingSide::_COUNT; ++sourceSide)
+				{
+					for (int targetSide = Pathing::PathingSide::NORTH; targetSide < Pathing::PathingSide::_COUNT; ++targetSide)
+					{
+						if (sourceSide == targetSide
+							|| !sector.m_pathingBorderTiles[sourceSide]
+							|| !sector.m_pathingBorderTiles[targetSide])
+						{
+							continue;
+						}
+
+						std::thread([&sector, sourceSide, targetSide, &quadrant, sectorI, sectorJ]() {
+							auto GetSideTile = [](auto side, auto index) -> CoordinateVector2 {
+								switch (side)
+								{
+								case Pathing::PathingSide::NORTH: return { index, 0 };
+								case Pathing::PathingSide::SOUTH: return { index, TileNED::SECTOR_SIDE_LENGTH - 1 };
+								case Pathing::PathingSide::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1, index };
+								case Pathing::PathingSide::WEST: return { 0, index };
+								}
+								return {};
+							};
+							auto path = Pathing::GetPath(
+								sector.m_tileMovementCosts,
+								GetSideTile(sourceSide, *sector.m_pathingBorderTiles[sourceSide]),
+								GetSideTile(targetSide, *sector.m_pathingBorderTiles[targetSide]));
+							if (path)
+							{
+								quadrant.m_sectorCrossingPaths[sectorI][sectorJ][sourceSide][targetSide] = path->m_path;
+								quadrant.m_sectorCrossingPathCosts[sectorI][sectorJ][sourceSide][targetSide] = path->m_totalPathCost;
+							}
+						}).detach();
+					}
+				}
+			}
+		}
+
 	});
 	pathingInfoThread.detach();
 }
