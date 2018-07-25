@@ -44,6 +44,8 @@ namespace Pathing
 		};
 
 		Enum Opposite(Enum d);
+		Direction Convert(Enum d);
+		Enum Convert(Direction d);
 	}
 
 	template<int X, int Y>
@@ -78,7 +80,7 @@ namespace Pathing
 			int airDistToTarget,
 			int entry,
 			int exit,
-			const std::deque<CoordinateVector2>& previousPath)
+			const std::vector<MacroPathNode>& previousPath)
 			: m_coordinates(coordinates)
 			, m_costToPoint(costToPoint)
 			, m_airDistToTarget(airDistToTarget)
@@ -86,7 +88,7 @@ namespace Pathing
 			, m_exit(static_cast<PathingSide::Enum>(exit))
 			, m_previousPath(previousPath)
 		{
-			m_previousPath.push_back(coordinates);
+			m_previousPath.emplace_back(coordinates, PathingSide::Convert(m_entry), PathingSide::Convert(m_exit));
 		}
 
 		CoordinateVector2 m_coordinates;
@@ -94,14 +96,14 @@ namespace Pathing
 		int m_airDistToTarget{ 0 };
 		PathingSide::Enum m_entry{ PathingSide::_COUNT };
 		PathingSide::Enum m_exit{ PathingSide::_COUNT };
-		std::deque<CoordinateVector2> m_previousPath;
+		std::vector<MacroPathNode> m_previousPath;
 	};
 
 	static const CoordinateVector2 neighborOffsets[] = {
 		{ 0, -1 }, // NORTH
-	{ 0,  1 }, // SOUTH
-	{ 1,  0 }, // EAST
-	{ -1,  0 }, // WEST
+		{ 0,  1 }, // SOUTH
+		{ 1,  0 }, // EAST
+		{ -1,  0 }, // WEST
 	};
 
 	// Movement Cost is cost to enter a node.
@@ -219,7 +221,7 @@ namespace Pathing
 	// Movement cost is cost to move through the previous node from a certain side to
 	// the side adjacent to the current node
 	template<int X, int Y>
-	std::optional<Path> GetPath(
+	std::optional<MacroPath> GetPath(
 		const DirectionMovementCostArray<X, Y>& movementCosts,
 		const CoordinateVector2& origin,
 		PathingSide::Enum originDirection,
@@ -291,7 +293,7 @@ namespace Pathing
 			auto currentNode = *openPoints.begin();
 			if (currentNode.m_coordinates == goal)
 			{
-				Path result;
+				MacroPath result;
 				result.m_totalPathCost = costToPoint[goal.m_x][goal.m_y][currentNode.m_entry][currentNode.m_exit];
 				result.m_path = currentNode.m_previousPath;
 				return result;

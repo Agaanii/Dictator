@@ -60,6 +60,7 @@ bool CheckStartTargetedMovement(
 	{
 		actionPlan.m_plan.push_back(Action::SetTargetedMovement(
 			movement.m_moverHandle,
+			manager.getHandle(targetEntity),
 			position.m_position));
 		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
 		movementFound = true;

@@ -61,14 +61,36 @@ namespace std
 
 auto Pathing::PathingSide::Opposite(Enum d) -> Enum
 {
+	switch (d)
 	{
-		switch (d)
-		{
-		case NORTH: return SOUTH;
-		case SOUTH: return NORTH;
-		case EAST: return WEST;
-		case WEST: return EAST;
-		}
-		return _COUNT;
+	case NORTH: return SOUTH;
+	case SOUTH: return NORTH;
+	case EAST: return WEST;
+	case WEST: return EAST;
 	}
+	return _COUNT;
+}
+
+Direction Pathing::PathingSide::Convert(Enum d)
+{
+	switch (d)
+	{
+	case NORTH: return Direction::NORTH;
+	case SOUTH: return Direction::SOUTH;
+	case EAST: return Direction::EAST;
+	case WEST: return Direction::WEST;
+	}
+	return Direction::NORTH;
+}
+
+auto Pathing::PathingSide::Convert(Direction d) -> Enum
+{
+	switch (d)
+	{
+	case Direction::NORTH: return NORTH;
+	case Direction::SOUTH: return SOUTH;
+	case Direction::EAST: return EAST;
+	case Direction::WEST: return WEST;
+	}
+	return _COUNT;
 }

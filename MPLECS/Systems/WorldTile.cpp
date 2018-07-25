@@ -1181,6 +1181,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& setMovement = std::get<Action::SetTargetedMovement>(action);
 					if (setMovement.m_path) continue;
 					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover)) continue;
+					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover)) continue;
 					auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover).m_position;
 
 					// Make sure you can get from source tile to target tile
@@ -1218,7 +1219,88 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 						if (sectorPath)
 						{
-							static_cast<void*>(&sectorPath);
+							// Glue together: starting tile to exit tile of first sector
+							// Rest of the sectors
+							// Final sector entry tile to target tile.
+
+							const auto& startingMacroPath = sectorPath->m_path.front();
+							const auto& startingSector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+							auto startingExitTile = [&direction = startingMacroPath.m_exitDirection,
+								&sector = startingSector]()->CoordinateVector2 {
+								switch (direction)
+								{
+								case Direction::NORTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH], 0 };
+								case Direction::SOUTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH], TileNED::SECTOR_SIDE_LENGTH - 1 };
+								case Direction::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] };
+								case Direction::WEST: return { 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] };
+								}
+								return { 0,0 };
+							}();
+							auto startingPath = Pathing::GetPath(
+								startingSector.m_tileMovementCosts,
+								sourcePosition.m_coords,
+								startingExitTile);
+							if (!startingPath)
+							{
+								setMovement.m_path = -1;
+								continue;
+							}
+
+							auto& endingMacroPath = sectorPath->m_path.back();
+							const auto& endingSector = quadrant.m_sectors
+								[setMovement.m_targetPosition.m_sectorCoords.m_x]
+								[setMovement.m_targetPosition.m_sectorCoords.m_y];
+							auto endingEntryTile = [&direction = endingMacroPath.m_entryDirection,
+								&sector = endingSector]()->CoordinateVector2 {
+								switch (direction)
+								{
+								case Direction::NORTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH], 0 };
+								case Direction::SOUTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH], TileNED::SECTOR_SIDE_LENGTH - 1 };
+								case Direction::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] };
+								case Direction::WEST: return { 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] };
+								}
+								return { 0,0 };
+							}();
+							auto endingPath = Pathing::GetPath(
+								endingSector.m_tileMovementCosts,
+								endingEntryTile,
+								setMovement.m_targetPosition.m_coords);
+							if (!endingPath)
+							{
+								setMovement.m_path = -1;
+								continue;
+							}
+
+							// Glue it all together
+							ECS_Core::Components::MoveToPoint overallPath;
+							for (auto&& tile : startingPath->m_path)
+							{
+								overallPath.m_path.push_back({ setMovement.m_targetPosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile });
+							}
+
+							for (int i = 1; i < sectorPath->m_path.size() - 1; ++i)
+							{
+								auto& path = sectorPath->m_path[i];
+								auto& crossingPath = quadrant.m_sectorCrossingPaths
+									[path.m_node.m_x]
+									[path.m_node.m_y]
+									[Pathing::PathingSide::Convert(path.m_entryDirection)]
+									[Pathing::PathingSide::Convert(path.m_exitDirection)];
+								for (auto&& tile : *crossingPath)
+								{
+									overallPath.m_path.push_back({ setMovement.m_targetPosition.m_quadrantCoords, { path.m_node.m_x, path.m_node.m_y }, tile });
+								}
+							}
+
+							for (auto&& tile : endingPath->m_path)
+							{
+								overallPath.m_path.push_back({ setMovement.m_targetPosition.m_quadrantCoords, setMovement.m_targetPosition.m_sectorCoords, tile });
+							}
+							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
+							overallPath.m_targetPosition = setMovement.m_targetPosition;
+							movingUnit.m_currentMovement = overallPath;
+
+							manager.addTag<ECS_Core::Tags::T_Dead>(setMovement.m_targetingIcon);
 						}
 					}
 

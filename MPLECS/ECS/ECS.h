@@ -272,6 +272,9 @@ namespace ECS_Core
 		struct MoveToPoint
 		{
 			TilePosition m_targetPosition;
+			std::vector<TilePosition> m_path;
+			int m_currentPathIndex{ 0 };
+			f64 m_currentMovementProgress{ 0 };
 		};
 		using MovementCommand = std::variant<ExplorationPlan, MoveToPoint>;
 
@@ -337,6 +340,7 @@ namespace ECS_Core
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
 		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population>;
 		using S_MovementPlanIndicator = ecs::Signature<Components::C_MovementTarget, Components::C_TilePosition>;
+		using S_Dead = ecs::Signature<Tags::T_Dead>;
 	}
 
 	using MasterComponentList = ecs::ComponentList<
@@ -403,7 +407,8 @@ namespace ECS_Core
 		Signatures::S_CaravanUnit,
 		Signatures::S_MovingUnit,
 		Signatures::S_SelectedMovingUnit,
-		Signatures::S_MovementPlanIndicator
+		Signatures::S_MovementPlanIndicator,
+		Signatures::S_Dead
 	>;
 
 	using MasterSettings = ecs::Settings<MasterComponentList, MasterTagList, MasterSignatureList>;
