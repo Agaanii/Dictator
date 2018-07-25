@@ -50,6 +50,28 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 		position.m_position += ((velocity.m_velocity) + (acceleration.m_acceleration * time.m_frameDuration)) * time.m_frameDuration;
 		return ecs::IterationBehavior::CONTINUE;
 	});
+
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
+		[&manager = m_managerRef, &time](
+			ecs::EntityIndex mI,
+			ECS_Core::Components::C_TilePosition& tilePosition,
+			ECS_Core::Components::C_MovingUnit& mover,
+			const ECS_Core::Components::C_Population&)
+	{
+		if (mover.m_currentMovement && std::holds_alternative<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement))
+		{
+			auto& pointMovement = std::get<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement);
+			pointMovement.m_currentMovementProgress += time.m_frameDuration * mover.m_movementPerDay;
+			while (pointMovement.m_currentMovementProgress >= 1)
+			{
+				++pointMovement.m_currentPathIndex;
+				pointMovement.m_currentMovementProgress -= 1;
+			}
+			pointMovement.m_currentPathIndex = min<int>(pointMovement.m_currentPathIndex, static_cast<int>(pointMovement.m_path.size()) - 1);
+			tilePosition.m_position = pointMovement.m_path[pointMovement.m_currentPathIndex];
+		}
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 bool NewtonianMovement::ShouldExit()
