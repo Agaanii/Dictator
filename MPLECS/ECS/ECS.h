@@ -269,10 +269,19 @@ namespace ECS_Core
 			// Once time matches days to explore + leaving time, turn around and return home
 			s64 m_daysToExplore;
 		};
+		struct MovementTilePosition
+		{
+			MovementTilePosition(TilePosition tile, int movementCost)
+				: m_tile(tile)
+				, m_movementCost(movementCost)
+			{ }
+			TilePosition m_tile;
+			int m_movementCost{ 1 };
+		};
 		struct MoveToPoint
 		{
 			TilePosition m_targetPosition;
-			std::vector<TilePosition> m_path;
+			std::vector<MovementTilePosition> m_path;
 			int m_currentPathIndex{ 0 };
 			f64 m_currentMovementProgress{ 0 };
 		};

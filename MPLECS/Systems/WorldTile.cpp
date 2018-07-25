@@ -1275,7 +1275,8 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							ECS_Core::Components::MoveToPoint overallPath;
 							for (auto&& tile : startingPath->m_path)
 							{
-								overallPath.m_path.push_back({ setMovement.m_targetPosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile });
+								overallPath.m_path.push_back({ { setMovement.m_targetPosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
+									*quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 							}
 
 							for (int i = 1; i < sectorPath->m_path.size() - 1; ++i)
@@ -1288,13 +1289,15 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 									[Pathing::PathingSide::Convert(path.m_exitDirection)];
 								for (auto&& tile : *crossingPath)
 								{
-									overallPath.m_path.push_back({ setMovement.m_targetPosition.m_quadrantCoords, { path.m_node.m_x, path.m_node.m_y }, tile });
+									overallPath.m_path.push_back({{ setMovement.m_targetPosition.m_quadrantCoords, { path.m_node.m_x, path.m_node.m_y }, tile },
+										*quadrant.m_sectors[path.m_node.m_x][path.m_node.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 								}
 							}
 
 							for (auto&& tile : endingPath->m_path)
 							{
-								overallPath.m_path.push_back({ setMovement.m_targetPosition.m_quadrantCoords, setMovement.m_targetPosition.m_sectorCoords, tile });
+								overallPath.m_path.push_back({{ setMovement.m_targetPosition.m_quadrantCoords, setMovement.m_targetPosition.m_sectorCoords, tile },
+									*quadrant.m_sectors[setMovement.m_targetPosition.m_sectorCoords.m_x][setMovement.m_targetPosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 							}
 							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
 							overallPath.m_targetPosition = setMovement.m_targetPosition;

@@ -17,7 +17,7 @@
 void NewtonianMovement::ProgramInit() {}
 void NewtonianMovement::SetupGameplay() {}
 
-void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration) 
+void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	if (phase != GameLoopPhase::ACTION)
 	{
@@ -62,13 +62,12 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 		{
 			auto& pointMovement = std::get<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement);
 			pointMovement.m_currentMovementProgress += time.m_frameDuration * mover.m_movementPerDay;
-			while (pointMovement.m_currentMovementProgress >= 1)
+			while (pointMovement.m_currentMovementProgress >= pointMovement.m_path[pointMovement.m_currentPathIndex].m_movementCost)
 			{
-				++pointMovement.m_currentPathIndex;
-				pointMovement.m_currentMovementProgress -= 1;
+				pointMovement.m_currentMovementProgress -= pointMovement.m_path[pointMovement.m_currentPathIndex].m_movementCost;
+				pointMovement.m_currentPathIndex = min<int>(++pointMovement.m_currentPathIndex, static_cast<int>(pointMovement.m_path.size()) - 1);
 			}
-			pointMovement.m_currentPathIndex = min<int>(pointMovement.m_currentPathIndex, static_cast<int>(pointMovement.m_path.size()) - 1);
-			tilePosition.m_position = pointMovement.m_path[pointMovement.m_currentPathIndex];
+			tilePosition.m_position = pointMovement.m_path[pointMovement.m_currentPathIndex].m_tile;
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
