@@ -20,10 +20,44 @@ namespace std
 		{
 			return false;
 		}
-		return (left.m_airDistToTarget + left.m_costToPoint) <
-			(right.m_airDistToTarget + right.m_costToPoint);
+		if ((left.m_airDistToTarget + left.m_costToPoint) < (right.m_airDistToTarget + right.m_costToPoint))
+		{
+			return true;
+		}
+		if ((left.m_airDistToTarget + left.m_costToPoint) > (right.m_airDistToTarget + right.m_costToPoint))
+		{
+			return false;
+		}
+		return left.m_coordinates < right.m_coordinates;
 	}
-};
+
+	bool operator<(const Pathing::SortedDirectionalCoordinate& left, const Pathing::SortedDirectionalCoordinate& right)
+	{
+		if (left.m_airDistToTarget == 0 && right.m_airDistToTarget != 0)
+		{
+			return true;
+		}
+		if (left.m_airDistToTarget != 0 && right.m_airDistToTarget == 0)
+		{
+			return false;
+		}
+		if ((left.m_airDistToTarget + left.m_costToPoint) < (right.m_airDistToTarget + right.m_costToPoint))
+		{
+			return true;
+		}
+		if ((left.m_airDistToTarget + left.m_costToPoint) > (right.m_airDistToTarget + right.m_costToPoint))
+		{
+			return false;
+		}
+		if (left.m_entry < right.m_entry) return true;
+		if (left.m_entry > right.m_entry) return false;
+
+		if (left.m_exit < right.m_exit) return true;
+		if (left.m_exit > right.m_exit) return false;
+
+		return left.m_coordinates < right.m_coordinates;
+	}
+}
 
 auto Pathing::PathingSide::Opposite(Enum d) -> Enum
 {

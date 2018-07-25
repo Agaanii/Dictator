@@ -73,10 +73,10 @@ namespace TileNED
 	{
 		Tile m_tiles
 			[TileConstants::SECTOR_SIDE_LENGTH]
-			[TileConstants::SECTOR_SIDE_LENGTH];
+		[TileConstants::SECTOR_SIDE_LENGTH];
 		std::optional<int> m_tileMovementCosts
 			[TileConstants::SECTOR_SIDE_LENGTH]
-			[TileConstants::SECTOR_SIDE_LENGTH];
+		[TileConstants::SECTOR_SIDE_LENGTH];
 
 		// Relevant index of the tile on each border being used for 
 		// pathing between sectors
@@ -86,19 +86,19 @@ namespace TileNED
 	{
 		Sector m_sectors
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[TileConstants::QUADRANT_SIDE_LENGTH];
+		[TileConstants::QUADRANT_SIDE_LENGTH];
 
 		sf::Texture m_texture;
 		std::optional<int> m_sectorCrossingPathCosts
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[Pathing::PathingSide::_COUNT]
-			[Pathing::PathingSide::_COUNT];
+		[TileConstants::QUADRANT_SIDE_LENGTH]
+		[Pathing::PathingSide::_COUNT]
+		[Pathing::PathingSide::_COUNT];
 		std::optional<std::deque<CoordinateVector2>> m_sectorCrossingPaths
 			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-			[Pathing::PathingSide::_COUNT]
-			[Pathing::PathingSide::_COUNT];
+		[TileConstants::QUADRANT_SIDE_LENGTH]
+		[Pathing::PathingSide::_COUNT]
+		[Pathing::PathingSide::_COUNT];
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 	SpawnedQuadrantMap s_spawnedQuadrants;
@@ -438,7 +438,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		{
 			thread.join();
 		}
-		
+
 		// First, pick the points for input/output on each border
 		// Go along each horizontal border, and each vertical
 		std::vector<std::thread> borderThreads;
@@ -456,11 +456,30 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
 					{
 						auto borderIndex = [&i, &middleIndex]() {
-							if (i % 2 == 0) return middleIndex + (i / 2);
-							else return middleIndex - (i / 2); 
+							if (i % 2 == 0) return middleIndex - (i / 2);
+							else return middleIndex + (i / 2);
 						}();
-						if (upperSector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 1]
-							&& lowerSector.m_tileMovementCosts[borderIndex][0])
+						// Check if each is leavable (don't try to put people on a 1-tile island
+						// As well as the tile itself being pathable
+						bool upperTileValid = upperSector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 1].has_value();
+						bool lowerTileValid = lowerSector.m_tileMovementCosts[borderIndex][0].has_value();
+						int upperPathableTiles = 0;
+						int lowerPathableTiles = 0;
+
+						if (upperSector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 2]) ++upperPathableTiles;
+						if (lowerSector.m_tileMovementCosts[borderIndex][1]) ++lowerPathableTiles;
+						if (borderIndex > 0)
+						{
+							if (upperSector.m_tileMovementCosts[borderIndex - 1][SECTOR_SIDE_LENGTH - 1]) ++upperPathableTiles;
+							if (lowerSector.m_tileMovementCosts[borderIndex - 1][0]) ++lowerPathableTiles;
+						}
+						if (borderIndex < SECTOR_SIDE_LENGTH - 1)
+						{
+							if (upperSector.m_tileMovementCosts[borderIndex + 1][SECTOR_SIDE_LENGTH - 1]) ++upperPathableTiles;
+							if (lowerSector.m_tileMovementCosts[borderIndex + 1][0]) ++lowerPathableTiles;
+						}
+
+						if (upperTileValid && lowerTileValid && upperPathableTiles > 0 && lowerPathableTiles > 0)
 						{
 							upperSector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH] = borderIndex;
 							lowerSector.m_pathingBorderTiles[Pathing::PathingSide::NORTH] = borderIndex;
@@ -478,11 +497,30 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
 					{
 						auto borderIndex = [&i, &middleIndex]() {
-							if (i % 2 == 0) return middleIndex + (i / 2);
-							else return middleIndex - (i / 2);
+							if (i % 2 == 0) return middleIndex - (i / 2);
+							else return middleIndex + (i / 2);
 						}();
-						if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex]
-							&& rightSector.m_tileMovementCosts[0][borderIndex])
+
+						// Check if each is leavable (don't try to put people on a 1-tile island
+						// As well as the tile itself being pathable
+						bool leftTileValid = leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex].has_value();
+						bool rightTileValid = rightSector.m_tileMovementCosts[0][borderIndex].has_value();
+						int leftPathableTiles = 0;
+						int rightPathableTiles = 0;
+						if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 2][borderIndex]) ++leftPathableTiles;
+						if (rightSector.m_tileMovementCosts[1][borderIndex]) ++rightPathableTiles;
+						if (borderIndex > 0)
+						{
+							if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex - 1]) ++leftPathableTiles;
+							if (rightSector.m_tileMovementCosts[0][borderIndex - 1]) ++rightPathableTiles;
+						}
+						if (borderIndex < SECTOR_SIDE_LENGTH - 1)
+						{
+							if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex + 1]) ++leftPathableTiles;
+							if (rightSector.m_tileMovementCosts[0][borderIndex + 1]) ++rightPathableTiles;
+						}
+
+						if (leftTileValid && rightTileValid && leftPathableTiles > 0 && rightPathableTiles > 0)
 						{
 							leftSector.m_pathingBorderTiles[Pathing::PathingSide::EAST] = borderIndex;
 							rightSector.m_pathingBorderTiles[Pathing::PathingSide::WEST] = borderIndex;
@@ -491,6 +529,102 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 					}
 				});
 			}
+
+			// Top border (one-sided)
+			borderThreads.emplace_back([sectorI, &quadrant]() {
+				auto& sector = quadrant.m_sectors[sectorI][0];
+				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
+				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+				{
+					auto borderIndex = [&i, &middleIndex]() {
+						if (i % 2 == 0) return middleIndex - (i / 2);
+						else return middleIndex + (i / 2);
+					}();
+
+					bool tileValid = sector.m_tileMovementCosts[borderIndex][0].has_value();
+					int pathableTiles = 0;
+					if (sector.m_tileMovementCosts[borderIndex][1]) ++pathableTiles;
+					if (borderIndex > 0 && sector.m_tileMovementCosts[borderIndex - 1][0]) ++pathableTiles;
+					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[borderIndex + 1][0]) ++pathableTiles;
+
+					if (tileValid && pathableTiles > 0)
+					{
+						sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH] = borderIndex;
+					}
+				}
+			});
+
+			// Bottom border (one-sided)
+			borderThreads.emplace_back([sectorI, &quadrant]() {
+				auto& sector = quadrant.m_sectors[sectorI][QUADRANT_SIDE_LENGTH - 1];
+				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
+				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+				{
+					auto borderIndex = [&i, &middleIndex]() {
+						if (i % 2 == 0) return middleIndex - (i / 2);
+						else return middleIndex + (i / 2);
+					}();
+
+					bool tileValid = sector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 1].has_value();
+					int pathableTiles = 0;
+					if (sector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 2]) ++pathableTiles;
+					if (borderIndex > 0 && sector.m_tileMovementCosts[borderIndex - 1][SECTOR_SIDE_LENGTH - 1]) ++pathableTiles;
+					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[borderIndex + 1][SECTOR_SIDE_LENGTH - 1]) ++pathableTiles;
+
+					if (tileValid && pathableTiles > 0)
+					{
+						sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH] = borderIndex;
+					}
+				}
+			});
+
+			// Left border (one-sided)
+			borderThreads.emplace_back([sectorI, &quadrant]() {
+				auto& sector = quadrant.m_sectors[0][sectorI];
+				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
+				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+				{
+					auto borderIndex = [&i, &middleIndex]() {
+						if (i % 2 == 0) return middleIndex - (i / 2);
+						else return middleIndex + (i / 2);
+					}();
+
+					bool tileValid = sector.m_tileMovementCosts[0][borderIndex].has_value();
+					int pathableTiles = 0;
+					if (sector.m_tileMovementCosts[1][borderIndex]) ++pathableTiles;
+					if (borderIndex > 0 && sector.m_tileMovementCosts[0][borderIndex - 1]) ++pathableTiles;
+					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[0][borderIndex + 1]) ++pathableTiles;
+
+					if (tileValid && pathableTiles > 0)
+					{
+						sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] = borderIndex;
+					}
+				}
+			});
+
+			// Right border (one-sided)
+			borderThreads.emplace_back([sectorI, &quadrant]() {
+				auto& sector = quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][sectorI];
+				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
+				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+				{
+					auto borderIndex = [&i, &middleIndex]() {
+						if (i % 2 == 0) return middleIndex - (i / 2);
+						else return middleIndex + (i / 2);
+					}();
+
+					bool tileValid = sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex].has_value();
+					int pathableTiles = 0;
+					if (sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 2][borderIndex]) ++pathableTiles;
+					if (borderIndex > 0 && sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex - 1]) ++pathableTiles;
+					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex + 1]) ++pathableTiles;
+
+					if (tileValid && pathableTiles > 0)
+					{
+						sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] = borderIndex;
+					}
+				}
+			});
 		}
 		for (auto&& thread : borderThreads)
 		{
@@ -499,12 +633,12 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		}
 
 		std::vector<std::thread> pathFindingThreads;
-
 		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
 		{
 			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
 			{
 				auto& sector = quadrant.m_sectors[sectorI][sectorJ];
+
 				for (int sourceSide = Pathing::PathingSide::NORTH; sourceSide < Pathing::PathingSide::_COUNT; ++sourceSide)
 				{
 					for (int targetSide = Pathing::PathingSide::NORTH; targetSide < Pathing::PathingSide::_COUNT; ++targetSide)
@@ -541,7 +675,6 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 				}
 			}
 		}
-
 	});
 	pathingInfoThread.detach();
 }
@@ -1015,7 +1148,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		if (!TileNED::baseQuadrantSpawned)
 		{
 			TileNED::baseQuadrantSpawned = true;
-			std::thread([&manager = m_managerRef]() {SpawnQuadrant({ 0, 0 }, manager); }).detach();			
+			std::thread([&manager = m_managerRef]() {SpawnQuadrant({ 0, 0 }, manager); }).detach();
 		}
 		break;
 	case GameLoopPhase::INPUT:
@@ -1064,6 +1197,29 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 						// For each sector in path, find shortest tile path entry to exit 
 						// (if in same sector, shortest tile path source to target)
+					}
+					else
+					{
+						auto& quadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
+						Pathing::PathingSide::Enum simOriginSide = [&tile = sourcePosition.m_coords]()->Pathing::PathingSide::Enum {
+							auto xDistance = min<s64>(tile.m_x, TileNED::SECTOR_SIDE_LENGTH - tile.m_x - 1);
+							auto yDistance = min<s64>(tile.m_y, TileNED::SECTOR_SIDE_LENGTH - tile.m_y - 1);
+							if (xDistance <= yDistance)
+							{
+								return xDistance == tile.m_x ? Pathing::PathingSide::WEST : Pathing::PathingSide::EAST;
+							}
+							return yDistance == tile.m_y ? Pathing::PathingSide::NORTH : Pathing::PathingSide::SOUTH;
+						}();
+						auto sectorPath = Pathing::GetPath(
+							quadrant.m_sectorCrossingPathCosts,
+							sourcePosition.m_sectorCoords,
+							simOriginSide,
+							setMovement.m_targetPosition.m_sectorCoords);
+
+						if (sectorPath)
+						{
+							static_cast<void*>(&sectorPath);
+						}
 					}
 
 					// Return error because not yet implemented
@@ -1180,7 +1336,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 									buildGraphic->setFillColor({ 85, 180, 100 });
 									drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
-									
+
 									for (auto&& dataStr : uiFrame.m_dataStrings)
 									{
 										dataStr.second.m_text->setFillColor({ 255,255,255 });
@@ -1332,7 +1488,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					targetGraphic->setFillColor({ 128, 128, 0, 128 });
 					targetGraphic->setOutlineColor({ 128, 128, 0 });
 					targetGraphic->setOutlineThickness(-0.75f);
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic, {} });
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
