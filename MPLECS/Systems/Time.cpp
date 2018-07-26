@@ -21,7 +21,7 @@ void Time::ProgramInit() {}
 extern sf::Font s_font;
 void Time::SetupGameplay()
 {
-	auto index = m_managerRef.createIndex();
+	auto index = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_TimeTracker>(index);
 
 	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(index);

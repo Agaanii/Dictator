@@ -104,7 +104,7 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 		return false;
 	}
 
-	auto ghostEntity = manager.createIndex();
+	auto ghostEntity = manager.createHandle();
 	auto& ghost = manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
 	ghost.m_placingGovernor = governor;
 	ghost.m_paidYield = buildingCostIter->second;
@@ -471,7 +471,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(builder.m_popSource);
 					
 					// Spawn entity for the unit, then take costs and population
-					auto newEntity = manager.createIndex();
+					auto newEntity = manager.createHandle();
 					auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
 
 					auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);

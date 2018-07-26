@@ -514,7 +514,7 @@ void EventResponse::OnJoystickDisconnect(const sf::Event::JoystickConnectEvent& 
 
 void SFMLManager::ProgramInit() 
 {
-	auto windowInfoIndex = m_managerRef.createIndex();
+	auto windowInfoIndex = m_managerRef.createHandle();
 	auto& windowInfo = m_managerRef.addComponent<ECS_Core::Components::C_WindowInfo>(windowInfoIndex);
 	windowInfo.m_windowSize = CartesianVector2<unsigned int>{ s_window.getSize().x, s_window.getSize().y }.cast<f64>();
 }

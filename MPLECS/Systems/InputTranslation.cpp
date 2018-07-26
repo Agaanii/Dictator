@@ -20,6 +20,55 @@
 void InputTranslation::ProgramInit() {}
 void InputTranslation::SetupGameplay() {}
 
+bool CheckPlaceBuildingCommand(
+	ECS_Core::Components::C_UserInputs& inputs,
+	ECS_Core::Components::C_ActionPlan& actionPlan,
+	ECS_Core::Manager& manager)
+{
+	using namespace ECS_Core;
+	bool ghostFound{ false };
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &inputs, &actionPlan, &ghostFound](
+		const ecs::EntityIndex& ghostEntity,
+		const Components::C_BuildingDescription&,
+		const Components::C_TilePosition&,
+		const Components::C_BuildingGhost& ghost)
+	{
+		if (!ghost.m_currentPlacementValid)
+		{
+			// TODO: Surface error
+			return ecs::IterationBehavior::CONTINUE;
+		}
+		actionPlan.m_plan.push_back(Action::LocalPlayer::CreateBuildingFromGhost());
+		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
+		ghostFound = true;
+		return ecs::IterationBehavior::BREAK;
+	});
+	return ghostFound;
+}
+
+bool CheckStartTargetedMovement(
+	ECS_Core::Components::C_UserInputs& inputs,
+	ECS_Core::Components::C_ActionPlan& actionPlan,
+	ECS_Core::Manager& manager)
+{
+	using namespace ECS_Core;
+	bool movementFound{ false };
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>([&manager, &inputs, &actionPlan, &movementFound](
+		const ecs::EntityIndex& targetEntity,
+		const Components::C_MovementTarget& movement,
+		const Components::C_TilePosition& position)
+	{
+		actionPlan.m_plan.push_back(Action::SetTargetedMovement(
+			movement.m_moverHandle,
+			manager.getHandle(targetEntity),
+			position.m_position));
+		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
+		movementFound = true;
+		return ecs::IterationBehavior::BREAK;
+	});
+	return movementFound;
+}
+
 void TranslateDownClicks(
 	ECS_Core::Components::C_UserInputs& inputs,
 	ECS_Core::Components::C_ActionPlan& actionPlan,
@@ -27,26 +76,9 @@ void TranslateDownClicks(
 {
 	using namespace ECS_Core;
 	if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
-	{
-		bool ghostFound{ false };
-		manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &inputs, &actionPlan, &ghostFound](
-			const ecs::EntityIndex& ghostEntity,
-			const Components::C_BuildingDescription&,
-			const Components::C_TilePosition&,
-			const Components::C_BuildingGhost& ghost)
-		{
-			if (!ghost.m_currentPlacementValid)
-			{
-				// TODO: Surface error
-				return ecs::IterationBehavior::CONTINUE;
-			}
-			actionPlan.m_plan.push_back(Action::LocalPlayer::CreateBuildingFromGhost());
-			inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-			ghostFound = true;
-			return ecs::IterationBehavior::BREAK;
-		});
-
-		if (!ghostFound)
+	{	
+		if (!CheckPlaceBuildingCommand(inputs, actionPlan, manager)
+			&& !CheckStartTargetedMovement(inputs, actionPlan, manager))
 		{
 			actionPlan.m_plan.push_back(Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition));
 		}
@@ -146,6 +178,20 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					const Components::C_BuildingGhost& ghost)
 			{
 				if (ghost.m_placingGovernor == governorHandle)
+				{
+					position.m_position = *inputs.m_currentMousePosition.m_tilePosition;
+				}
+				return ecs::IterationBehavior::CONTINUE;
+			});
+
+			// Same for any planned motions
+			manager.forEntitiesMatching<Signatures::S_MovementPlanIndicator>(
+				[&inputs, &governorHandle](
+					const ecs::EntityIndex& entity,
+					const Components::C_MovementTarget& mover,
+					Components::C_TilePosition& position)
+			{
+				if (mover.m_governorHandle == governorHandle)
 				{
 					position.m_position = *inputs.m_currentMousePosition.m_tilePosition;
 				}

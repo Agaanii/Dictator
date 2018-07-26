@@ -11,10 +11,41 @@
 
 #include "../Core/typedef.h"
 
+#include <deque>
 #include <map>
 #include <optional>
 #include <variant>
 #include <vector>
+
+namespace Pathing
+{
+	struct Path
+	{
+		std::deque<CoordinateVector2> m_path;
+		int m_totalPathCost;
+	};
+
+	struct MacroPathNode
+	{
+		MacroPathNode(const CoordinateVector2& node,
+			Direction entry,
+			Direction exit)
+			: m_node(node)
+			, m_entryDirection(entry)
+			, m_exitDirection(exit)
+		{
+
+		}
+		CoordinateVector2 m_node;
+		Direction m_entryDirection;
+		Direction m_exitDirection;
+	};
+	struct MacroPath
+	{
+		std::vector<MacroPathNode> m_path;
+		int m_totalPathCost;
+	};
+}
 
 namespace Action
 {
@@ -108,6 +139,23 @@ namespace Action
 		ecs::EntityIndex m_builderIndex;
 	};
 
+	struct SetTargetedMovement
+	{
+		SetTargetedMovement(
+			const ecs::Impl::Handle& mover,
+			const ecs::Impl::Handle& targetingIcon,
+			const TilePosition& position)
+			: m_mover(mover)
+			, m_targetingIcon(targetingIcon)
+			, m_targetPosition(position)
+		{}
+		ecs::Impl::Handle m_mover;
+		ecs::Impl::Handle m_targetingIcon;
+		TilePosition m_targetPosition;
+		// If set, int indicates error, Path indicates reachable
+		std::optional<std::variant<Pathing::Path, int>> m_path;
+	};
+
 	// Would love to use a Named Union instead
 	// This'll do for now
 	// @Herb - Metaclasses when
@@ -122,6 +170,8 @@ namespace Action
 		CreateBuildingUnit,
 		CreateCaravan,
 		CreateExplorationUnit,
-		SettleBuildingUnit>;
+		SettleBuildingUnit,
+		SetTargetedMovement
+	>;
 	using Plan = std::vector<Variant>;
 }

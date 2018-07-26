@@ -17,7 +17,7 @@
 void NewtonianMovement::ProgramInit() {}
 void NewtonianMovement::SetupGameplay() {}
 
-void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration) 
+void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	if (phase != GameLoopPhase::ACTION)
 	{
@@ -48,6 +48,27 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 			ECS_Core::Components::C_VelocityCartesian& velocity,
 			const ECS_Core::Components::C_AccelerationCartesian& acceleration) {
 		position.m_position += ((velocity.m_velocity) + (acceleration.m_acceleration * time.m_frameDuration)) * time.m_frameDuration;
+		return ecs::IterationBehavior::CONTINUE;
+	});
+
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
+		[&manager = m_managerRef, &time](
+			ecs::EntityIndex mI,
+			ECS_Core::Components::C_TilePosition& tilePosition,
+			ECS_Core::Components::C_MovingUnit& mover,
+			const ECS_Core::Components::C_Population&)
+	{
+		if (mover.m_currentMovement && std::holds_alternative<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement))
+		{
+			auto& pointMovement = std::get<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement);
+			pointMovement.m_currentMovementProgress += time.m_frameDuration * mover.m_movementPerDay;
+			while (pointMovement.m_currentMovementProgress >= pointMovement.m_path[pointMovement.m_currentPathIndex].m_movementCost)
+			{
+				pointMovement.m_currentMovementProgress -= pointMovement.m_path[pointMovement.m_currentPathIndex].m_movementCost;
+				pointMovement.m_currentPathIndex = min<int>(++pointMovement.m_currentPathIndex, static_cast<int>(pointMovement.m_path.size()) - 1);
+			}
+			tilePosition.m_position = pointMovement.m_path[pointMovement.m_currentPathIndex].m_tile;
+		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
