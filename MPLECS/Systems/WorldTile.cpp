@@ -1607,6 +1607,17 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					targetGraphic->setOutlineThickness(-0.75f);
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
 				}
+				else if (std::holds_alternative<Action::SettleBuildingUnit>(action))
+				{
+					auto& settle = std::get<Action::SettleBuildingUnit>(action);
+					if (!manager.hasComponent<ECS_Core::Components::C_BuildingDescription>(settle.m_builderIndex))
+					{
+						continue;
+					}
+					manager.delComponent<ECS_Core::Components::C_MovingUnit>(settle.m_builderIndex);
+					manager.delComponent<ECS_Core::Components::C_UIFrame>(settle.m_builderIndex);
+					manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(settle.m_builderIndex).m_placingGovernor=manager.getHandle(governorEntity);
+				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
