@@ -623,6 +623,13 @@ namespace ecs {
                         if(!entities[iD].alive) break;
                     }
 
+					MPL::Impl::forTypes<Settings::ComponentList>([this, iD](auto t) {
+						if (this->hasComponent<typename decltype(t)::type>(iD))
+						{
+							this->delComponent<typename decltype(t)::type>(iD);
+						}
+					});
+
                     for(; true; --iA) {
                         if(entities[iA].alive) break;
                         invalidateHandle(iA);

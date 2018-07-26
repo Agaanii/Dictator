@@ -48,6 +48,13 @@ void KillDyingUnits(ECS_Core::Manager& manager)
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
+
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_Dead>(
+		[&manager](ecs::EntityIndex mI)
+	{
+		manager.kill(mI);
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 bool UnitDeath::ShouldExit()
