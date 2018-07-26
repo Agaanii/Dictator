@@ -635,7 +635,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 		std::vector<std::thread> pathFindingThreads;
 		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
 		{
-			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
+			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH; ++sectorJ)
 			{
 				auto& sector = quadrant.m_sectors[sectorI][sectorJ];
 
@@ -1199,7 +1199,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						// For each sector in path, find shortest tile path entry to exit 
 						// (if in same sector, shortest tile path source to target)
 					}
-					else
+					else if (sourcePosition.m_sectorCoords != setMovement.m_targetPosition.m_sectorCoords)
 					{
 						auto& quadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
 						Pathing::PathingSide::Enum simOriginSide = [&tile = sourcePosition.m_coords]()->Pathing::PathingSide::Enum {
@@ -1302,6 +1302,28 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
 							overallPath.m_targetPosition = setMovement.m_targetPosition;
 							movingUnit.m_currentMovement = overallPath;
+
+							manager.addTag<ECS_Core::Tags::T_Dead>(setMovement.m_targetingIcon);
+						}
+					}
+					else
+					{
+						auto& quadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
+						auto& sector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+						auto totalPath = Pathing::GetPath(sector.m_tileMovementCosts,
+							sourcePosition.m_coords,
+							setMovement.m_targetPosition.m_coords);
+						if (totalPath)
+						{
+							ECS_Core::Components::MoveToPoint path;
+							for (auto&& tile : totalPath->m_path)
+							{
+								path.m_path.push_back({ { sourcePosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
+									*sector.m_tileMovementCosts[tile.m_x][tile.m_y] });
+							}
+							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
+							path.m_targetPosition = setMovement.m_targetPosition;
+							movingUnit.m_currentMovement = path;
 
 							manager.addTag<ECS_Core::Tags::T_Dead>(setMovement.m_targetingIcon);
 						}
