@@ -1616,6 +1616,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					}
 					manager.delComponent<ECS_Core::Components::C_MovingUnit>(settle.m_builderIndex);
 					manager.delComponent<ECS_Core::Components::C_UIFrame>(settle.m_builderIndex);
+					if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex))
+					{
+						manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex).m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
+					}
 					manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(settle.m_builderIndex).m_placingGovernor=manager.getHandle(governorEntity);
 				}
 			}

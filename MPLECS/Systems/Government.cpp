@@ -452,11 +452,29 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
 
 					auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
+					int sourceTotalMen{ 0 };
+					int sourceTotalWomen{ 0 };
+					for (auto&& pop : populationSource.m_populations)
+					{
+						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+						{
+							continue;
+						}
+						sourceTotalMen += pop.second.m_numMen;
+						sourceTotalWomen += pop.second.m_numWomen;
+					}
+					int totalMenToMove = min<int>(10, sourceTotalMen / 2);
+					int totalWomenToMove = min<int>(5, sourceTotalWomen / 2);
+					if (totalMenToMove < 3 || totalWomenToMove < 3)
+					{
+						continue;
+					}
+
 					int menMoved = 0;
 					int womenMoved = 0;
 					for (auto&& pop : populationSource.m_populations)
 					{
-						if (menMoved == 10 && womenMoved == 5)
+						if (menMoved == totalMenToMove && totalWomenToMove == 5)
 						{
 							break;
 						}
@@ -464,8 +482,8 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						{
 							continue;
 						}
-						auto menToMove = min<int>(10 - menMoved, pop.second.m_numMen / 2);
-						auto womenToMove = min<int>(5 - womenMoved, pop.second.m_numWomen / 2);
+						auto menToMove = min<int>(totalMenToMove - menMoved, pop.second.m_numMen);
+						auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.second.m_numWomen);
 
 						auto& popCopy = population.m_populations[pop.first];
 						popCopy = pop.second;

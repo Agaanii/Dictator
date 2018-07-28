@@ -138,6 +138,56 @@ void BirthChildren(ECS_Core::Manager& manager)
 	});
 }
 
+void CauseNaturalDeaths(ECS_Core::Manager& manager)
+{
+
+	using namespace ECS_Core;
+	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	if (timeEntity.size() == 0) return;
+	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	manager.forEntitiesMatching<Signatures::S_Population>([&time](
+		const ecs::EntityIndex&,
+		Components::C_Population& population) -> ecs::IterationBehavior
+	{
+		// Chance of dying = % of a year since previous frame
+		// Multiplied by population age
+		f64 frameYearPercent = time.m_frameDuration / (12 * 30);
+		std::vector<ECS_Core::Components::PopulationKey> deadSegments;
+		for (auto&& popSegment : population.m_populations)
+		{
+			// Age keys are in months
+			auto popAge = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
+
+			// Healthiest people are ~20
+			auto distanceFromHealth = max<int>(1, abs(popAge - 20));
+			auto deathChance = frameYearPercent * distanceFromHealth / 130;
+			auto randDouble = RandDouble();
+			auto deathCount = static_cast<int>(deathChance / randDouble);
+			if (deathCount <= 0)
+			{
+				continue;
+			}
+
+			auto maleDeathCount = min<int>(deathCount - (deathCount / 2), popSegment.second.m_numMen);
+			auto femaleDeathCount = min<int>(deathCount - maleDeathCount, popSegment.second.m_numWomen);
+
+			popSegment.second.m_numMen -= maleDeathCount;
+			popSegment.second.m_numWomen -= femaleDeathCount;
+
+			if (popSegment.second.m_numMen <= 0
+				&& popSegment.second.m_numWomen <= 0)
+			{
+				deadSegments.emplace_back(popSegment.first);
+			}
+		}
+		for (auto&& deadKey : deadSegments)
+		{
+			population.m_populations.erase(deadKey);
+		}
+		return ecs::IterationBehavior::CONTINUE;
+	});
+}
+
 void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -158,7 +208,7 @@ void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				AgePopulations(m_managerRef);
 				BirthChildren(m_managerRef);
 			}
-
+			CauseNaturalDeaths(m_managerRef);
 		}
 		return;
 	}
