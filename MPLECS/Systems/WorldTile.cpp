@@ -1419,6 +1419,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						buildingUnit.m_spawningPosition = { 0,0, sectorX, sectorY, tileX, tileY };
 						buildingUnit.m_movementSpeed = 1;
 						plan.m_plan.push_back(buildingUnit);
+						plan.m_plan.push_back(Action::LocalPlayer::CenterCamera(CoordinatesToWorldPosition(buildingUnit.m_spawningPosition)));
 						return ecs::IterationBehavior::CONTINUE;
 					});
 				}

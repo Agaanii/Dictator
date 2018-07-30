@@ -102,6 +102,12 @@ namespace Action
 			PlanMotion(const ecs::EntityIndex& moverIndex) : m_moverIndex(moverIndex) {}
 			ecs::EntityIndex m_moverIndex;
 		};
+
+		struct CenterCamera
+		{
+			CenterCamera(const CoordinateVector2& worldPosition) : m_worldPosition(worldPosition) {}
+			CoordinateVector2 m_worldPosition;
+		};
 	}
 
 	// AI governors choose position and place in the same turn
@@ -166,6 +172,7 @@ namespace Action
 		LocalPlayer::CloseUIFrame,
 		LocalPlayer::SelectTile,
 		LocalPlayer::PlanMotion,
+		LocalPlayer::CenterCamera,
 		PlaceBuilding, 
 		CreateBuildingUnit,
 		CreateCaravan,

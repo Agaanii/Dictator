@@ -536,6 +536,22 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		ReadSFMLInput(m_managerRef);
 	case GameLoopPhase::ACTION:
 	case GameLoopPhase::ACTION_RESPONSE:
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([](
+			const ecs::EntityIndex&,
+			const ECS_Core::Components::C_UserInputs&,
+			const ECS_Core::Components::C_ActionPlan& plan)
+		{
+			for (auto&& action : plan.m_plan)
+			{
+				if (std::holds_alternative<Action::LocalPlayer::CenterCamera>(action))
+				{
+					auto& centerCamera = std::get<Action::LocalPlayer::CenterCamera>(action);
+					s_worldView.setCenter({ 1.f * centerCamera.m_worldPosition.m_x, 1.f * centerCamera.m_worldPosition.m_y });
+					s_worldView.setSize(160.f, 90.f);
+				}
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		return;
 	case GameLoopPhase::INPUT:
 		ReceiveInput(m_managerRef, frameDuration);
