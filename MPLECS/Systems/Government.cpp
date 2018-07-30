@@ -438,80 +438,106 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						continue;
 					}
 
+
 					// Make sure the population source entity is still around
-					if (!manager.hasComponent<ECS_Core::Components::C_Population>(builder.m_popSource))
+					auto newEntityHandle = [&manager, &builder]() -> std::optional<ecs::Impl::Handle>
 					{
-						// TODO: Surface Error
+						if (builder.m_popSource)
+						{
+							if (!manager.hasComponent<ECS_Core::Components::C_Population>(*builder.m_popSource))
+							{
+								// TODO: Surface Error
+								return std::nullopt;
+							}
+							// Take the youngest workers, 10:5 male:female (more men die on the road)
+							auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(*builder.m_popSource);
+
+							// Spawn entity for the unit, then take costs and population
+							auto newEntity = manager.createHandle();
+							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+
+							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
+							int sourceTotalMen{ 0 };
+							int sourceTotalWomen{ 0 };
+							for (auto&& pop : populationSource.m_populations)
+							{
+								if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+								{
+									continue;
+								}
+								sourceTotalMen += pop.second.m_numMen;
+								sourceTotalWomen += pop.second.m_numWomen;
+							}
+							int totalMenToMove = 10;
+							int totalWomenToMove = 5;
+							if (totalMenToMove > (sourceTotalMen - 3) || totalWomenToMove > (sourceTotalWomen - 3))
+							{
+								return std::nullopt;
+							}
+
+							int menMoved = 0;
+							int womenMoved = 0;
+							for (auto&& pop : populationSource.m_populations)
+							{
+								if (menMoved == totalMenToMove && totalWomenToMove == 5)
+								{
+									break;
+								}
+								if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+								{
+									continue;
+								}
+								auto menToMove = min<int>(totalMenToMove - menMoved, pop.second.m_numMen);
+								auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.second.m_numWomen);
+
+								auto& popCopy = population.m_populations[pop.first];
+								popCopy = pop.second;
+								popCopy.m_numMen = menToMove;
+								popCopy.m_numWomen = womenToMove;
+
+								pop.second.m_numMen -= menToMove;
+								pop.second.m_numWomen -= womenToMove;
+
+
+								menMoved += menToMove;
+								womenMoved += womenToMove;
+							}
+							return newEntity;
+						}
+						else
+						{
+							auto newEntity = manager.createHandle();
+							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+
+							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
+							auto timeFront = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front();
+							auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeFront);
+							auto& foundingPopulation = population.m_populations[-12 * (time.m_year - 15) - time.m_month];
+							foundingPopulation.m_numMen = 5;
+							foundingPopulation.m_numWomen = 5;
+							foundingPopulation.m_class = ECS_Core::Components::PopulationClass::WORKERS;
+							return newEntity;
+						}
+					}();
+
+					if (!newEntityHandle)
+					{
 						continue;
 					}
-					// Take the youngest workers, 10:5 male:female (more men die on the road)
-					auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(builder.m_popSource);
-					
-					// Spawn entity for the unit, then take costs and population
-					auto newEntity = manager.createHandle();
-					auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
-
-					auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
-					int sourceTotalMen{ 0 };
-					int sourceTotalWomen{ 0 };
-					for (auto&& pop : populationSource.m_populations)
-					{
-						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
-						{
-							continue;
-						}
-						sourceTotalMen += pop.second.m_numMen;
-						sourceTotalWomen += pop.second.m_numWomen;
-					}
-					int totalMenToMove = min<int>(10, sourceTotalMen / 2);
-					int totalWomenToMove = min<int>(5, sourceTotalWomen / 2);
-					if (totalMenToMove < 3 || totalWomenToMove < 3)
-					{
-						continue;
-					}
-
-					int menMoved = 0;
-					int womenMoved = 0;
-					for (auto&& pop : populationSource.m_populations)
-					{
-						if (menMoved == totalMenToMove && totalWomenToMove == 5)
-						{
-							break;
-						}
-						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
-						{
-							continue;
-						}
-						auto menToMove = min<int>(totalMenToMove - menMoved, pop.second.m_numMen);
-						auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.second.m_numWomen);
-
-						auto& popCopy = population.m_populations[pop.first];
-						popCopy = pop.second;
-						popCopy.m_numMen = menToMove;
-						popCopy.m_numWomen = womenToMove;
-
-						pop.second.m_numMen -= menToMove;
-						pop.second.m_numWomen -= womenToMove;
-
-
-						menMoved += menToMove;
-						womenMoved += womenToMove;
-					}
-
-					auto& buildingDesc = manager.addComponent<ECS_Core::Components::C_BuildingDescription>(newEntity);
+					auto& buildingDesc = manager.addComponent<ECS_Core::Components::C_BuildingDescription>(*newEntityHandle);
 					buildingDesc.m_buildingType = builder.m_buildingTypeId;
-					auto& tilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(newEntity);
+					auto& tilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(*newEntityHandle);
 					tilePosition.m_position = builder.m_spawningPosition;
 
-					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(newEntity);
+					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*newEntityHandle);
 					auto unitIcon = std::make_shared<sf::CircleShape>(2.5f, 3);
 					unitIcon->setFillColor({ 45,45,45 });
 					unitIcon->setOutlineColor({ 120,120,120 });
 					unitIcon->setOutlineThickness(-0.3f);
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({
-						unitIcon, {0, 0}});
+						unitIcon, {0, 0} });
 
-					auto& cartesianPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(newEntity);
+					auto& cartesianPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(*newEntityHandle);
 
 					for (auto&& cost : costIter->second)
 					{

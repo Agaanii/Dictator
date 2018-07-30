@@ -18,6 +18,7 @@
 
 #include "../Util/Pathing.h"
 
+#include <iostream>
 #include <limits>
 #include <random>
 #include <thread>
@@ -103,7 +104,8 @@ namespace TileNED
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 	SpawnedQuadrantMap s_spawnedQuadrants;
-	bool baseQuadrantSpawned{ false };
+	bool s_baseQuadrantSpawned{ false };
+	bool s_startingBuilderSpawned{ false };
 
 	struct SectorSeed
 	{
@@ -317,106 +319,106 @@ f64 RandDouble()
 	return static_cast<f64>(rand()) / static_cast<f64>(RAND_MAX + 1);
 }
 
-void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
+std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
 {
 	using namespace TileConstants;
 	if (TileNED::s_spawnedQuadrants.find(coordinates)
 		!= TileNED::s_spawnedQuadrants.end())
 	{
 		// Quadrant is already here
-		return;
+		return std::thread([]() {});
 	}
-	auto index = manager.createHandle();
-	auto quadrantSideLength = QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH;
-	manager.addComponent<ECS_Core::Components::C_QuadrantPosition>(
-		index,
-		coordinates);
-	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(
-		index,
-		static_cast<f64>(BASE_QUADRANT_ORIGIN_COORDINATE +
-		(quadrantSideLength * coordinates.m_x)),
-		static_cast<f64>(BASE_QUADRANT_ORIGIN_COORDINATE +
-		(quadrantSideLength * coordinates.m_y)),
-		0);
 
-	auto rect = std::make_shared<sf::RectangleShape>(sf::Vector2f(
-		static_cast<float>(quadrantSideLength),
-		static_cast<float>(quadrantSideLength)));
-	auto& quadrant = TileNED::s_spawnedQuadrants[coordinates];
-	quadrant.m_texture.create(quadrantSideLength, quadrantSideLength);
-	for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
-	{
-		for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
+	return std::thread([&manager, coordinates]() {
+		auto index = manager.createHandle();
+		auto quadrantSideLength = QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH;
+		manager.addComponent<ECS_Core::Components::C_QuadrantPosition>(
+			index,
+			coordinates);
+		manager.addComponent<ECS_Core::Components::C_PositionCartesian>(
+			index,
+			static_cast<f64>(BASE_QUADRANT_ORIGIN_COORDINATE +
+			(quadrantSideLength * coordinates.m_x)),
+			static_cast<f64>(BASE_QUADRANT_ORIGIN_COORDINATE +
+			(quadrantSideLength * coordinates.m_y)),
+			0);
+
+		auto rect = std::make_shared<sf::RectangleShape>(sf::Vector2f(
+			static_cast<float>(quadrantSideLength),
+			static_cast<float>(quadrantSideLength)));
+		auto& quadrant = TileNED::s_spawnedQuadrants[coordinates];
+		quadrant.m_texture.create(quadrantSideLength, quadrantSideLength);
+		for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
 		{
-			auto& sector = quadrant.m_sectors[secX][secY];
-
-			auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
-			assert(relevantSeeds.size() > 0);
-			std::optional<int> movementCosts[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
-			for (auto tileX = 0; tileX < TileConstants::SECTOR_SIDE_LENGTH; ++tileX)
+			for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
 			{
-				for (auto tileY = 0; tileY < TileConstants::SECTOR_SIDE_LENGTH; ++tileY)
+				auto& sector = quadrant.m_sectors[secX][secY];
+
+				auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
+				assert(relevantSeeds.size() > 0);
+				std::optional<int> movementCosts[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
+				for (auto tileX = 0; tileX < TileConstants::SECTOR_SIDE_LENGTH; ++tileX)
 				{
-					auto& tile = sector.m_tiles[tileX][tileY];
-
-					// Pick a seed
-					// Will be chosen by weighted random, based on distance from nearest 9 seeds
-					// Seeds are from local sector, and the 8 adjacent and corner-adj sectors
-					auto locationForSeeding = CoordinateVector2(
-						tileX + TileConstants::SECTOR_SIDE_LENGTH,
-						tileY + TileConstants::SECTOR_SIDE_LENGTH);
-
-					std::vector<f64> weightBorders;
-					f64 totalWeight = 0;
-					for (auto&& seed : relevantSeeds)
+					for (auto tileY = 0; tileY < TileConstants::SECTOR_SIDE_LENGTH; ++tileY)
 					{
-						f64 distance = static_cast<f64>(
-							(locationForSeeding - seed.m_position).MagnitudeSq());
-						weightBorders.push_back(totalWeight += 100. / pow(distance, 10));
-					}
+						auto& tile = sector.m_tiles[tileX][tileY];
 
-					auto weightedValue = RandDouble() * totalWeight;
-					size_t weightedPosition = 0;
-					for (; weightedPosition < weightBorders.size(); ++weightedPosition)
-					{
-						if (weightedValue < weightBorders[weightedPosition])
+						// Pick a seed
+						// Will be chosen by weighted random, based on distance from nearest 9 seeds
+						// Seeds are from local sector, and the 8 adjacent and corner-adj sectors
+						auto locationForSeeding = CoordinateVector2(
+							tileX + TileConstants::SECTOR_SIDE_LENGTH,
+							tileY + TileConstants::SECTOR_SIDE_LENGTH);
+
+						std::vector<f64> weightBorders;
+						f64 totalWeight = 0;
+						for (auto&& seed : relevantSeeds)
 						{
-							break;
+							f64 distance = static_cast<f64>(
+								(locationForSeeding - seed.m_position).MagnitudeSq());
+							weightBorders.push_back(totalWeight += 100. / pow(distance, 10));
 						}
+
+						auto weightedValue = RandDouble() * totalWeight;
+						size_t weightedPosition = 0;
+						for (; weightedPosition < weightBorders.size(); ++weightedPosition)
+						{
+							if (weightedValue < weightBorders[weightedPosition])
+							{
+								break;
+							}
+						}
+						// If we get 1.0, it won't be less (probably) so just use that edge
+						// No huge effect
+						if (weightedPosition >= relevantSeeds.size()) weightedPosition = relevantSeeds.size() - 1;
+						tile.m_tileType = relevantSeeds[weightedPosition].m_type;
+						if (tile.m_tileType) // Make type 0 unpathable for testing
+						{
+							tile.m_movementCost = (rand() % 6) + 1;
+							movementCosts[tileX][tileY] = tile.m_movementCost;
+						}
+						for (auto& pixel : tile.m_tilePixels)
+						{
+							pixel =
+								(((tile.m_tileType & 1) ? 255 : 0) << 0) + // R
+								(((tile.m_tileType & 2) ? 255 : 0) << 8) + // G
+								(((tile.m_tileType & 4) ? 255 : 0) << 16) + // B
+								+(0xFF << 24); // A
+						}
+						quadrant.m_texture.update(
+							reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels),
+							TILE_SIDE_LENGTH,
+							TILE_SIDE_LENGTH,
+							((secX * SECTOR_SIDE_LENGTH) + tileX) * TILE_SIDE_LENGTH,
+							((secY * SECTOR_SIDE_LENGTH) + tileY) * TILE_SIDE_LENGTH);
 					}
-					// If we get 1.0, it won't be less (probably) so just use that edge
-					// No huge effect
-					if (weightedPosition >= relevantSeeds.size()) weightedPosition = relevantSeeds.size() - 1;
-					tile.m_tileType = relevantSeeds[weightedPosition].m_type;
-					if (tile.m_tileType) // Make type 0 unpathable for testing
-					{
-						tile.m_movementCost = (rand() % 6) + 1;
-						movementCosts[tileX][tileY] = tile.m_movementCost;
-					}
-					for (auto& pixel : tile.m_tilePixels)
-					{
-						pixel =
-							(((tile.m_tileType & 1) ? 255 : 0) << 0) + // R
-							(((tile.m_tileType & 2) ? 255 : 0) << 8) + // G
-							(((tile.m_tileType & 4) ? 255 : 0) << 16) + // B
-							+(0xFF << 24); // A
-					}
-					quadrant.m_texture.update(
-						reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels),
-						TILE_SIDE_LENGTH,
-						TILE_SIDE_LENGTH,
-						((secX * SECTOR_SIDE_LENGTH) + tileX) * TILE_SIDE_LENGTH,
-						((secY * SECTOR_SIDE_LENGTH) + tileY) * TILE_SIDE_LENGTH);
 				}
 			}
 		}
-	}
-	rect->setTexture(&quadrant.m_texture);
-	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
-	drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({ rect,{ 0,0 } });
+		rect->setTexture(&quadrant.m_texture);
+		auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({ rect,{ 0,0 } });
 
-	// Kick off threads to spawn pathing information
-	std::thread pathingInfoThread([&quadrant]() {
 		// Threads to fill in movement costs in the sector data
 		std::vector<std::thread> movementFillThreads;
 		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
@@ -651,7 +653,7 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 							continue;
 						}
 
-						std::thread([&sector, sourceSide, targetSide, &quadrant, sectorI, sectorJ]() {
+						pathFindingThreads.emplace_back([&sector, sourceSide, targetSide, &quadrant, sectorI, sectorJ]() {
 							auto GetSideTile = [](auto side, auto index) -> CoordinateVector2 {
 								switch (side)
 								{
@@ -671,13 +673,16 @@ void SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& mana
 								quadrant.m_sectorCrossingPaths[sectorI][sectorJ][sourceSide][targetSide] = path->m_path;
 								quadrant.m_sectorCrossingPathCosts[sectorI][sectorJ][sourceSide][targetSide] = path->m_totalPathCost;
 							}
-						}).detach();
+						});
 					}
 				}
 			}
 		}
+		for (auto&& thread : pathFindingThreads)
+		{
+			thread.join();
+		}
 	});
-	pathingInfoThread.detach();
 }
 
 template<class T>
@@ -923,7 +928,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		if (!territory.m_nextGrowthTile)
 		{
 			// get all tiles adjacent to the territory that are not yet claimed
-			std::vector<TilePosition> availableGrowthTiles;
+			std::map<s64, std::vector<TilePosition>> availableGrowthTiles;
+			auto buildingWorldPos = CoordinatesToWorldPosition(buildingTilePos.m_position);
 			for (auto& tile : territory.m_ownedTiles)
 			{
 				for (auto& adjacent : GetAdjacents(tile))
@@ -931,19 +937,27 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 					auto& adjacentTile = GetTile(adjacent.m_coords, manager);
 					if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
 					{
-						availableGrowthTiles.push_back(adjacent.m_coords);
+						auto tileDistance = (CoordinatesToWorldPosition(adjacent.m_coords) - buildingWorldPos).MagnitudeSq();
+						if (tileDistance <= 2000)
+						{
+							availableGrowthTiles[tileDistance].push_back(adjacent.m_coords);
+						}
 					}
 				}
 			}
 
 			if (availableGrowthTiles.size())
 			{
-				std::shuffle(availableGrowthTiles.begin(), availableGrowthTiles.end(), g);
+				auto selectedGrowthTiles = availableGrowthTiles.begin()->second;
+				if (selectedGrowthTiles.size())
+				{
+					std::shuffle(selectedGrowthTiles.begin(), selectedGrowthTiles.end(), g);
 
-				territory.m_nextGrowthTile = { 0.f, availableGrowthTiles.front() };
+					territory.m_nextGrowthTile = { 0.f, selectedGrowthTiles.front() };
 
-				auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
-				tile.m_owningBuilding = territoryEntity;
+					auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
+					tile.m_owningBuilding = territoryEntity;
+				}
 			}
 		}
 
@@ -1347,17 +1361,69 @@ void ProcessSelectTile(
 }
 
 void WorldTile::ProgramInit() {}
-void WorldTile::SetupGameplay() {}
+void WorldTile::SetupGameplay() {
+	std::thread([&manager = m_managerRef]() {
+		auto spawnThread = SpawnQuadrant({ 0, 0 }, manager);
+		spawnThread.join();
+		TileNED::s_baseQuadrantSpawned = true;
+	}).detach();
+}
 
 void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
 	case GameLoopPhase::PREPARATION:
-		if (!TileNED::baseQuadrantSpawned)
+		if (TileNED::s_baseQuadrantSpawned && !TileNED::s_startingBuilderSpawned)
 		{
-			TileNED::baseQuadrantSpawned = true;
-			std::thread([&manager = m_managerRef]() {SpawnQuadrant({ 0, 0 }, manager); }).detach();
+			using namespace TileNED;
+			// Spawn the initial builder unit
+			// First, pick the location
+			// Try a random sector
+			// and a random tile in that sector.
+			// If there's a path from the tile to all edges of the sector, spawn there.
+			bool tileFound{ false };
+			while (!tileFound)
+			{
+				auto sectorX = rand() % QUADRANT_SIDE_LENGTH;
+				auto sectorY = rand() % QUADRANT_SIDE_LENGTH;
+				auto tileX = rand() % SECTOR_SIDE_LENGTH;
+				auto tileY = rand() % SECTOR_SIDE_LENGTH;
+
+				auto& sector = FetchQuadrant({ 0,0 }, m_managerRef).m_sectors[sectorX][sectorY];
+				if (sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH] &&
+					Pathing::GetPath(sector.m_tileMovementCosts,
+						{ tileX, tileY },
+						{ 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH] }) &&
+					sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH] &&
+					Pathing::GetPath(sector.m_tileMovementCosts,
+						{ tileX, tileY },
+						{ SECTOR_SIDE_LENGTH - 1, *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH] }) &&
+					sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] &&
+					Pathing::GetPath(sector.m_tileMovementCosts,
+						{ tileX, tileY },
+						{ *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST], SECTOR_SIDE_LENGTH - 1 }) &&
+					sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] &&
+					Pathing::GetPath(sector.m_tileMovementCosts,
+						{ tileX, tileY },
+						{ *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST], 0 }))
+				{
+					tileFound = true;
+					s_startingBuilderSpawned = true;
+					m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&](
+						const ecs::EntityIndex&,
+						const ECS_Core::Components::C_UserInputs&,
+						ECS_Core::Components::C_ActionPlan& plan)
+					{
+						Action::CreateBuildingUnit buildingUnit;
+						buildingUnit.m_spawningPosition = { 0,0, sectorX, sectorY, tileX, tileY };
+						buildingUnit.m_movementSpeed = 1;
+						plan.m_plan.push_back(buildingUnit);
+						return ecs::IterationBehavior::CONTINUE;
+					});
+				}
+
+			}
 		}
 		break;
 	case GameLoopPhase::INPUT:
@@ -1458,7 +1524,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& endingMacroPath = sectorPath->m_path.back();
 							const auto& endingSector = quadrant.m_sectors
 								[setMovement.m_targetPosition.m_sectorCoords.m_x]
-								[setMovement.m_targetPosition.m_sectorCoords.m_y];
+							[setMovement.m_targetPosition.m_sectorCoords.m_y];
 							auto endingEntryTile = [&direction = endingMacroPath.m_entryDirection,
 								&sector = endingSector]()->CoordinateVector2 {
 								switch (direction)
@@ -1493,19 +1559,19 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 								auto& path = sectorPath->m_path[i];
 								auto& crossingPath = quadrant.m_sectorCrossingPaths
 									[path.m_node.m_x]
-									[path.m_node.m_y]
-									[Pathing::PathingSide::Convert(path.m_entryDirection)]
-									[Pathing::PathingSide::Convert(path.m_exitDirection)];
+								[path.m_node.m_y]
+								[Pathing::PathingSide::Convert(path.m_entryDirection)]
+								[Pathing::PathingSide::Convert(path.m_exitDirection)];
 								for (auto&& tile : *crossingPath)
 								{
-									overallPath.m_path.push_back({{ setMovement.m_targetPosition.m_quadrantCoords, { path.m_node.m_x, path.m_node.m_y }, tile },
+									overallPath.m_path.push_back({ { setMovement.m_targetPosition.m_quadrantCoords,{ path.m_node.m_x, path.m_node.m_y }, tile },
 										*quadrant.m_sectors[path.m_node.m_x][path.m_node.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 								}
 							}
 
 							for (auto&& tile : endingPath->m_path)
 							{
-								overallPath.m_path.push_back({{ setMovement.m_targetPosition.m_quadrantCoords, setMovement.m_targetPosition.m_sectorCoords, tile },
+								overallPath.m_path.push_back({ { setMovement.m_targetPosition.m_quadrantCoords, setMovement.m_targetPosition.m_sectorCoords, tile },
 									*quadrant.m_sectors[setMovement.m_targetPosition.m_sectorCoords.m_x][setMovement.m_targetPosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 							}
 							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
@@ -1620,7 +1686,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex).m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
 					}
-					manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(settle.m_builderIndex).m_placingGovernor=manager.getHandle(governorEntity);
+					manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(settle.m_builderIndex).m_placingGovernor = manager.getHandle(governorEntity);
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;

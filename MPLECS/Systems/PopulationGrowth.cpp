@@ -104,8 +104,8 @@ void BirthChildren(ECS_Core::Manager& manager)
 				girlCount += popSegment.second.m_numWomen;
 			}
 		}
-		// Approximately 1 child every 2.5 years
-		f64 childFloat = 1. * min(potentialMotherCount, potentialFatherCount * 2) / 30;
+		// Approximately 1 child every 4 years
+		f64 childFloat = 1. * min(potentialMotherCount, potentialFatherCount * 2) / 36;
 		s32 childCount = static_cast<s32>(round(childFloat));
 		if (childCount == 0)
 		{
@@ -158,9 +158,9 @@ void CauseNaturalDeaths(ECS_Core::Manager& manager)
 			// Age keys are in months
 			auto popAge = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
 
-			// Healthiest people are ~20
-			auto distanceFromHealth = max<int>(1, abs(popAge - 20));
-			auto deathChance = frameYearPercent * distanceFromHealth / 130;
+			// Healthiest people are ~25
+			auto distanceFromHealth = max<int>(1, abs(popAge - 25));
+			auto deathChance = frameYearPercent * distanceFromHealth / 250;
 			auto randDouble = RandDouble();
 			auto deathCount = static_cast<int>(deathChance / randDouble);
 			if (deathCount <= 0)

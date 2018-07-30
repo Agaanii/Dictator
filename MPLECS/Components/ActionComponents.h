@@ -114,7 +114,7 @@ namespace Action
 	struct CreateUnit
 	{
 		TilePosition m_spawningPosition;
-		ecs::EntityIndex m_popSource;
+		std::optional<ecs::EntityIndex> m_popSource;
 		int m_movementSpeed;
 	};
 
@@ -130,7 +130,7 @@ namespace Action
 
 	struct CreateBuildingUnit : CreateUnit
 	{
-		int m_buildingTypeId;
+		int m_buildingTypeId{ 0 };
 	};
 
 	struct SettleBuildingUnit
