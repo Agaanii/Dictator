@@ -56,6 +56,7 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 		{
 			construction.m_buildingProgress = 1.0;
 			// We're done building, give it territory, put it in a realm, and, at the end of this function, remove the construction tag
+			manager.addComponent<ECS_Core::Components::C_ResourceInventory>(mI);
 			manager.addComponent<ECS_Core::Components::C_YieldPotential>(mI);
 			auto& territory = manager.addComponent<ECS_Core::Components::C_Territory>(mI);
 			territory.m_ownedTiles.insert(buildingTilePosition.m_position);
@@ -69,6 +70,10 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			}
 			auto& creatorRealm = manager.getComponent<ECS_Core::Components::C_Realm>(construction.m_placingGovernor);
 			creatorRealm.m_territories.insert(manager.getHandle(mI));
+			if (!creatorRealm.m_capitol)
+			{
+				creatorRealm.m_capitol = manager.getHandle(mI);
+			}
 
 			// Must delete components last, since this invalidates the reference
 			manager.delComponent<ECS_Core::Components::C_BuildingConstruction>(mI);

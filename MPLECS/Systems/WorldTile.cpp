@@ -850,7 +850,8 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 			const Components::C_BuildingDescription&,
 			const Components::C_TilePosition& buildingTilePosition,
 			const Components::C_Territory&,
-			const Components::C_YieldPotential&) -> ecs::IterationBehavior
+			const Components::C_YieldPotential&,
+			const Components::C_ResourceInventory&) -> ecs::IterationBehavior
 		{
 			if (ghostTilePosition.m_position == buildingTilePosition.m_position)
 			{
@@ -921,7 +922,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition& buildingTilePos,
 		Components::C_Territory& territory,
-		Components::C_YieldPotential& yieldPotential)
+		Components::C_YieldPotential& yieldPotential,
+		const Components::C_ResourceInventory&)
 	{
 		// Make sure territory is growing into a valid spot
 		bool needsGrowthTile = true;

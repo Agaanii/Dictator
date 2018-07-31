@@ -196,17 +196,30 @@ struct WorkerSkillKey
 
 void UpdateAgendas(ECS_Core::Manager& manager)
 {
+	using namespace ECS_Core;
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>([&manager](
 		ecs::EntityIndex mI,
-		const ECS_Core::Components::C_Realm&,
-		ECS_Core::Components::C_ResourceInventory& inventory,
+		const ECS_Core::Components::C_Realm& realm,
 		ECS_Core::Components::C_Agenda& agenda)
 	{
+		std::map<Components::YieldType, s64> polityCollectedYields;
+
+		for (auto&& territory : realm.m_territories)
+		{
+			if (manager.hasComponent<Components::C_ResourceInventory>(territory))
+			{
+				for (auto&& resource : manager.getComponent<Components::C_ResourceInventory>(territory).m_collectedYields)
+				{
+					polityCollectedYields[resource.first] += resource.second;
+				}
+			}
+		}
+
 		std::sort(agenda.m_yieldPriority.begin(),
 			agenda.m_yieldPriority.end(), 
-			[&inventory](const int& left, const int& right) -> bool {
-				if (inventory.m_collectedYields[left] < inventory.m_collectedYields[right]) return true;
-				if (inventory.m_collectedYields[right] < inventory.m_collectedYields[left]) return false;
+			[&polityCollectedYields](const int& left, const int& right) -> bool {
+				if (polityCollectedYields[left] < polityCollectedYields[right]) return true;
+				if (polityCollectedYields[right] < polityCollectedYields[left]) return false;
 				return left < right;
 			}
 		);
@@ -236,12 +249,14 @@ void GainIncomes(ECS_Core::Manager& manager)
 		[&manager, &time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_Realm& realm,
-			ECS_Core::Components::C_ResourceInventory& inventory,
 			const ECS_Core::Components::C_Agenda& agenda)
 	{
 		for (auto&& territoryHandle : realm.m_territories)
 		{
-			if (!manager.isHandleValid(territoryHandle) || !manager.hasComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle))
+			if (!manager.isHandleValid(territoryHandle) || !manager.hasComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle)
+				|| !manager.hasComponent<ECS_Core::Components::C_Territory>(territoryHandle)
+				|| !manager.hasComponent<ECS_Core::Components::C_Population>(territoryHandle)
+				|| !manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle))
 			{
 				continue;
 			}
@@ -252,6 +267,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
 			auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(territoryHandle);
 			auto& population = manager.getComponent<ECS_Core::Components::C_Population>(territoryHandle);
+			auto& inventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle);
 			// Choose which yields will be worked based on government priorities
 			// If production is the focus, highest skill works first
 			// If training is the focus, lowest skill works first
@@ -376,45 +392,11 @@ void Government::SetupGameplay()
 {
 	auto localPlayer = m_managerRef.createHandle();
 	m_managerRef.addComponent<ECS_Core::Components::C_Realm>(localPlayer);
-	m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(localPlayer).m_collectedYields = { {1, 100},{2,100} };
 	m_managerRef.addComponent<ECS_Core::Components::C_Agenda>(localPlayer).m_yieldPriority = { 0,1,2,3,4,5,6,7 };
 	m_managerRef.addComponent<ECS_Core::Components::C_UserInputs>(localPlayer);
 	m_managerRef.addComponent<ECS_Core::Components::C_ActionPlan>(localPlayer);
 
-	auto& uiFrameComponent = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(localPlayer);
-	uiFrameComponent.m_frame
-		= DefineUIFrame(
-			"Inventory",
-			DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
-	uiFrameComponent.m_dataStrings[{0, 0}] = { { 40,0 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 1}] = {{ 40,30 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 2}] = {{ 40,60 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 3}] = {{ 40,90 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 4}] = {{ 40,120 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 5}] = {{ 40,150 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 6}] = {{ 40,180 }, std::make_shared<sf::Text>() };
-	uiFrameComponent.m_dataStrings[{0, 7}] = {{ 40,210 }, std::make_shared<sf::Text>() };
-
-	uiFrameComponent.m_topLeftCorner = { 50,50 };
-	uiFrameComponent.m_size = { 200, 240 };
-	uiFrameComponent.m_global = true;
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayer);
-
-	if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer))
-	{
-		m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
-	}
-	auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(localPlayer);
-	auto resourceWindowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
-	resourceWindowBackground->setFillColor({});
-	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ resourceWindowBackground, {} });
-	for (auto&& dataStr : uiFrameComponent.m_dataStrings)
-	{
-		dataStr.second.m_text->setFillColor({ 255,255,255 });
-		dataStr.second.m_text->setOutlineColor({ 128,128,128 });
-		dataStr.second.m_text->setFont(s_font);
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({dataStr.second.m_text, dataStr.second.m_relativePosition});
-	}
 }
 
 void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
@@ -430,7 +412,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_WealthPlanner>([&manager = m_managerRef](
 			const ecs::EntityIndex& entityIndex,
 			const ECS_Core::Components::C_ActionPlan& actionPlan,
-			ECS_Core::Components::C_ResourceInventory& inventory) {
+			ECS_Core::Components::C_Realm& realm) {
 			for (auto&& action : actionPlan.m_plan)
 			{
 				if (std::holds_alternative<Action::CreateBuildingUnit>(action))
@@ -441,24 +423,27 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						continue;
 					}
-					bool hasResources = true;
-					for (auto&& cost : costIter->second)
+					if (realm.m_capitol && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol))
 					{
-						// Check to see that all resources required are available
-						auto inventoryStore = inventory.m_collectedYields.find(cost.first);
-						if (inventoryStore == inventory.m_collectedYields.end()
-							|| inventoryStore->second < cost.second)
+						auto& capitolInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol);
+						bool hasResources = true;
+						for (auto&& cost : costIter->second)
 						{
-							hasResources = false;
-							break;
+							// Check to see that all resources required are available
+							auto inventoryStore = capitolInventory.m_collectedYields.find(cost.first);
+							if (inventoryStore == capitolInventory.m_collectedYields.end()
+								|| inventoryStore->second < cost.second)
+							{
+								hasResources = false;
+								break;
+							}
+						}
+						if (!hasResources)
+						{
+							// TODO: Surface Error
+							continue;
 						}
 					}
-					if (!hasResources)
-					{
-						// TODO: Surface Error
-						continue;
-					}
-
 
 					// Make sure the population source entity is still around
 					auto newEntityHandle = [&manager, &builder]() -> std::optional<ecs::Impl::Handle>
@@ -560,9 +545,13 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 					auto& cartesianPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(*newEntityHandle);
 
-					for (auto&& cost : costIter->second)
+					if (realm.m_capitol && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol))
 					{
-						inventory.m_collectedYields[cost.first] -= cost.second;
+						auto& capitolInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol);
+						for (auto&& cost : costIter->second)
+						{
+							capitolInventory.m_collectedYields[cost.first] -= cost.second;
+						}
 					}
 				}
 			}
@@ -579,7 +568,6 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		using namespace ECS_Core;
 		m_managerRef.forEntitiesMatching<Signatures::S_Governor>([&manager = m_managerRef](const ecs::EntityIndex& entity,
 			Components::C_Realm& realm,
-			const Components::C_ResourceInventory&,
 			const Components::C_Agenda&)
 		{
 			for (auto iter = realm.m_territories.begin(); iter != realm.m_territories.end();)

@@ -187,6 +187,7 @@ namespace ECS_Core
 		{
 			std::set<ecs::Impl::Handle> m_subordinates;
 			std::set<ecs::Impl::Handle> m_territories;
+			std::optional<ecs::Impl::Handle> m_capitol;
 		};
 
 		struct UIFrame;
@@ -333,17 +334,17 @@ namespace ECS_Core
 		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
 		using S_DrawableConstructingBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Components::C_BuildingConstruction>;
 		using S_InProgressBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
-		using S_CompleteBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential>;
+		using S_CompleteBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential, Components::C_ResourceInventory>;
 		using S_Population = ecs::Signature<Components::C_Population>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
-		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Components::C_Agenda>;
-		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Components::C_ResourceInventory, Tags::T_LocalPlayer>;
+		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_Agenda>;
+		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Tags::T_LocalPlayer>;
 		using S_UIFrame = ecs::Signature<Components::C_UIFrame>;
 		using S_TimeTracker = ecs::Signature<Components::C_TimeTracker>;
 		using S_WindowInfo = ecs::Signature<Components::C_WindowInfo>;
 		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
 		using S_Planner = ecs::Signature<Components::C_ActionPlan>;
-		using S_WealthPlanner = ecs::Signature<Components::C_ActionPlan, Components::C_ResourceInventory>;
+		using S_WealthPlanner = ecs::Signature<Components::C_ActionPlan, Components::C_Realm>;
 		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population>;
 		using S_SelectedMovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Selection>;
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
