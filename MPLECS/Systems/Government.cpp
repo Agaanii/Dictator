@@ -16,6 +16,7 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+#include <algorithm>
 #include <iostream>
 
 void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityIndex& ghostEntity)
@@ -192,6 +193,25 @@ struct WorkerSkillKey
 		return false;
 	}
 };
+
+void UpdateAgendae(ECS_Core::Manager& manager)
+{
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>([&manager](
+		ecs::EntityIndex mI,
+		const ECS_Core::Components::C_Realm&,
+		ECS_Core::Components::C_ResourceInventory& inventory,
+		ECS_Core::Components::C_Agenda& agenda)
+	{
+		std::sort(agenda.m_yieldPriority.begin(),
+			agenda.m_yieldPriority.end(), 
+			[&inventory](const int& left, const int& right) -> bool {
+			if (inventory.m_collectedYields[left] < inventory.m_collectedYields[right]) return true;
+			if (inventory.m_collectedYields[right] < inventory.m_collectedYields[left]) return false;
+			return left < right;
+		});
+		return ecs::IterationBehavior::CONTINUE;
+	});
+}
 
 using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerKey>>;
 using SkillMap = std::map<ECS_Core::Components::SpecialtyId, WorkerSkillMap>;
@@ -549,6 +569,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		});
 		break;
 	case GameLoopPhase::ACTION_RESPONSE:
+		UpdateAgendae(m_managerRef);
 		GainIncomes(m_managerRef);
 		break;
 	case GameLoopPhase::RENDER:
