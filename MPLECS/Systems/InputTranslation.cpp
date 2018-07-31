@@ -132,7 +132,7 @@ std::map < ECS_Core::Components::InputKeys, std::function<void(
 	ECS_Core::Manager&)>> functions
 	=
 {
-	{ECS_Core::Components::InputKeys::B, CreateBuildingGhost},
+	// {ECS_Core::Components::InputKeys::B, CreateBuildingGhost},
 	{ECS_Core::Components::InputKeys::BACKSPACE, TogglePause},
 	{ECS_Core::Components::InputKeys::EQUAL, IncreaseGameSpeed },
 	{ECS_Core::Components::InputKeys::DASH, DecreaseGameSpeed} 
