@@ -194,7 +194,7 @@ struct WorkerSkillKey
 	}
 };
 
-void UpdateAgendae(ECS_Core::Manager& manager)
+void UpdateAgendas(ECS_Core::Manager& manager)
 {
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>([&manager](
 		ecs::EntityIndex mI,
@@ -205,10 +205,11 @@ void UpdateAgendae(ECS_Core::Manager& manager)
 		std::sort(agenda.m_yieldPriority.begin(),
 			agenda.m_yieldPriority.end(), 
 			[&inventory](const int& left, const int& right) -> bool {
-			if (inventory.m_collectedYields[left] < inventory.m_collectedYields[right]) return true;
-			if (inventory.m_collectedYields[right] < inventory.m_collectedYields[left]) return false;
-			return left < right;
-		});
+				if (inventory.m_collectedYields[left] < inventory.m_collectedYields[right]) return true;
+				if (inventory.m_collectedYields[right] < inventory.m_collectedYields[left]) return false;
+				return left < right;
+			}
+		);
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
@@ -569,7 +570,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		});
 		break;
 	case GameLoopPhase::ACTION_RESPONSE:
-		UpdateAgendae(m_managerRef);
+		UpdateAgendas(m_managerRef);
 		GainIncomes(m_managerRef);
 		break;
 	case GameLoopPhase::RENDER:
