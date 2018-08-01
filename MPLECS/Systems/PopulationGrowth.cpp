@@ -160,7 +160,7 @@ void CauseNaturalDeaths(ECS_Core::Manager& manager)
 
 			// Healthiest people are ~25
 			auto distanceFromHealth = max<int>(1, abs(popAge - 25));
-			auto deathChance = frameYearPercent * distanceFromHealth / 250;
+			auto deathChance = frameYearPercent * (popSegment.second.m_numMen + popSegment.second.m_numWomen) * distanceFromHealth / 300;
 			auto randDouble = RandDouble();
 			auto deathCount = static_cast<int>(deathChance / randDouble);
 			if (deathCount <= 0)
