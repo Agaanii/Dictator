@@ -460,6 +460,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							// Spawn entity for the unit, then take costs and population
 							auto newEntity = manager.createHandle();
 							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
 
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							int sourceTotalMen{ 0 };
@@ -515,6 +516,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
 
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
+							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
 							auto timeFront = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front();
 							auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeFront);
 							auto& foundingPopulation = population.m_populations[-12 * (time.m_year - 15) - time.m_month];

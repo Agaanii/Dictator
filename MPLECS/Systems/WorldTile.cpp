@@ -1191,12 +1191,61 @@ void ProcessSelectTile(
 					auto& uiFrame = manager.addComponent<ECS_Core::Components::C_UIFrame>(entity);
 					uiFrame.m_frame = DefineUIFrame(
 						"Unit",
-						UIDataReader<C_MovingUnit, int>([](const C_MovingUnit& /*mover*/) {
-						return 0;
-					}));
+						UIDataReader<C_MovingUnit, int>([](const C_MovingUnit& mover) {
+						return mover.m_movementPerDay;
+					}),
+						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+						s32 result{ 0 };
+						for (auto&& population : pop.m_populations)
+						{
+							if (population.second.m_class == PopulationClass::WORKERS)
+								result += population.second.m_numMen;
+						}
+						return result;
+					}),
+						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+						s32 result{ 0 };
+						for (auto&& population : pop.m_populations)
+						{
+							if (population.second.m_class == PopulationClass::WORKERS)
+								result += population.second.m_numWomen;
+						}
+						return result;
+					}),
+						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+						s32 result{ 0 };
+						for (auto&& population : pop.m_populations)
+						{
+							if (population.second.m_class == PopulationClass::CHILDREN)
+								result += population.second.m_numMen + population.second.m_numWomen;
+						}
+						return result;
+					}),
+						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+						s32 result{ 0 };
+						for (auto&& population : pop.m_populations)
+						{
+							if (population.second.m_class == PopulationClass::ELDERS)
+								result += population.second.m_numMen + population.second.m_numWomen;
+						}
+						return result;
+					}),
+						DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
 					uiFrame.m_dataStrings[{0}] = { {}, std::make_shared<sf::Text>() };
-					uiFrame.m_topLeftCorner = { 400, 500 };
-					uiFrame.m_size = { 120, 120 };
+					uiFrame.m_dataStrings[{1}] = { { 20,0 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{2}] = { { 20,30 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{3}] = { { 20,60 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{4}] = { { 20,90 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
+					uiFrame.m_topLeftCorner = { 50,50 };
+					uiFrame.m_size = { 200, 240 };
 
 					Button moveButton;
 					Button buildButton;
@@ -1221,7 +1270,7 @@ void ProcessSelectTile(
 					}
 					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(entity);
 
-					auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(120, 120));
+					auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
 					auto moveGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 					auto buildGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 
@@ -1299,15 +1348,24 @@ void ProcessSelectTile(
 						result += population.second.m_numMen + population.second.m_numWomen;
 				}
 				return result;
-			}));
+			}),
+				DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
 			uiFrame.m_dataStrings[{0}] = { { 20,0 }, std::make_shared<sf::Text>() };
 			uiFrame.m_dataStrings[{1}] = { { 20,30 }, std::make_shared<sf::Text>() };
 			uiFrame.m_dataStrings[{2}] = { { 20,60 }, std::make_shared<sf::Text>() };
 			uiFrame.m_dataStrings[{3}] = { { 20,90 }, std::make_shared<sf::Text>() };
-
+			uiFrame.m_dataStrings[{4, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{4, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
+			
+			uiFrame.m_size = { 200, 240 };
 			uiFrame.m_topLeftCorner = { 0, 300 };
-			uiFrame.m_size = { 70, 120 };
-
+			
 			ECS_Core::Components::Button closeButton;
 			closeButton.m_topLeftCorner.m_x = uiFrame.m_size.m_x - 30;
 			closeButton.m_size = { 30, 30 };
@@ -1339,7 +1397,7 @@ void ProcessSelectTile(
 				manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
 			}
 			auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
-			auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(70, 120));
+			auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
 			windowBackground->setFillColor({});
 			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
 
