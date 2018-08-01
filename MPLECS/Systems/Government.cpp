@@ -17,7 +17,6 @@
 #include "../ECS/ECS.h"
 
 #include <algorithm>
-#include <iostream>
 
 void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityIndex& ghostEntity)
 {
@@ -423,15 +422,15 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						continue;
 					}
-					if (realm.m_capitol && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol))
+					if (builder.m_popSource && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource))
 					{
-						auto& capitolInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol);
+						auto& buildingInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource);
 						bool hasResources = true;
 						for (auto&& cost : costIter->second)
 						{
 							// Check to see that all resources required are available
-							auto inventoryStore = capitolInventory.m_collectedYields.find(cost.first);
-							if (inventoryStore == capitolInventory.m_collectedYields.end()
+							auto inventoryStore = buildingInventory.m_collectedYields.find(cost.first);
+							if (inventoryStore == buildingInventory.m_collectedYields.end()
 								|| inventoryStore->second < cost.second)
 							{
 								hasResources = false;
@@ -545,12 +544,12 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 					auto& cartesianPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(*newEntityHandle);
 
-					if (realm.m_capitol && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol))
+					if (builder.m_popSource && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource))
 					{
-						auto& capitolInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol);
+						auto& buildingInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource);
 						for (auto&& cost : costIter->second)
 						{
-							capitolInventory.m_collectedYields[cost.first] -= cost.second;
+							buildingInventory.m_collectedYields[cost.first] -= cost.second;
 						}
 					}
 				}
