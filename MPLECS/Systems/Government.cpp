@@ -277,20 +277,23 @@ void GainIncomes(ECS_Core::Manager& manager)
 			auto& population = manager.getComponent<ECS_Core::Components::C_Population>(territoryHandle);
 			auto& inventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle);
 
-			bool subsistenceMode = inventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] == 0;
 			// Choose which yields will be worked based on government priorities
 			// If production is the focus, highest skill works first
 			// If training is the focus, lowest skill works first
 			// After yields are determined, increase experience for the workers
 			// Experience advances more slowly for higher skill
 			f64 totalWorkerCount{ 0 };
+			f64 totalSubsistenceCount{ 0 };
 			for (auto&& pop : population.m_populations)
 			{
 				if (pop.second.m_class == ECS_Core::Components::PopulationClass::WORKERS)
 				{
 					auto totalProductiveEffort = (pop.second.m_womensHealth * pop.second.m_numWomen)
 						+ (pop.second.m_mensHealth * pop.second.m_numMen);
+					auto subsistenceEffort = ((1 - pop.second.m_womensHealth) * pop.second.m_numWomen)
+						+ ((1 - pop.second.m_mensHealth) * pop.second.m_numMen);
 					totalWorkerCount += totalProductiveEffort;
+					totalSubsistenceCount += subsistenceEffort;
 					assignments[pop.first].m_assignments.insert({ -1, { pop.first, totalProductiveEffort } });
 					for (auto&& yieldType : agenda.m_yieldPriority)
 					{
@@ -303,6 +306,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 					}
 				}
 			}
+			inventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] += time.m_frameDuration * totalSubsistenceCount / 80;
 			
 			// We know who we want to work first
 			// Decide where they're working
