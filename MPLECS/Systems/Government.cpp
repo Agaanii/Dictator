@@ -35,13 +35,13 @@ void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityInd
 	}
 }
 
-std::map<int, std::map<ECS_Core::Components::YieldType, s64>> s_buildingCosts
+std::map<int, ECS_Core::Components::YieldBuckets> s_buildingCosts
 {
 	{
 		0, 
 		{
-			{1, 50},
-			{2, 50}
+			{ECS_Core::Components::Yields::FOOD, 50},
+			{ECS_Core::Components::Yields::WOOD, 50}
 		}
 	}
 };
@@ -201,7 +201,7 @@ void UpdateAgendas(ECS_Core::Manager& manager)
 		const ECS_Core::Components::C_Realm& realm,
 		ECS_Core::Components::C_Agenda& agenda)
 	{
-		std::map<Components::YieldType, s64> polityCollectedYields;
+		ECS_Core::Components::YieldBuckets polityCollectedYields;
 
 		for (auto&& territory : realm.m_territories)
 		{
@@ -252,7 +252,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 	{
 		for (auto&& territoryHandle : realm.m_territories)
 		{
-			if (!manager.isHandleValid(territoryHandle) || !manager.hasComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle)
+			if (!manager.isHandleValid(territoryHandle) || !manager.hasComponent<ECS_Core::Components::C_TileProductionPotential>(territoryHandle)
 				|| !manager.hasComponent<ECS_Core::Components::C_Territory>(territoryHandle)
 				|| !manager.hasComponent<ECS_Core::Components::C_Population>(territoryHandle)
 				|| !manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle))
@@ -263,7 +263,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 
 			SkillMap skillMap;
 
-			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_YieldPotential>(territoryHandle);
+			auto& territoryYield = manager.getComponent<ECS_Core::Components::C_TileProductionPotential>(territoryHandle);
 			auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(territoryHandle);
 			auto& population = manager.getComponent<ECS_Core::Components::C_Population>(territoryHandle);
 			auto& inventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle);
@@ -303,7 +303,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 					continue;
 				}
 
-				auto amountToWork = availableYield->second.m_value;
+				auto amountToWork = availableYield->second.m_workableTiles;
 
 				switch (agenda.m_popAgenda)
 				{
@@ -339,11 +339,14 @@ void GainIncomes(ECS_Core::Manager& manager)
 				}
 			}
 
-			for (auto&& yield : territoryYield.m_availableYields)
+			for (auto&& tileType : territoryYield.m_availableYields)
 			{
-				s32 gainAmount = static_cast<s32>(yield.second.m_productionProgress / yield.second.m_productionInterval);
-				inventory.m_collectedYields[yield.first] += gainAmount;
-				yield.second.m_productionProgress -= yield.second.m_productionInterval * gainAmount;
+				s32 gainAmount = static_cast<s32>(tileType.second.m_productionProgress / tileType.second.m_productionInterval);
+				for (auto&& yield : tileType.second.m_productionYield)
+				{
+					inventory.m_collectedYields[yield.first] += gainAmount * yield.second;
+				}
+				tileType.second.m_productionProgress -= tileType.second.m_productionInterval * gainAmount;
 			}
 
 			// And assign experience to workers
@@ -461,6 +464,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto newEntity = manager.createHandle();
 							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
 							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
+							moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
 
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							int sourceTotalMen{ 0 };
@@ -517,6 +521,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
+							moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
 							auto timeFront = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front();
 							auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeFront);
 							auto& foundingPopulation = population.m_populations[-12 * (time.m_year - 15) - time.m_month];

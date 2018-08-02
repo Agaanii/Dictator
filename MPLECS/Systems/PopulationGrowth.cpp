@@ -23,7 +23,8 @@ void GainLevels(ECS_Core::Manager& manager)
 	using namespace ECS_Core;
 	manager.forEntitiesMatching<ECS_Core::Signatures::S_Population>([](
 		const ecs::EntityIndex&,
-		Components::C_Population& population)
+		Components::C_Population& population,
+		const Components::C_ResourceInventory&)
 	{
 		for (auto&& popSegment : population.m_populations)
 		{
@@ -50,12 +51,13 @@ void AgePopulations(ECS_Core::Manager& manager)
 	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
 	manager.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
-		Components::C_Population& population)
+		Components::C_Population& population,
+		const Components::C_ResourceInventory&)
 	{
 		for (auto&& popSegment : population.m_populations)
 		{
 			auto yearsOld = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
-			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::CHILDREN 
+			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::CHILDREN
 				&& yearsOld >= 15)
 			{
 				popSegment.second.m_class = ECS_Core::Components::PopulationClass::WORKERS;
@@ -78,7 +80,8 @@ void BirthChildren(ECS_Core::Manager& manager)
 	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
 	manager.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
-		Components::C_Population& population) -> ecs::IterationBehavior
+		Components::C_Population& population,
+		const Components::C_ResourceInventory&) -> ecs::IterationBehavior
 	{
 		s32 potentialMotherCount{ 0 };
 		s32 potentialFatherCount{ 0 };
@@ -138,16 +141,105 @@ void BirthChildren(ECS_Core::Manager& manager)
 	});
 }
 
-void CauseNaturalDeaths(ECS_Core::Manager& manager)
+void FeedWomen(
+	const ECS_Core::Components::C_TimeTracker& time,
+	f64& foodAmount,
+	ECS_Core::Components::PopulationSegment& pop)
 {
+	auto womensFoodRequired = time.m_frameDuration * pop.m_numWomen / (12 * 30);
+	if (foodAmount > womensFoodRequired)
+	{
+		pop.m_womensHealth = min<f64>(1, time.m_frameDuration / 30. + pop.m_womensHealth);
+		foodAmount -= womensFoodRequired;
+	}
+	else
+	{
+		pop.m_womensHealth = max<f64>(0, pop.m_womensHealth -
+			time.m_frameDuration * (womensFoodRequired - foodAmount) / (30 * womensFoodRequired));
+		foodAmount = 0;
+	}
+}
 
+void FeedMen(
+	const ECS_Core::Components::C_TimeTracker& time,
+	f64& foodAmount,
+	ECS_Core::Components::PopulationSegment& pop)
+{
+	auto mensFoodRequired = time.m_frameDuration * pop.m_numMen / (12 * 30);
+	if (foodAmount > mensFoodRequired)
+	{
+		pop.m_mensHealth = min<f64>(1, time.m_frameDuration / 30. + pop.m_mensHealth);
+		foodAmount -= mensFoodRequired;
+	}
+	else
+	{
+		pop.m_mensHealth = max<f64>(0, pop.m_mensHealth -
+			time.m_frameDuration * (mensFoodRequired - foodAmount) / (30 * mensFoodRequired));
+		foodAmount = 0;
+	}
+}
+
+void ConsumeResources(ECS_Core::Manager& manager)
+{
 	using namespace ECS_Core;
 	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
 	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
 	manager.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
-		Components::C_Population& population) -> ecs::IterationBehavior
+		Components::C_Population& population,
+		Components::C_ResourceInventory& resources) -> ecs::IterationBehavior
+	{
+		auto& foodAmount = resources.m_collectedYields[Components::Yields::FOOD];
+
+		// Workers eat first
+		// Then children
+		// Then elders
+		// Younger before older
+		for (auto&& pop : population.m_populations)
+		{
+			if (pop.second.m_class != Components::PopulationClass::WORKERS)
+			{
+				continue;
+			}
+
+			// women eat before men
+			FeedWomen(time, foodAmount, pop.second);
+			FeedMen(time, foodAmount, pop.second);
+		}
+		for (auto&& pop : population.m_populations)
+		{
+			if (pop.second.m_class != Components::PopulationClass::CHILDREN)
+			{
+				continue;
+			}
+			FeedWomen(time, foodAmount, pop.second);
+			FeedMen(time, foodAmount, pop.second);
+		}
+		for (auto&& pop : population.m_populations)
+		{
+			if (pop.second.m_class != Components::PopulationClass::ELDERS)
+			{
+				continue;
+			}
+			FeedWomen(time, foodAmount, pop.second);
+			FeedMen(time, foodAmount, pop.second);
+		}
+
+		return ecs::IterationBehavior::CONTINUE;
+	});
+}
+
+void CauseNaturalDeaths(ECS_Core::Manager& manager)
+{
+	using namespace ECS_Core;
+	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	if (timeEntity.size() == 0) return;
+	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	manager.forEntitiesMatching<Signatures::S_Population>([&time](
+		const ecs::EntityIndex&,
+		Components::C_Population& population,
+		const Components::C_ResourceInventory&) -> ecs::IterationBehavior
 	{
 		// Chance of dying = % of a year since previous frame
 		// Multiplied by population age
@@ -160,17 +252,27 @@ void CauseNaturalDeaths(ECS_Core::Manager& manager)
 
 			// Healthiest people are ~25
 			auto distanceFromHealth = max<int>(1, abs(popAge - 25));
-			auto deathChance = frameYearPercent * (popSegment.second.m_numMen + popSegment.second.m_numWomen) * distanceFromHealth / 300;
+			auto womensDeathChance = frameYearPercent
+				* (1 - (popSegment.second.m_womensHealth / 2))
+				* popSegment.second.m_numWomen
+				* distanceFromHealth / 150;
 			auto randDouble = RandDouble();
-			auto deathCount = static_cast<int>(deathChance / randDouble);
-			if (deathCount <= 0)
+			auto femaleDeathCount = min<int>(popSegment.second.m_numWomen, static_cast<int>(womensDeathChance / randDouble));
+			auto mensDeathChance = frameYearPercent
+				* (1 - (popSegment.second.m_mensHealth / 2))
+				* popSegment.second.m_numMen
+				* distanceFromHealth / 150;
+			randDouble = RandDouble();
+			auto maleDeathCount = min<int>(popSegment.second.m_numMen, static_cast<int>(mensDeathChance / randDouble));
+
+			if (maleDeathCount < 0)
 			{
-				continue;
+				maleDeathCount = 0;
 			}
-
-			auto maleDeathCount = min<int>(deathCount - (deathCount / 2), popSegment.second.m_numMen);
-			auto femaleDeathCount = min<int>(deathCount - maleDeathCount, popSegment.second.m_numWomen);
-
+			if (femaleDeathCount < 0)
+			{
+				femaleDeathCount = 0;
+			}
 			popSegment.second.m_numMen -= maleDeathCount;
 			popSegment.second.m_numWomen -= femaleDeathCount;
 
@@ -208,6 +310,7 @@ void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				AgePopulations(m_managerRef);
 				BirthChildren(m_managerRef);
 			}
+			ConsumeResources(m_managerRef);
 			CauseNaturalDeaths(m_managerRef);
 		}
 		return;

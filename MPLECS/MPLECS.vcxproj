@@ -182,6 +182,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClInclude Include="ECS\MPL\TypeList.hpp" />
     <ClInclude Include="ECS\MPL\TypeListOps.hpp" />
     <ClInclude Include="ECS\MPL\Unique.hpp" />
+    <ClInclude Include="Systems\PopulationGrowth.h" />
     <ClInclude Include="Systems\Systems.h" />
     <ClInclude Include="Util\Pathing.h" />
   </ItemGroup>

@@ -140,7 +140,9 @@ namespace ECS_Core
 		{
 			// Age in months
 			s32 m_numWomen{ 1 };
+			f64 m_womensHealth{ 1. };
 			s32 m_numMen{ 1 };
+			f64 m_mensHealth{ 1. };
 			SpecialtyMap m_specialties;
 			PopulationClass m_class{ PopulationClass::CHILDREN };
 		};
@@ -159,28 +161,40 @@ namespace ECS_Core
 		};
 
 		using YieldType = s32;
-		struct Yield
+		namespace Yields
 		{
-			f64 m_productionInterval{ 100 }; // # of Days of 1 level 1 worker = 1 produced
+			enum Enum
+			{
+				FOOD = 1,
+				WOOD = 2,
+				STONE = 3,
+			};
+		}
+		using YieldBuckets = std::map<YieldType, f64>;
+		struct TileProduction
+		{
+			f64 m_productionInterval{ 170 }; // # of Days of 1 level 1 worker = 1 produced
 			f64 m_productionProgress{ 0 };
-			s32 m_value{ 1 };
+			s32 m_workableTiles{ 0 };
+			YieldBuckets m_productionYield;
 		};
-		using YieldMap = std::map<YieldType, Yield>;
-		struct C_YieldPotential
+		using TileType = s32;
+		using TileProductionMap = std::map<TileType, TileProduction>;
+		struct C_TileProductionPotential
 		{
-			YieldMap m_availableYields;
+			TileProductionMap m_availableYields;
 		};
 
 		struct C_ResourceInventory
 		{
-			std::map<YieldType, s64> m_collectedYields;
+			YieldBuckets m_collectedYields;
 		};
 
 		struct C_BuildingGhost
 		{
 			bool m_currentPlacementValid{ false };
 			ecs::Impl::Handle m_placingGovernor;
-			std::map<YieldType, s64> m_paidYield;
+			YieldBuckets m_paidYield;
 		};
 
 		struct C_Realm
@@ -334,8 +348,8 @@ namespace ECS_Core
 		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
 		using S_DrawableConstructingBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Components::C_BuildingConstruction>;
 		using S_InProgressBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
-		using S_CompleteBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_YieldPotential, Components::C_ResourceInventory>;
-		using S_Population = ecs::Signature<Components::C_Population>;
+		using S_CompleteBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_TileProductionPotential, Components::C_ResourceInventory>;
+		using S_Population = ecs::Signature<Components::C_Population, Components::C_ResourceInventory>;
 		using S_DestroyedBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Tags::T_Dead>;
 		using S_Governor = ecs::Signature<Components::C_Realm, Components::C_Agenda>;
 		using S_PlayerGovernor = ecs::Signature<Components::C_Realm, Tags::T_LocalPlayer>;
@@ -369,7 +383,7 @@ namespace ECS_Core
 		Components::C_BuildingDescription,
 		Components::C_Territory,
 		Components::C_Population,
-		Components::C_YieldPotential,
+		Components::C_TileProductionPotential,
 		Components::C_ResourceInventory,
 		Components::C_Realm,
 		Components::C_BuildingConstruction,

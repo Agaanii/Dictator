@@ -64,7 +64,7 @@ namespace TileNED
 
 	struct Tile
 	{
-		int m_tileType;
+		ECS_Core::Components::TileType m_tileType;
 		std::optional<int> m_movementCost; // If notset, unpathable
 										   // Each 1 pixel is 4 components: RGBA
 		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
@@ -850,7 +850,7 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 			const Components::C_BuildingDescription&,
 			const Components::C_TilePosition& buildingTilePosition,
 			const Components::C_Territory&,
-			const Components::C_YieldPotential&,
+			const Components::C_TileProductionPotential&,
 			const Components::C_ResourceInventory&) -> ecs::IterationBehavior
 		{
 			if (ghostTilePosition.m_position == buildingTilePosition.m_position)
@@ -922,7 +922,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition& buildingTilePos,
 		Components::C_Territory& territory,
-		Components::C_YieldPotential& yieldPotential,
+		Components::C_TileProductionPotential& yieldPotential,
 		const Components::C_ResourceInventory&)
 	{
 		// Make sure territory is growing into a valid spot
@@ -979,7 +979,11 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 				{
 					auto& ownedTile = GetTile(tilePos, manager);
 					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
-					++yield.m_value;
+					++yield.m_workableTiles;
+					yield.m_productionYield = {
+						{ECS_Core::Components::Yields::FOOD, 1},
+						{ECS_Core::Components::Yields::STONE, 1},
+						{ECS_Core::Components::Yields::WOOD, 1 } };
 				}
 
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))

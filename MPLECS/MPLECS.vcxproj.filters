@@ -170,6 +170,9 @@
     <ClInclude Include="Components\ActionComponents.h">
       <Filter>Header Files\Components</Filter>
     </ClInclude>
+    <ClInclude Include="Systems\PopulationGrowth.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\cour.ttf">

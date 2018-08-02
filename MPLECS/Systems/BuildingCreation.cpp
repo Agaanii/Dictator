@@ -56,8 +56,11 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 		{
 			construction.m_buildingProgress = 1.0;
 			// We're done building, give it territory, put it in a realm, and, at the end of this function, remove the construction tag
-			manager.addComponent<ECS_Core::Components::C_ResourceInventory>(mI);
-			manager.addComponent<ECS_Core::Components::C_YieldPotential>(mI);
+			if (!manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(mI))
+			{
+				manager.addComponent<ECS_Core::Components::C_ResourceInventory>(mI);
+			}
+			manager.addComponent<ECS_Core::Components::C_TileProductionPotential>(mI);
 			auto& territory = manager.addComponent<ECS_Core::Components::C_Territory>(mI);
 			territory.m_ownedTiles.insert(buildingTilePosition.m_position);
 			if (!manager.hasComponent<ECS_Core::Components::C_Population>(mI))
