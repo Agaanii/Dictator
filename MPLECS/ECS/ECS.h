@@ -124,9 +124,9 @@ namespace ECS_Core
 			WORKERS,
 			ELDERS
 		};
-		using SpecialtyId = u32;
+		using SpecialtyId = s32;
 		using SpecialtyLevel = s32;
-		using SpecialtyExperience = s32;
+		using SpecialtyExperience = f64;
 
 		struct SpecialtyProgress
 		{

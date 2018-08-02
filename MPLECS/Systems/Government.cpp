@@ -167,15 +167,24 @@ void ConstructRequestedBuildings(ECS_Core::Manager& manager)
 	});
 }
 
-using WorkerKey = s32;
+struct WorkerProductionValue
+{
+	WorkerProductionValue() = default;
+	WorkerProductionValue(const s32& workerKey, const f64& productionValue)
+		: m_workerKey(workerKey)
+		, m_productiveValue(productionValue)
+	{ }
+	s32 m_workerKey{ 0 };
+	f64 m_productiveValue{ 0 };
+};
 
 struct WorkerAssignment
 {
-	using AssignmentMap = std::map<ECS_Core::Components::SpecialtyId, s32>;
+	using AssignmentMap = std::map<ECS_Core::Components::SpecialtyId, WorkerProductionValue>;
 	AssignmentMap m_assignments;
 };
 
-using WorkerAssignmentMap = std::map<WorkerKey, WorkerAssignment>;
+using WorkerAssignmentMap = std::map<s32, WorkerAssignment>;
 
 struct WorkerSkillKey
 {
@@ -226,12 +235,12 @@ void UpdateAgendas(ECS_Core::Manager& manager)
 	});
 }
 
-using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerKey>>;
+using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerProductionValue>>;
 using SkillMap = std::map<ECS_Core::Components::SpecialtyId, WorkerSkillMap>;
-int AssignYieldWorkers(
-	std::pair<const WorkerSkillKey, std::vector<int>> & skillLevel,
+f64 AssignYieldWorkers(
+	std::pair<const WorkerSkillKey, std::vector<WorkerProductionValue>> & skillLevel,
 	WorkerAssignmentMap &assignments,
-	s32 &amountToWork,
+	f64 &amountToWork,
 	const int& yield);
 
 void GainIncomes(ECS_Core::Manager& manager)
@@ -267,19 +276,22 @@ void GainIncomes(ECS_Core::Manager& manager)
 			auto& territory = manager.getComponent<ECS_Core::Components::C_Territory>(territoryHandle);
 			auto& population = manager.getComponent<ECS_Core::Components::C_Population>(territoryHandle);
 			auto& inventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle);
+
+			bool subsistenceMode = inventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] == 0;
 			// Choose which yields will be worked based on government priorities
 			// If production is the focus, highest skill works first
 			// If training is the focus, lowest skill works first
 			// After yields are determined, increase experience for the workers
 			// Experience advances more slowly for higher skill
-			s32 totalWorkerCount{ 0 };
+			f64 totalWorkerCount{ 0 };
 			for (auto&& pop : population.m_populations)
 			{
 				if (pop.second.m_class == ECS_Core::Components::PopulationClass::WORKERS)
 				{
-					auto totalPeople = pop.second.m_numWomen + pop.second.m_numMen;
-					totalWorkerCount += totalPeople;
-					assignments[pop.first].m_assignments[-1] = totalPeople;
+					auto totalProductiveEffort = (pop.second.m_womensHealth * pop.second.m_numWomen)
+						+ (pop.second.m_mensHealth * pop.second.m_numMen);
+					totalWorkerCount += totalProductiveEffort;
+					assignments[pop.first].m_assignments.insert({ -1, { pop.first, totalProductiveEffort } });
 					for (auto&& yieldType : agenda.m_yieldPriority)
 					{
 						// Make sure there are entries in the specialties for every skill needed to work the region
@@ -287,7 +299,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 					}
 					for (auto&& skill : pop.second.m_specialties)
 					{
-						skillMap[skill.first][{skill.second.m_level, skill.second.m_experience}].push_back(pop.first);
+						skillMap[skill.first][{skill.second.m_level, skill.second.m_experience}].push_back({ pop.first, totalProductiveEffort });
 					}
 				}
 			}
@@ -303,7 +315,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 					continue;
 				}
 
-				auto amountToWork = availableYield->second.m_workableTiles;
+				f64 amountToWork = availableYield->second.m_workableTiles;
 
 				switch (agenda.m_popAgenda)
 				{
@@ -354,8 +366,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 			{
 				for (auto& assignment : workers.second.m_assignments)
 				{
+					if (assignment.first < 0) continue;
 					population.m_populations[workers.first].m_specialties[assignment.first]
-						.m_experience += assignment.second;
+						.m_experience += assignment.second.m_productiveValue;
 				}
 			}
 		}
@@ -365,26 +378,26 @@ void GainIncomes(ECS_Core::Manager& manager)
 
 void Government::ProgramInit() {}
 
-int AssignYieldWorkers(
-	std::pair<const WorkerSkillKey, std::vector<int>> & skillLevel,
+f64 AssignYieldWorkers(
+	std::pair<const WorkerSkillKey, std::vector<WorkerProductionValue>> & skillLevel,
 	WorkerAssignmentMap &assignments,
-	s32 &amountToWork,
+	f64 &amountToWork,
 	const int & yield)
 {
-	int totalYieldAmount = 0;
-	for (auto&& workerKey : skillLevel.second)
+	f64 totalYieldAmount = 0;
+	for (auto&& worker : skillLevel.second)
 	{
-		auto assignment = assignments.find(workerKey);
+		auto assignment = assignments.find(worker.m_workerKey);
 		if (assignment == assignments.end())
 		{
 			continue;
 		}
 		// Find how many people are still unassigned
-		auto countWorkingYield = min<s32>(amountToWork, assignment->second.m_assignments[-1]);
-		assignment->second.m_assignments[yield] += countWorkingYield;
-		assignment->second.m_assignments[-1] -= countWorkingYield;
+		auto countWorkingYield = min<f64>(amountToWork, assignment->second.m_assignments[-1].m_productiveValue);
+		assignment->second.m_assignments[yield].m_productiveValue += countWorkingYield;
+		assignment->second.m_assignments[-1].m_productiveValue -= countWorkingYield;
 		amountToWork -= countWorkingYield;
-		totalYieldAmount += countWorkingYield * static_cast<s32>(sqrt(skillLevel.first.m_level));
+		totalYieldAmount += countWorkingYield * (sqrt(skillLevel.first.m_level));
 	}
 	return totalYieldAmount;
 }
