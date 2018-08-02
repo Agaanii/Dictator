@@ -173,7 +173,7 @@ namespace ECS_Core
 		using YieldBuckets = std::map<YieldType, f64>;
 		struct TileProduction
 		{
-			f64 m_productionInterval{ 170 }; // # of Days of 1 level 1 worker = 1 produced
+			f64 m_productionInterval{ 120 }; // # of Days of 1 level 1 worker = 1 produced
 			f64 m_productionProgress{ 0 };
 			s32 m_workableTiles{ 0 };
 			YieldBuckets m_productionYield;
