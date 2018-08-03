@@ -1234,20 +1234,32 @@ void ProcessSelectTile(
 						}
 						return result;
 					}),
+						UIDataReader<C_Population, f64>([](const C_Population& pop) -> f64 {
+						f64 totalHealth{ 0 };
+						s32 totalPopulation{ 0 };
+						for (auto&& population : pop.m_populations)
+						{
+							totalHealth += (population.second.m_mensHealth * population.second.m_numMen)
+								+ (population.second.m_womensHealth * population.second.m_numWomen);
+							totalPopulation += population.second.m_numMen + population.second.m_numWomen;
+						}
+						return totalHealth / max<s32>(1, totalPopulation);
+					}),
 						DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
 					uiFrame.m_dataStrings[{0}] = { {}, std::make_shared<sf::Text>() };
 					uiFrame.m_dataStrings[{1}] = { { 20,0 }, std::make_shared<sf::Text>() };
 					uiFrame.m_dataStrings[{2}] = { { 20,30 }, std::make_shared<sf::Text>() };
 					uiFrame.m_dataStrings[{3}] = { { 20,60 }, std::make_shared<sf::Text>() };
 					uiFrame.m_dataStrings[{4}] = { { 20,90 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
-					uiFrame.m_dataStrings[{5, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{5}] = { { 20, 140 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
+					uiFrame.m_dataStrings[{6, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
 					uiFrame.m_topLeftCorner = { 50,50 };
 					uiFrame.m_size = { 200, 240 };
 
@@ -1353,20 +1365,31 @@ void ProcessSelectTile(
 				}
 				return result;
 			}),
+				UIDataReader<C_Population, f64>([](const C_Population& pop) -> f64 {
+				f64 totalHealth{ 0 };
+				s32 totalPopulation{ 0 };
+				for (auto&& population : pop.m_populations)
+				{
+					totalHealth += (population.second.m_mensHealth * population.second.m_numMen)
+						+ (population.second.m_womensHealth * population.second.m_numWomen);
+					totalPopulation += population.second.m_numMen + population.second.m_numWomen;
+				}
+				return totalHealth / max<s32>(1, totalPopulation);
+			}),
 				DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
 			uiFrame.m_dataStrings[{0}] = { { 20,0 }, std::make_shared<sf::Text>() };
 			uiFrame.m_dataStrings[{1}] = { { 20,30 }, std::make_shared<sf::Text>() };
 			uiFrame.m_dataStrings[{2}] = { { 20,60 }, std::make_shared<sf::Text>() };
 			uiFrame.m_dataStrings[{3}] = { { 20,90 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
-			
+			uiFrame.m_dataStrings[{4}] = { { 20, 140 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
+			uiFrame.m_dataStrings[{5, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
 			uiFrame.m_size = { 200, 240 };
 			uiFrame.m_topLeftCorner = { 0, 300 };
 			
