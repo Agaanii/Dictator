@@ -67,8 +67,8 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 			{
 				auto& population = manager.addComponent<ECS_Core::Components::C_Population>(mI);
 				auto& foundingPopulation = population.m_populations[-12 * (time.m_year - 15) - time.m_month];
-				foundingPopulation.m_numMen = 5;
-				foundingPopulation.m_numWomen = 5;
+				foundingPopulation.m_numMen = 25;
+				foundingPopulation.m_numWomen = 25;
 				foundingPopulation.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 			}
 			auto& creatorRealm = manager.getComponent<ECS_Core::Components::C_Realm>(construction.m_placingGovernor);

@@ -68,7 +68,7 @@ namespace TileNED
 		std::optional<int> m_movementCost; // If notset, unpathable
 										   // Each 1 pixel is 4 components: RGBA
 		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
-		std::optional<ecs::EntityIndex> m_owningBuilding; // If notset, no building owns this tile
+		std::optional<ecs::Impl::Handle> m_owningBuilding; // If notset, no building owns this tile
 	};
 
 	struct Sector
@@ -910,7 +910,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		auto& placementTile = GetTile(tilePos.m_position, manager);
 		if (!placementTile.m_owningBuilding)
 		{
-			placementTile.m_owningBuilding = entity;
+			placementTile.m_owningBuilding = manager.getHandle(entity);
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
@@ -958,7 +958,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 					territory.m_nextGrowthTile = { 0.f, selectedGrowthTiles.front() };
 
 					auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
-					tile.m_owningBuilding = territoryEntity;
+					tile.m_owningBuilding = manager.getHandle(territoryEntity);
 				}
 			}
 		}
@@ -1268,8 +1268,8 @@ void ProcessSelectTile(
 
 					moveButton.m_topLeftCorner = { 90,0 };
 					moveButton.m_size = { 30,30 };
-					moveButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
-						return Action::LocalPlayer::PlanMotion(clickedEntity);
+					moveButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+						return Action::LocalPlayer::PlanMotion(manager.getHandle(clickedEntity));
 					};
 
 					buildButton.m_size = { 30,30 };
@@ -1419,6 +1419,15 @@ void ProcessSelectTile(
 			};
 			uiFrame.m_buttons.push_back(newBuildingButton);
 
+			ECS_Core::Components::Button newCaravanButton;
+			newCaravanButton.m_size = { 30, 30 };
+			newCaravanButton.m_topLeftCorner = { 0, uiFrame.m_size.m_y - 30 };
+			newCaravanButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+			{
+				return Action::LocalPlayer::PlanCaravan(manager.getHandle(clickedEntity));
+			};
+			uiFrame.m_buttons.push_back(newCaravanButton);
+
 			if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
 			{
 				manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
@@ -1436,6 +1445,10 @@ void ProcessSelectTile(
 			spawnGraphic->setFillColor({ 30, 200, 30 });
 			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ spawnGraphic, newBuildingButton.m_topLeftCorner });
 
+			auto caravanGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+			caravanGraphic->setFillColor({ 200, 100, 30 });
+			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ caravanGraphic, newCaravanButton.m_topLeftCorner });
+
 			for (auto&& dataStr : uiFrame.m_dataStrings)
 			{
 				dataStr.second.m_text->setFillColor({ 255,255,255 });
@@ -1445,6 +1458,150 @@ void ProcessSelectTile(
 			}
 		}
 	}
+}
+
+std::optional<ECS_Core::Components::MoveToPoint> GetPath(
+	const TilePosition& sourcePosition,
+	const TilePosition& targetPosition,
+	ECS_Core::Manager& manager)
+{
+	// Make sure you can get from source tile to target tile
+	// Are they in the same quadrant?
+	if (sourcePosition.m_quadrantCoords != targetPosition.m_quadrantCoords)
+	{
+		auto& targetQuadrant = TileNED::FetchQuadrant(targetPosition.m_quadrantCoords, manager);
+		auto& sourceQuadrant = TileNED::FetchQuadrant(sourcePosition.m_quadrantCoords, manager);
+
+		// Get shortest path between quadrants
+
+		// Then in each quadrant in path, find shortest sector path from entry to exit 
+		// (if in the same quadrant, find shortest sector path from source to target)
+
+		// For each sector in path, find shortest tile path entry to exit 
+		// (if in same sector, shortest tile path source to target)
+	}
+	else if (sourcePosition.m_sectorCoords != targetPosition.m_sectorCoords)
+	{
+		auto& quadrant = TileNED::FetchQuadrant(targetPosition.m_quadrantCoords, manager);
+		Pathing::PathingSide::Enum simOriginSide = [&tile = sourcePosition.m_coords]()->Pathing::PathingSide::Enum {
+			auto xDistance = min<s64>(tile.m_x, TileNED::SECTOR_SIDE_LENGTH - tile.m_x - 1);
+			auto yDistance = min<s64>(tile.m_y, TileNED::SECTOR_SIDE_LENGTH - tile.m_y - 1);
+			if (xDistance <= yDistance)
+			{
+				return xDistance == tile.m_x ? Pathing::PathingSide::WEST : Pathing::PathingSide::EAST;
+			}
+			return yDistance == tile.m_y ? Pathing::PathingSide::NORTH : Pathing::PathingSide::SOUTH;
+		}();
+		auto sectorPath = Pathing::GetPath(
+			quadrant.m_sectorCrossingPathCosts,
+			sourcePosition.m_sectorCoords,
+			simOriginSide,
+			targetPosition.m_sectorCoords);
+
+		if (sectorPath)
+		{
+			// Glue together: starting tile to exit tile of first sector
+			// Rest of the sectors
+			// Final sector entry tile to target tile.
+
+			const auto& startingMacroPath = sectorPath->m_path.front();
+			const auto& startingSector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+			auto startingExitTile = [&direction = startingMacroPath.m_exitDirection,
+				&sector = startingSector]()->CoordinateVector2 {
+				switch (direction)
+				{
+				case Direction::NORTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH], 0 };
+				case Direction::SOUTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH], TileNED::SECTOR_SIDE_LENGTH - 1 };
+				case Direction::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] };
+				case Direction::WEST: return { 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] };
+				}
+				return { 0,0 };
+			}();
+			auto startingPath = Pathing::GetPath(
+				startingSector.m_tileMovementCosts,
+				sourcePosition.m_coords,
+				startingExitTile);
+			if (!startingPath)
+			{
+				return std::nullopt;
+			}
+
+			auto& endingMacroPath = sectorPath->m_path.back();
+			const auto& endingSector = quadrant.m_sectors
+				[targetPosition.m_sectorCoords.m_x]
+			[targetPosition.m_sectorCoords.m_y];
+			auto endingEntryTile = [&direction = endingMacroPath.m_entryDirection,
+				&sector = endingSector]()->CoordinateVector2 {
+				switch (direction)
+				{
+				case Direction::NORTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH], 0 };
+				case Direction::SOUTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH], TileNED::SECTOR_SIDE_LENGTH - 1 };
+				case Direction::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] };
+				case Direction::WEST: return { 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] };
+				}
+				return { 0,0 };
+			}();
+			auto endingPath = Pathing::GetPath(
+				endingSector.m_tileMovementCosts,
+				endingEntryTile,
+				targetPosition.m_coords);
+			if (!endingPath)
+			{
+				return std::nullopt;
+			}
+
+			// Glue it all together
+			ECS_Core::Components::MoveToPoint overallPath;
+			for (auto&& tile : startingPath->m_path)
+			{
+				overallPath.m_path.push_back({ { sourcePosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
+					*quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
+			}
+
+			for (int i = 1; i < sectorPath->m_path.size() - 1; ++i)
+			{
+				auto& path = sectorPath->m_path[i];
+				auto& crossingPath = quadrant.m_sectorCrossingPaths
+					[path.m_node.m_x]
+				[path.m_node.m_y]
+				[Pathing::PathingSide::Convert(path.m_entryDirection)]
+				[Pathing::PathingSide::Convert(path.m_exitDirection)];
+				for (auto&& tile : *crossingPath)
+				{
+					overallPath.m_path.push_back({ { sourcePosition.m_quadrantCoords,{ path.m_node.m_x, path.m_node.m_y }, tile },
+						*quadrant.m_sectors[path.m_node.m_x][path.m_node.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
+				}
+			}
+
+			for (auto&& tile : endingPath->m_path)
+			{
+				overallPath.m_path.push_back({ { targetPosition.m_quadrantCoords, targetPosition.m_sectorCoords, tile },
+					*quadrant.m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
+			}
+			overallPath.m_targetPosition = targetPosition;
+			return overallPath;
+		}
+	}
+	else
+	{
+		auto& quadrant = TileNED::FetchQuadrant(targetPosition.m_quadrantCoords, manager);
+		auto& sector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+		auto totalPath = Pathing::GetPath(sector.m_tileMovementCosts,
+			sourcePosition.m_coords,
+			targetPosition.m_coords);
+		if (totalPath)
+		{
+			ECS_Core::Components::MoveToPoint path;
+			for (auto&& tile : totalPath->m_path)
+			{
+				path.m_path.push_back({ { sourcePosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
+					*sector.m_tileMovementCosts[tile.m_x][tile.m_y] });
+			}
+			path.m_targetPosition = targetPosition;
+			return path;
+		}
+	}
+	return std::nullopt;
 }
 
 void WorldTile::ProgramInit() {}
@@ -1534,7 +1691,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		});
 
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef](
-			const ecs::EntityIndex&,
+			const ecs::EntityIndex& governorEntity,
 			ECS_Core::Components::C_ActionPlan& actionPlan)
 		{
 			for (auto&& action : actionPlan.m_plan)
@@ -1546,154 +1703,180 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover)) continue;
 					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover)) continue;
 					auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover).m_position;
+					auto& targetPosition = setMovement.m_targetPosition;
 
-					// Make sure you can get from source tile to target tile
-					// Are they in the same quadrant?
-					if (sourcePosition.m_quadrantCoords != setMovement.m_targetPosition.m_quadrantCoords)
+					auto path = GetPath(sourcePosition, targetPosition, manager);
+					if (!path)
 					{
-						auto& targetQuadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
-						auto& sourceQuadrant = TileNED::FetchQuadrant(sourcePosition.m_quadrantCoords, manager);
-
-						// Get shortest path between quadrants
-
-						// Then in each quadrant in path, find shortest sector path from entry to exit 
-						// (if in the same quadrant, find shortest sector path from source to target)
-
-						// For each sector in path, find shortest tile path entry to exit 
-						// (if in same sector, shortest tile path source to target)
+						continue;
 					}
-					else if (sourcePosition.m_sectorCoords != setMovement.m_targetPosition.m_sectorCoords)
+
+					auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
+					movingUnit.m_currentMovement = *path;
+
+					if (setMovement.m_targetingIcon)
 					{
-						auto& quadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
-						Pathing::PathingSide::Enum simOriginSide = [&tile = sourcePosition.m_coords]()->Pathing::PathingSide::Enum {
-							auto xDistance = min<s64>(tile.m_x, TileNED::SECTOR_SIDE_LENGTH - tile.m_x - 1);
-							auto yDistance = min<s64>(tile.m_y, TileNED::SECTOR_SIDE_LENGTH - tile.m_y - 1);
-							if (xDistance <= yDistance)
-							{
-								return xDistance == tile.m_x ? Pathing::PathingSide::WEST : Pathing::PathingSide::EAST;
-							}
-							return yDistance == tile.m_y ? Pathing::PathingSide::NORTH : Pathing::PathingSide::SOUTH;
-						}();
-						auto sectorPath = Pathing::GetPath(
-							quadrant.m_sectorCrossingPathCosts,
-							sourcePosition.m_sectorCoords,
-							simOriginSide,
-							setMovement.m_targetPosition.m_sectorCoords);
+						manager.addTag<ECS_Core::Tags::T_Dead>(*setMovement.m_targetingIcon);
+					}
+				}
+				else if (std::holds_alternative<Action::CreateCaravan>(action))
+				{
+					auto& createCaravan = std::get<Action::CreateCaravan>(action);
+					auto& deliveryTile = TileNED::GetTile(createCaravan.m_deliveryPosition, manager);
+					if (!deliveryTile.m_owningBuilding || !createCaravan.m_popSource)
+					{
+						continue;
+					}
+					// Target building is valid, find a path between them, check resources and population
+					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(*deliveryTile.m_owningBuilding)
+						|| !manager.hasComponent<ECS_Core::Components::C_Population>(*createCaravan.m_popSource)
+						|| !manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*createCaravan.m_popSource))
+					{
+						continue;
+					}
+					auto& sourcePopulation = manager.getComponent<ECS_Core::Components::C_Population>(*createCaravan.m_popSource);
+					auto& sourceInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*createCaravan.m_popSource);
 
-						if (sectorPath)
+					// Check that 
+					int sourceTotalMen{ 0 };
+					int sourceTotalWomen{ 0 };
+					for (auto&& pop : sourcePopulation.m_populations)
+					{
+						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
 						{
-							// Glue together: starting tile to exit tile of first sector
-							// Rest of the sectors
-							// Final sector entry tile to target tile.
-
-							const auto& startingMacroPath = sectorPath->m_path.front();
-							const auto& startingSector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
-							auto startingExitTile = [&direction = startingMacroPath.m_exitDirection,
-								&sector = startingSector]()->CoordinateVector2 {
-								switch (direction)
-								{
-								case Direction::NORTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH], 0 };
-								case Direction::SOUTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH], TileNED::SECTOR_SIDE_LENGTH - 1 };
-								case Direction::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] };
-								case Direction::WEST: return { 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] };
-								}
-								return { 0,0 };
-							}();
-							auto startingPath = Pathing::GetPath(
-								startingSector.m_tileMovementCosts,
-								sourcePosition.m_coords,
-								startingExitTile);
-							if (!startingPath)
-							{
-								setMovement.m_path = -1;
-								continue;
-							}
-
-							auto& endingMacroPath = sectorPath->m_path.back();
-							const auto& endingSector = quadrant.m_sectors
-								[setMovement.m_targetPosition.m_sectorCoords.m_x]
-							[setMovement.m_targetPosition.m_sectorCoords.m_y];
-							auto endingEntryTile = [&direction = endingMacroPath.m_entryDirection,
-								&sector = endingSector]()->CoordinateVector2 {
-								switch (direction)
-								{
-								case Direction::NORTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::NORTH], 0 };
-								case Direction::SOUTH: return { *sector.m_pathingBorderTiles[Pathing::PathingSide::SOUTH], TileNED::SECTOR_SIDE_LENGTH - 1 };
-								case Direction::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[Pathing::PathingSide::EAST] };
-								case Direction::WEST: return { 0, *sector.m_pathingBorderTiles[Pathing::PathingSide::WEST] };
-								}
-								return { 0,0 };
-							}();
-							auto endingPath = Pathing::GetPath(
-								endingSector.m_tileMovementCosts,
-								endingEntryTile,
-								setMovement.m_targetPosition.m_coords);
-							if (!endingPath)
-							{
-								setMovement.m_path = -1;
-								continue;
-							}
-
-							// Glue it all together
-							ECS_Core::Components::MoveToPoint overallPath;
-							for (auto&& tile : startingPath->m_path)
-							{
-								overallPath.m_path.push_back({ { setMovement.m_targetPosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
-									*quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
-							}
-
-							for (int i = 1; i < sectorPath->m_path.size() - 1; ++i)
-							{
-								auto& path = sectorPath->m_path[i];
-								auto& crossingPath = quadrant.m_sectorCrossingPaths
-									[path.m_node.m_x]
-								[path.m_node.m_y]
-								[Pathing::PathingSide::Convert(path.m_entryDirection)]
-								[Pathing::PathingSide::Convert(path.m_exitDirection)];
-								for (auto&& tile : *crossingPath)
-								{
-									overallPath.m_path.push_back({ { setMovement.m_targetPosition.m_quadrantCoords,{ path.m_node.m_x, path.m_node.m_y }, tile },
-										*quadrant.m_sectors[path.m_node.m_x][path.m_node.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
-								}
-							}
-
-							for (auto&& tile : endingPath->m_path)
-							{
-								overallPath.m_path.push_back({ { setMovement.m_targetPosition.m_quadrantCoords, setMovement.m_targetPosition.m_sectorCoords, tile },
-									*quadrant.m_sectors[setMovement.m_targetPosition.m_sectorCoords.m_x][setMovement.m_targetPosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
-							}
-							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
-							overallPath.m_targetPosition = setMovement.m_targetPosition;
-							movingUnit.m_currentMovement = overallPath;
-
-							manager.addTag<ECS_Core::Tags::T_Dead>(setMovement.m_targetingIcon);
+							continue;
 						}
+						sourceTotalMen += pop.second.m_numMen;
+						sourceTotalWomen += pop.second.m_numWomen;
 					}
-					else
+					int totalMenToMove = 10;
+					int totalWomenToMove = 5;
+					if (totalMenToMove > (sourceTotalMen - 3) || totalWomenToMove > (sourceTotalWomen - 3))
 					{
-						auto& quadrant = TileNED::FetchQuadrant(setMovement.m_targetPosition.m_quadrantCoords, manager);
-						auto& sector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
-						auto totalPath = Pathing::GetPath(sector.m_tileMovementCosts,
-							sourcePosition.m_coords,
-							setMovement.m_targetPosition.m_coords);
-						if (totalPath)
-						{
-							ECS_Core::Components::MoveToPoint path;
-							for (auto&& tile : totalPath->m_path)
-							{
-								path.m_path.push_back({ { sourcePosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
-									*sector.m_tileMovementCosts[tile.m_x][tile.m_y] });
-							}
-							auto& movingUnit = manager.getComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover);
-							path.m_targetPosition = setMovement.m_targetPosition;
-							movingUnit.m_currentMovement = path;
+						continue;
+					}
 
-							manager.addTag<ECS_Core::Tags::T_Dead>(setMovement.m_targetingIcon);
+					// Requires 100 food, 50 wood to create
+					if (sourceInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] < 100
+						|| sourceInventory.m_collectedYields[ECS_Core::Components::Yields::WOOD] < 50)
+					{
+						continue;
+					}
+
+					// Make sure we can get there
+					auto path = GetPath(
+						createCaravan.m_spawningPosition,
+						manager.getComponent<ECS_Core::Components::C_TilePosition>(*deliveryTile.m_owningBuilding).m_position,
+						manager);
+					if (!path)
+					{
+						continue;
+					}
+
+					// Spawn entity for the unit, then take costs and population
+					// Then we'll take 100 each of the highest resource counts
+					auto newEntity = manager.createHandle();
+					manager.addComponent<ECS_Core::Components::C_TilePosition>(newEntity).m_position = path->m_path.front().m_tile;
+					manager.addComponent<ECS_Core::Components::C_PositionCartesian>(newEntity);
+					auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+					auto& caravanPath = manager.addComponent<ECS_Core::Components::C_CaravanPath>(newEntity);
+					movingUnit.m_currentMovement = *path;
+					caravanPath.m_basePath = *path;
+					caravanPath.m_originBuildingHandle = manager.getHandle(*createCaravan.m_popSource);
+					caravanPath.m_targetBuildingHandle = *deliveryTile.m_owningBuilding;
+
+					auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
+					auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
+					int menMoved = 0;
+					int womenMoved = 0;
+					for (auto&& pop : sourcePopulation.m_populations)
+					{
+						if (menMoved == totalMenToMove && totalWomenToMove == 5)
+						{
+							break;
+						}
+						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+						{
+							continue;
+						}
+						auto menToMove = min<int>(totalMenToMove - menMoved, pop.second.m_numMen);
+						auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.second.m_numWomen);
+
+						auto& popCopy = population.m_populations[pop.first];
+						popCopy = pop.second;
+						popCopy.m_numMen = menToMove;
+						popCopy.m_numWomen = womenToMove;
+
+						pop.second.m_numMen -= menToMove;
+						pop.second.m_numWomen -= womenToMove;
+
+
+						menMoved += menToMove;
+						womenMoved += womenToMove;
+					}
+
+					sourceInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] -= 100;
+					sourceInventory.m_collectedYields[ECS_Core::Components::Yields::WOOD] -= 50;
+					moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
+
+					std::map<f64, std::vector<ECS_Core::Components::YieldType>, std::greater<f64>> heldResources;
+					for (auto&& resource : sourceInventory.m_collectedYields)
+					{
+						heldResources[resource.second].push_back(resource.first);
+					}
+					int resourcesMoved = 0;
+					for (auto&& heldResource : heldResources)
+					{
+						s32 amountToMove = min<s32>(static_cast<s32>(heldResource.first), 100);
+						for (auto&& resource : heldResource.second)
+						{
+							sourceInventory.m_collectedYields[resource] -= amountToMove;
+							moverInventory.m_collectedYields[resource] += amountToMove;
+							if (++resourcesMoved >= 3)
+							{
+								break;
+							}
+						}
+						if (resourcesMoved >= 3)
+						{
+							break;
 						}
 					}
 
-					// Return error because not yet implemented
-					setMovement.m_path = -1;
+					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(newEntity);
+					auto pentagon = std::make_shared<sf::CircleShape>(2.5f, 5);
+					pentagon->setFillColor({ 255, 185, 60, 128 });
+					pentagon->setOutlineColor({ 255, 185, 60});
+					pentagon->setOutlineThickness(-0.5f);
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ pentagon, {} });
+
+					if (createCaravan.m_targetingIcon)
+					{
+						manager.addTag<ECS_Core::Tags::T_Dead>(*createCaravan.m_targetingIcon);
+					}
+				}
+				else if (std::holds_alternative<Action::SettleBuildingUnit>(action))
+				{
+					auto& settle = std::get<Action::SettleBuildingUnit>(action);
+					if (!manager.hasComponent<ECS_Core::Components::C_BuildingDescription>(settle.m_builderIndex)
+						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(settle.m_builderIndex))
+					{
+						continue;
+					}
+					auto& position = manager.getComponent<ECS_Core::Components::C_TilePosition>(settle.m_builderIndex).m_position;
+					// Check to make sure this tile is unoccupied
+					if (TileNED::GetTile(position, manager).m_owningBuilding)
+					{
+						continue;
+					}
+
+					manager.delComponent<ECS_Core::Components::C_MovingUnit>(settle.m_builderIndex);
+					manager.delComponent<ECS_Core::Components::C_UIFrame>(settle.m_builderIndex);
+					if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex))
+					{
+						manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex).m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
+					}
+					manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(settle.m_builderIndex).m_placingGovernor = manager.getHandle(governorEntity);
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
@@ -1739,8 +1922,8 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				else if (std::holds_alternative<Action::LocalPlayer::PlanMotion>(action))
 				{
 					auto& planMotion = std::get<Action::LocalPlayer::PlanMotion>(action);
-					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(planMotion.m_moverIndex)
-						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverIndex))
+					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(planMotion.m_moverHandle)
+						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle))
 					{
 						// Only try to move if we have a mover unit with a tile position
 						continue;
@@ -1748,10 +1931,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto targetingEntity = manager.createHandle();
 					auto& targetScreenPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
 					auto& targetTilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
-					targetTilePosition.m_position = manager.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverIndex).m_position;
+					targetTilePosition.m_position = manager.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle).m_position;
 
 					auto& moverInfo = manager.addComponent<ECS_Core::Components::C_MovementTarget>(targetingEntity);
-					moverInfo.m_moverHandle = manager.getHandle(planMotion.m_moverIndex);
+					moverInfo.m_moverHandle = planMotion.m_moverHandle;
 					moverInfo.m_governorHandle = manager.getHandle(governorEntity);
 
 					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
@@ -1761,20 +1944,29 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					targetGraphic->setOutlineThickness(-0.75f);
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
 				}
-				else if (std::holds_alternative<Action::SettleBuildingUnit>(action))
+				else if (std::holds_alternative<Action::LocalPlayer::PlanCaravan>(action))
 				{
-					auto& settle = std::get<Action::SettleBuildingUnit>(action);
-					if (!manager.hasComponent<ECS_Core::Components::C_BuildingDescription>(settle.m_builderIndex))
+					auto& planMotion = std::get<Action::LocalPlayer::PlanCaravan>(action);
+					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_sourceHandle))
 					{
+						// Only try to move if we have a mover unit with a tile position
 						continue;
 					}
-					manager.delComponent<ECS_Core::Components::C_MovingUnit>(settle.m_builderIndex);
-					manager.delComponent<ECS_Core::Components::C_UIFrame>(settle.m_builderIndex);
-					if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex))
-					{
-						manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(settle.m_builderIndex).m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
-					}
-					manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(settle.m_builderIndex).m_placingGovernor = manager.getHandle(governorEntity);
+					auto targetingEntity = manager.createHandle();
+					auto& targetScreenPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
+					auto& targetTilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
+					targetTilePosition.m_position = manager.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_sourceHandle).m_position;
+
+					auto& caravanInfo = manager.addComponent<ECS_Core::Components::C_CaravanPlan>(targetingEntity);
+					caravanInfo.m_sourceBuildingHandle = planMotion.m_sourceHandle;
+					caravanInfo.m_governorHandle = manager.getHandle(governorEntity);
+
+					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
+					auto targetGraphic = std::make_shared<sf::CircleShape>(2.5f, 8);
+					targetGraphic->setFillColor({ 128, 128, 64, 128 });
+					targetGraphic->setOutlineColor({ 128, 128,64 });
+					targetGraphic->setOutlineThickness(-0.75f);
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;

@@ -99,8 +99,14 @@ namespace Action
 
 		struct PlanMotion
 		{
-			PlanMotion(const ecs::EntityIndex& moverIndex) : m_moverIndex(moverIndex) {}
-			ecs::EntityIndex m_moverIndex;
+			PlanMotion(const ecs::Impl::Handle& mover) : m_moverHandle(mover) {}
+			ecs::Impl::Handle m_moverHandle;
+		};
+
+		struct PlanCaravan
+		{
+			PlanCaravan(const ecs::Impl::Handle& caravanSource) : m_sourceHandle(caravanSource) {}
+			ecs::Impl::Handle m_sourceHandle;
 		};
 
 		struct CenterCamera
@@ -119,6 +125,14 @@ namespace Action
 
 	struct CreateUnit
 	{
+		CreateUnit() = default;
+		CreateUnit(const TilePosition& spawn,
+			const std::optional<ecs::EntityIndex>& popSource,
+			int movementSpeed)
+			: m_spawningPosition(spawn)
+			, m_popSource(popSource)
+			, m_movementSpeed(movementSpeed)
+		{}
 		TilePosition m_spawningPosition;
 		std::optional<ecs::EntityIndex> m_popSource;
 		int m_movementSpeed;
@@ -126,8 +140,18 @@ namespace Action
 
 	struct CreateCaravan : CreateUnit
 	{
+		CreateCaravan(
+			const TilePosition& delivery,
+			const std::optional<ecs::Impl::Handle>& target,
+			const TilePosition& spawn,
+			const ecs::EntityIndex& popSource,
+			int movementSpeed)
+			: m_deliveryPosition(delivery)
+			, CreateUnit(spawn, popSource, movementSpeed)
+		{ }
 		TilePosition m_deliveryPosition;
-		std::map<s32, s64> m_inventory;
+		std::optional<ecs::Impl::Handle> m_targetingIcon;
+		std::optional<std::map<s32, s64>> m_inventory;
 	};
 
 	struct CreateExplorationUnit : CreateUnit
@@ -149,14 +173,14 @@ namespace Action
 	{
 		SetTargetedMovement(
 			const ecs::Impl::Handle& mover,
-			const ecs::Impl::Handle& targetingIcon,
+			const std::optional<ecs::Impl::Handle>& targetingIcon,
 			const TilePosition& position)
 			: m_mover(mover)
 			, m_targetingIcon(targetingIcon)
 			, m_targetPosition(position)
 		{}
 		ecs::Impl::Handle m_mover;
-		ecs::Impl::Handle m_targetingIcon;
+		std::optional<ecs::Impl::Handle> m_targetingIcon;
 		TilePosition m_targetPosition;
 		// If set, int indicates error, Path indicates reachable
 		std::optional<std::variant<Pathing::Path, int>> m_path;
@@ -172,6 +196,7 @@ namespace Action
 		LocalPlayer::CloseUIFrame,
 		LocalPlayer::SelectTile,
 		LocalPlayer::PlanMotion,
+		LocalPlayer::PlanCaravan,
 		LocalPlayer::CenterCamera,
 		PlaceBuilding, 
 		CreateBuildingUnit,

@@ -319,6 +319,20 @@ namespace ECS_Core
 			ecs::Impl::Handle m_moverHandle;
 			ecs::Impl::Handle m_governorHandle;
 		};
+
+		struct C_CaravanPlan
+		{
+			ecs::Impl::Handle m_sourceBuildingHandle;
+			ecs::Impl::Handle m_governorHandle;
+		};
+
+		struct C_CaravanPath
+		{
+			ecs::Impl::Handle m_originBuildingHandle;
+			ecs::Impl::Handle m_targetBuildingHandle;
+			MoveToPoint m_basePath;
+			bool m_isReturning{ false };
+		};
 	}
 
 	namespace Tags
@@ -364,6 +378,7 @@ namespace ECS_Core
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
 		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population>;
 		using S_MovementPlanIndicator = ecs::Signature<Components::C_MovementTarget, Components::C_TilePosition>;
+		using S_CaravanPlanIndicator = ecs::Signature<Components::C_CaravanPlan, Components::C_TilePosition>;
 		using S_Dead = ecs::Signature<Tags::T_Dead>;
 	}
 
@@ -394,7 +409,9 @@ namespace ECS_Core
 		Components::C_ActionPlan,
 		Components::C_MovingUnit,
 		Components::C_Selection,
-		Components::C_MovementTarget
+		Components::C_MovementTarget,
+		Components::C_CaravanPlan,
+		Components::C_CaravanPath
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -432,6 +449,7 @@ namespace ECS_Core
 		Signatures::S_MovingUnit,
 		Signatures::S_SelectedMovingUnit,
 		Signatures::S_MovementPlanIndicator,
+		Signatures::S_CaravanPlanIndicator,
 		Signatures::S_Dead
 	>;
 

@@ -66,6 +66,26 @@ bool CheckStartTargetedMovement(
 		movementFound = true;
 		return ecs::IterationBehavior::BREAK;
 	});
+	manager.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>([&manager, &inputs, &actionPlan, &movementFound](
+		const ecs::EntityIndex& targetEntity,
+		const Components::C_CaravanPlan& movement,
+		const Components::C_TilePosition& position)
+	{
+		if (!manager.hasComponent<Components::C_TilePosition>(movement.m_sourceBuildingHandle))
+		{
+			return ecs::IterationBehavior::CONTINUE;
+		}
+		auto& sourcePosition = manager.getComponent<Components::C_TilePosition>(movement.m_sourceBuildingHandle);
+		actionPlan.m_plan.push_back(Action::CreateCaravan(
+			position.m_position,
+			manager.getHandle(targetEntity),
+			sourcePosition.m_position,
+			manager.getEntityIndex(movement.m_sourceBuildingHandle),
+			5));
+		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
+		movementFound = true;
+		return ecs::IterationBehavior::BREAK;
+	});
 	return movementFound;
 }
 
@@ -189,6 +209,18 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				[&inputs, &governorHandle](
 					const ecs::EntityIndex& entity,
 					const Components::C_MovementTarget& mover,
+					Components::C_TilePosition& position)
+			{
+				if (mover.m_governorHandle == governorHandle)
+				{
+					position.m_position = *inputs.m_currentMousePosition.m_tilePosition;
+				}
+				return ecs::IterationBehavior::CONTINUE;
+			});
+			manager.forEntitiesMatching<Signatures::S_CaravanPlanIndicator>(
+				[&inputs, &governorHandle](
+					const ecs::EntityIndex& entity,
+					const Components::C_CaravanPlan& mover,
 					Components::C_TilePosition& position)
 			{
 				if (mover.m_governorHandle == governorHandle)

@@ -476,14 +476,6 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							}
 							// Take the youngest workers, 10:5 male:female (more men die on the road)
 							auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(*builder.m_popSource);
-
-							// Spawn entity for the unit, then take costs and population
-							auto newEntity = manager.createHandle();
-							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
-							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
-							moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
-
-							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							int sourceTotalMen{ 0 };
 							int sourceTotalWomen{ 0 };
 							for (auto&& pop : populationSource.m_populations)
@@ -502,6 +494,12 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 								return std::nullopt;
 							}
 
+							// Spawn entity for the unit, then take costs and population
+							auto newEntity = manager.createHandle();
+							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
+							moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
+							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							int menMoved = 0;
 							int womenMoved = 0;
 							for (auto&& pop : populationSource.m_populations)
@@ -542,8 +540,8 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto timeFront = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front();
 							auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeFront);
 							auto& foundingPopulation = population.m_populations[-12 * (time.m_year - 15) - time.m_month];
-							foundingPopulation.m_numMen = 5;
-							foundingPopulation.m_numWomen = 5;
+							foundingPopulation.m_numMen = 25;
+							foundingPopulation.m_numWomen = 25;
 							foundingPopulation.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 							return newEntity;
 						}

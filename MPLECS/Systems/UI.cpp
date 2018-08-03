@@ -20,7 +20,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
 	{
-	case GameLoopPhase::ACTION:
+	case GameLoopPhase::INPUT:
 	{
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&manager = m_managerRef](
 			const ecs::EntityIndex& userEntity,
@@ -173,7 +173,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 	}
 	case GameLoopPhase::PREPARATION:
-	case GameLoopPhase::INPUT:
+	case GameLoopPhase::ACTION:
 	case GameLoopPhase::RENDER:
 	case GameLoopPhase::CLEANUP:
 		return;
