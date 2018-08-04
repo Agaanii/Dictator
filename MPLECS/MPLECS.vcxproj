@@ -144,6 +144,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Systems\BuildingCreation.cpp" />
+    <ClCompile Include="Systems\CaravanTrade.cpp" />
     <ClCompile Include="Systems\DamageApplication.cpp" />
     <ClCompile Include="Systems\Government.cpp" />
     <ClCompile Include="Systems\InputTranslation.cpp" />

@@ -376,7 +376,7 @@ namespace ECS_Core
 		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population>;
 		using S_SelectedMovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Selection>;
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
-		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population>;
+		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population, Components::C_CaravanPath>;
 		using S_MovementPlanIndicator = ecs::Signature<Components::C_MovementTarget, Components::C_TilePosition>;
 		using S_CaravanPlanIndicator = ecs::Signature<Components::C_CaravanPlan, Components::C_TilePosition>;
 		using S_Dead = ecs::Signature<Tags::T_Dead>;

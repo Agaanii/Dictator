@@ -58,6 +58,7 @@ int main()
 	RegisterSystem<PopulationGrowth>();
 	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
+	RegisterSystem<CaravanTrade>();
 
 	// Draw last
 	RegisterSystem<SFMLManager>();
