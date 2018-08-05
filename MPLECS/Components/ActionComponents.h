@@ -147,6 +147,7 @@ namespace Action
 			const ecs::EntityIndex& popSource,
 			int movementSpeed)
 			: m_deliveryPosition(delivery)
+			, m_targetingIcon(target)
 			, CreateUnit(spawn, popSource, movementSpeed)
 		{ }
 		TilePosition m_deliveryPosition;
