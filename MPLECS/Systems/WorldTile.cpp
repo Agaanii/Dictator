@@ -981,9 +981,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
 					++yield.m_workableTiles;
 					yield.m_productionYield = {
-						{ECS_Core::Components::Yields::FOOD, 1},
-						{ECS_Core::Components::Yields::STONE, 1},
-						{ECS_Core::Components::Yields::WOOD, 1 } };
+						{ ECS_Core::Components::Yields::FOOD, 1 } };
+					yield.m_productionYield[ownedTile.m_tileType] += 2;
 				}
 
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
@@ -1392,7 +1391,7 @@ void ProcessSelectTile(
 			uiFrame.m_dataStrings[{5, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
 			uiFrame.m_size = { 200, 240 };
 			uiFrame.m_topLeftCorner = { 0, 300 };
-			
+
 			ECS_Core::Components::Button closeButton;
 			closeButton.m_topLeftCorner.m_x = uiFrame.m_size.m_x - 30;
 			closeButton.m_size = { 30, 30 };
@@ -1846,9 +1845,9 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(newEntity);
 					auto pentagon = std::make_shared<sf::CircleShape>(2.5f, 5);
 					pentagon->setFillColor({ 255, 185, 60, 128 });
-					pentagon->setOutlineColor({ 255, 185, 60});
+					pentagon->setOutlineColor({ 255, 185, 60 });
 					pentagon->setOutlineThickness(-0.5f);
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ pentagon, {} });
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ pentagon,{} });
 
 					if (createCaravan.m_targetingIcon)
 					{

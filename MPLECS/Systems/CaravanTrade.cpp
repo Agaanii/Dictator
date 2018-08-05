@@ -86,9 +86,9 @@ void PerformTrade(
 	auto resourcesMoved{ 0 };
 	for (auto&& resource : heldResources)
 	{
-		auto amountToMove = min<f64>(100, resource.second);
-		caravanInventory.m_collectedYields[resource.first] = amountToMove;
-		buildingInventory.m_collectedYields[resource.first] -= amountToMove;
+		if (resource.second <= 100) continue;
+		caravanInventory.m_collectedYields[resource.first] = 100;
+		buildingInventory.m_collectedYields[resource.first] -= 100;
 		if (++resourcesMoved >= 3)
 		{
 			break;
