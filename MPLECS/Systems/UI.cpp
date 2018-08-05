@@ -149,6 +149,10 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			const ecs::EntityIndex& entityIndex,
 			ECS_Core::Components::C_UIFrame& uiEntity)
 		{
+			for (auto&& str : uiEntity.m_dataStrings)
+			{
+				str.second.m_text->setString("");
+			}
 			for (auto&& str : uiEntity.m_frame->ReadData(entityIndex, manager))
 			{
 				auto displayIter = uiEntity.m_dataStrings.find(str.first);

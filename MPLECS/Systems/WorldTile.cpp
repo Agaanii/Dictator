@@ -18,6 +18,7 @@
 
 #include "../Util/Pathing.h"
 
+#include <chrono>
 #include <iostream>
 #include <limits>
 #include <random>
@@ -45,7 +46,7 @@ namespace TileConstants
 {
 	constexpr int TILE_SIDE_LENGTH = 5;
 	constexpr int SECTOR_SIDE_LENGTH = 100;
-	constexpr int QUADRANT_SIDE_LENGTH = 4;
+	constexpr int QUADRANT_SIDE_LENGTH = 6;
 
 	constexpr int BASE_QUADRANT_ORIGIN_COORDINATE =
 		-TILE_SIDE_LENGTH *
@@ -260,6 +261,7 @@ std::vector<SectorSeedPosition> GetRelevantSeeds(
 	int secY)
 {
 	std::vector<SectorSeedPosition> relevantSeeds;
+	srand(static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 	CoordinateVector2 quadPosition;
 	CoordinateVector2 secPosition;
 	for (int x = -1; x < 2; ++x)
@@ -1184,6 +1186,11 @@ void ProcessSelectTile(
 						if (manager.hasComponent<ECS_Core::Components::C_UIFrame>(selectedEntity))
 						{
 							manager.delComponent<ECS_Core::Components::C_UIFrame>(selectedEntity);
+							if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(selectedEntity))
+							{
+								manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(selectedEntity)
+									.m_drawables.erase(ECS_Core::Components::DrawLayer::MENU);
+							}
 						}
 					}
 					return ecs::IterationBehavior::CONTINUE;
@@ -1261,24 +1268,6 @@ void ProcessSelectTile(
 					uiFrame.m_dataStrings[{6, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
 					uiFrame.m_topLeftCorner = { 50,50 };
 					uiFrame.m_size = { 200, 240 };
-
-					Button moveButton;
-					Button buildButton;
-
-					moveButton.m_topLeftCorner = { 90,0 };
-					moveButton.m_size = { 30,30 };
-					moveButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
-						return Action::LocalPlayer::PlanMotion(manager.getHandle(clickedEntity));
-					};
-
-					buildButton.m_size = { 30,30 };
-					buildButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
-						return Action::SettleBuildingUnit(clickedEntity);
-					};
-
-					uiFrame.m_buttons.push_back(moveButton);
-					uiFrame.m_buttons.push_back(buildButton);
-
 					if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(entity))
 					{
 						manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(entity);
@@ -1286,18 +1275,38 @@ void ProcessSelectTile(
 					auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(entity);
 
 					auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
-					auto moveGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
-					auto buildGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 
 					windowBackground->setFillColor({});
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
 
-					moveGraphic->setFillColor({ 40, 40, 200 });
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ moveGraphic, moveButton.m_topLeftCorner });
+					if (manager.hasComponent<ECS_Core::Components::C_BuildingDescription>(entity))
+					{
+						Button moveButton;
+						Button buildButton;
 
-					buildGraphic->setFillColor({ 85, 180, 100 });
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
+						moveButton.m_topLeftCorner = { 90,0 };
+						moveButton.m_size = { 30,30 };
+						moveButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+							return Action::LocalPlayer::PlanMotion(manager.getHandle(clickedEntity));
+						};
 
+						buildButton.m_size = { 30,30 };
+						buildButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+							return Action::SettleBuildingUnit(clickedEntity);
+						};
+
+						uiFrame.m_buttons.push_back(moveButton);
+						uiFrame.m_buttons.push_back(buildButton);
+
+						auto moveGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+						auto buildGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+						moveGraphic->setFillColor({ 40, 40, 200 });
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ moveGraphic, moveButton.m_topLeftCorner });
+
+						buildGraphic->setFillColor({ 85, 180, 100 });
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
+
+					}
 					for (auto&& dataStr : uiFrame.m_dataStrings)
 					{
 						dataStr.second.m_text->setFillColor({ 255,255,255 });
