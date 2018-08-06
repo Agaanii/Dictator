@@ -59,38 +59,30 @@ namespace std
 	}
 }
 
-auto Pathing::PathingSide::Opposite(Enum d) -> Enum
+PathingDirection Opposite(PathingDirection d)
 {
 	switch (d)
 	{
-	case NORTH: return SOUTH;
-	case SOUTH: return NORTH;
-	case EAST: return WEST;
-	case WEST: return EAST;
+	case PathingDirection::NORTH: return PathingDirection::SOUTH;
+	case PathingDirection::SOUTH: return PathingDirection::NORTH;
+	case PathingDirection::EAST:  return PathingDirection::WEST;
+	case PathingDirection::WEST:  return PathingDirection::EAST;
 	}
-	return _COUNT;
+	return PathingDirection::_COUNT;
 }
 
-Direction Pathing::PathingSide::Convert(Enum d)
+Direction Opposite(Direction d)
 {
 	switch (d)
 	{
-	case NORTH: return Direction::NORTH;
-	case SOUTH: return Direction::SOUTH;
-	case EAST: return Direction::EAST;
-	case WEST: return Direction::WEST;
+	case Direction::NORTH: return Direction::SOUTH;
+	case Direction::SOUTH: return Direction::NORTH;
+	case Direction::EAST:  return Direction::WEST;
+	case Direction::WEST:  return Direction::EAST;
+	case Direction::NORTHEAST: return Direction::SOUTHWEST;
+	case Direction::SOUTHEAST: return Direction::NORTHWEST;
+	case Direction::NORTHWEST:  return Direction::SOUTHEAST;
+	case Direction::SOUTHWEST:  return Direction::NORTHEAST;
 	}
-	return Direction::NORTH;
-}
-
-auto Pathing::PathingSide::Convert(Direction d) -> Enum
-{
-	switch (d)
-	{
-	case Direction::NORTH: return NORTH;
-	case Direction::SOUTH: return SOUTH;
-	case Direction::EAST: return EAST;
-	case Direction::WEST: return WEST;
-	}
-	return _COUNT;
+	return Direction::_COUNT;
 }

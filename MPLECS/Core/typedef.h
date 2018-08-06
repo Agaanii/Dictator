@@ -34,8 +34,20 @@ enum class Direction
 	SOUTH,
 	SOUTHWEST,
 	WEST,
-	NORTHWEST
+	NORTHWEST,
+	_COUNT
 };
+Direction Opposite(Direction d);
+
+enum class PathingDirection
+{
+	NORTH,
+	SOUTH,
+	EAST,
+	WEST,
+	_COUNT
+};
+PathingDirection Opposite(PathingDirection p);
 
 template<typename NUM_TYPE>
 struct CartesianVector3

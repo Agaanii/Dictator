@@ -28,8 +28,8 @@ namespace Pathing
 	struct MacroPathNode
 	{
 		MacroPathNode(const CoordinateVector2& node,
-			Direction entry,
-			Direction exit)
+			 PathingDirection entry,
+			 PathingDirection exit)
 			: m_node(node)
 			, m_entryDirection(entry)
 			, m_exitDirection(exit)
@@ -37,8 +37,8 @@ namespace Pathing
 
 		}
 		CoordinateVector2 m_node;
-		Direction m_entryDirection;
-		Direction m_exitDirection;
+		PathingDirection m_entryDirection;
+		PathingDirection m_exitDirection;
 	};
 	struct MacroPath
 	{
