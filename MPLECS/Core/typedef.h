@@ -48,6 +48,8 @@ enum class PathingDirection
 	_COUNT
 };
 PathingDirection Opposite(PathingDirection p);
+PathingDirection Clockwise90(PathingDirection p);
+PathingDirection Counterclockwise90(PathingDirection p);
 
 template<typename NUM_TYPE>
 struct CartesianVector3

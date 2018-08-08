@@ -71,6 +71,30 @@ PathingDirection Opposite(PathingDirection d)
 	return PathingDirection::_COUNT;
 }
 
+PathingDirection Clockwise90(PathingDirection d)
+{
+	switch (d)
+	{
+	case PathingDirection::NORTH: return PathingDirection::EAST;
+	case PathingDirection::EAST: return PathingDirection::SOUTH;
+	case PathingDirection::SOUTH: return PathingDirection::WEST;
+	case PathingDirection::WEST: return PathingDirection::NORTH;
+	}
+	return PathingDirection::_COUNT;
+}
+
+PathingDirection Counterclockwise90(PathingDirection d)
+{
+	switch (d)
+	{
+	case PathingDirection::NORTH: return PathingDirection::WEST;
+	case PathingDirection::WEST: return PathingDirection::SOUTH;
+	case PathingDirection::SOUTH: return PathingDirection::EAST;
+	case PathingDirection::EAST: return PathingDirection::NORTH;
+	}
+	return PathingDirection::_COUNT;
+}
+
 Direction Opposite(Direction d)
 {
 	switch (d)

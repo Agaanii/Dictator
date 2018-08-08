@@ -321,6 +321,15 @@ f64 RandDouble()
 	return static_cast<f64>(rand()) / static_cast<f64>(RAND_MAX + 1);
 }
 
+template<int SQUARE_SIDE_LENGTH>
+bool WithinSquare(const CoordinateVector2& coords)
+{
+	return coords.m_x >= 0
+		&& coords.m_y >= 0
+		&& coords.m_x < SQUARE_SIDE_LENGTH
+		&& coords.m_y < SQUARE_SIDE_LENGTH;
+}
+
 std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
 {
 	using namespace TileConstants;
@@ -444,192 +453,162 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 			thread.join();
 		}
 
-		// First, pick the points for input/output on each border
-		// Go along each horizontal border, and each vertical
+		// Starting in the middle of each sector, find the nearest (by movement cost)
+		// edge tile on each edge
 		std::vector<std::thread> borderThreads;
 
 		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
 		{
-			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
+			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH; ++sectorJ)
 			{
-				// Horizontal border
 				borderThreads.emplace_back([sectorI, sectorJ, &quadrant]() {
-					auto& upperSector = quadrant.m_sectors[sectorI][sectorJ];
-					auto& lowerSector = quadrant.m_sectors[sectorI][sectorJ + 1];
+					auto& sector = quadrant.m_sectors[sectorI][sectorJ];
 
-					auto middleIndex = SECTOR_SIDE_LENGTH / 2;
-					for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
-					{
-						auto borderIndex = [&i, &middleIndex]() {
-							if (i % 2 == 0) return middleIndex - (i / 2);
-							else return middleIndex + (i / 2);
+					// Select a tile in the middle of the sector
+					auto centerTileCoords = [&sector]() -> std::optional<CoordinateVector2> {
+						auto midpoint = []() -> s64 {
+							if constexpr(SECTOR_SIDE_LENGTH % 2 == 0)
+							{
+								return SECTOR_SIDE_LENGTH / 2 - 1;
+							}
+							else
+							{
+								return SECTOR_SIDE_LENGTH / 2;
+							}
 						}();
-						// Check if each is leavable (don't try to put people on a 1-tile island
-						// As well as the tile itself being pathable
-						bool upperTileValid = upperSector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 1].has_value();
-						bool lowerTileValid = lowerSector.m_tileMovementCosts[borderIndex][0].has_value();
-						int upperPathableTiles = 0;
-						int lowerPathableTiles = 0;
-
-						if (upperSector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 2]) ++upperPathableTiles;
-						if (lowerSector.m_tileMovementCosts[borderIndex][1]) ++lowerPathableTiles;
-						if (borderIndex > 0)
+						if (sector.m_tileMovementCosts[midpoint][midpoint])
 						{
-							if (upperSector.m_tileMovementCosts[borderIndex - 1][SECTOR_SIDE_LENGTH - 1]) ++upperPathableTiles;
-							if (lowerSector.m_tileMovementCosts[borderIndex - 1][0]) ++lowerPathableTiles;
+							return CoordinateVector2{ midpoint, midpoint };
 						}
-						if (borderIndex < SECTOR_SIDE_LENGTH - 1)
+						// Spiral out, until a moveable tile is found
+						auto midpointX = midpoint;
+						auto midpointY = midpoint;
+						// Will actually start out going east
+						PathingDirection nextTileDirection = PathingDirection::NORTH;
+						while (midpointX < SECTOR_SIDE_LENGTH && midpointX >= 0
+							&& midpointY < SECTOR_SIDE_LENGTH && midpointY >= 0)
 						{
-							if (upperSector.m_tileMovementCosts[borderIndex + 1][SECTOR_SIDE_LENGTH - 1]) ++upperPathableTiles;
-							if (lowerSector.m_tileMovementCosts[borderIndex + 1][0]) ++lowerPathableTiles;
+							if (abs(midpointX - midpoint) == abs(midpointY - midpoint))
+							{
+								nextTileDirection = Clockwise90(nextTileDirection);
+							}
+							switch (nextTileDirection)
+							{
+							case PathingDirection::NORTH:
+								--midpointY;
+								break;
+							case PathingDirection::EAST:
+								++midpointX;
+								break;
+							case PathingDirection::SOUTH:
+								++midpointY;
+								break;
+							case PathingDirection::WEST:
+								--midpointX;
+								break;
+							}
+							if (sector.m_tileMovementCosts[midpointX][midpointY])
+							{
+								return CoordinateVector2{ midpointX, midpointY };
+							}
 						}
-
-						if (upperTileValid && lowerTileValid && upperPathableTiles > 0 && lowerPathableTiles > 0)
+						return std::nullopt;
+					}();
+					if (!centerTileCoords)
+					{
+						// Whole sector is unpathable
+						return;
+					}
+					// Expand out from selected center tile, ordered by movement cost to point
+					bool visited[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
+					for (int i = 0; i < SECTOR_SIDE_LENGTH; ++i)
+					{
+						for (int j = 0; j < SECTOR_SIDE_LENGTH; ++j)
 						{
-							upperSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)] = borderIndex;
-							lowerSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)] = borderIndex;
-							break;
+							visited[i][j] = false;
 						}
 					}
-				});
-
-				// Vertical border
-				borderThreads.emplace_back([sectorI, sectorJ, &quadrant]() {
-					auto& leftSector = quadrant.m_sectors[sectorJ][sectorI];
-					auto& rightSector = quadrant.m_sectors[sectorJ + 1][sectorI];
-
-					auto middleIndex = SECTOR_SIDE_LENGTH / 2;
-					for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
+					std::map<s64, std::vector<CoordinateVector2>> openTiles;
+					u8 directionBits = 1 << static_cast<u8>(PathingDirection::NORTH)
+						| 1 << static_cast<u8>(PathingDirection::SOUTH)
+						| 1 << static_cast<u8>(PathingDirection::EAST)
+						| 1 << static_cast<u8>(PathingDirection::WEST);
+					openTiles[0].push_back(*centerTileCoords);
+					
+					while (openTiles.size() && directionBits != 0)
 					{
-						auto borderIndex = [&i, &middleIndex]() {
-							if (i % 2 == 0) return middleIndex - (i / 2);
-							else return middleIndex + (i / 2);
-						}();
-
-						// Check if each is leavable (don't try to put people on a 1-tile island
-						// As well as the tile itself being pathable
-						bool leftTileValid = leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex].has_value();
-						bool rightTileValid = rightSector.m_tileMovementCosts[0][borderIndex].has_value();
-						int leftPathableTiles = 0;
-						int rightPathableTiles = 0;
-						if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 2][borderIndex]) ++leftPathableTiles;
-						if (rightSector.m_tileMovementCosts[1][borderIndex]) ++rightPathableTiles;
-						if (borderIndex > 0)
+						auto iter = openTiles.begin();
+						auto& tile = iter->second.front();
+						if (visited[tile.m_x][tile.m_y])
 						{
-							if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex - 1]) ++leftPathableTiles;
-							if (rightSector.m_tileMovementCosts[0][borderIndex - 1]) ++rightPathableTiles;
+							iter->second.erase(iter->second.begin());
+							if (iter->second.size() == 0)
+							{
+								openTiles.erase(iter->first);
+							}
+							continue;
 						}
-						if (borderIndex < SECTOR_SIDE_LENGTH - 1)
+						visited[tile.m_x][tile.m_y] = true;
+						if (((directionBits & static_cast<u8>(PathingDirection::NORTH)) != 0)
+							&& tile.m_y == 0)
 						{
-							if (leftSector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex + 1]) ++leftPathableTiles;
-							if (rightSector.m_tileMovementCosts[0][borderIndex + 1]) ++rightPathableTiles;
+							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::NORTH)] = static_cast<int>(tile.m_x);
+							directionBits &= ~static_cast<u8>(PathingDirection::NORTH);
+						}
+						if (((directionBits & static_cast<u8>(PathingDirection::SOUTH)) != 0)
+							&& tile.m_y == SECTOR_SIDE_LENGTH - 1)
+						{
+							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::SOUTH)] = static_cast<int>(tile.m_x);
+							directionBits &= ~static_cast<u8>(PathingDirection::NORTH);
+						}
+						if (((directionBits & static_cast<u8>(PathingDirection::SOUTH)) != 0)
+							&& tile.m_x == SECTOR_SIDE_LENGTH - 1)
+						{
+							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::EAST)] = static_cast<int>(tile.m_y);
+							directionBits &= ~static_cast<u8>(PathingDirection::NORTH);
+						}
+						if (((directionBits & static_cast<u8>(PathingDirection::EAST)) != 0)
+							&& tile.m_x == 0)
+						{
+							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::WEST)] = static_cast<int>(tile.m_y);
+							directionBits &= ~static_cast<u8>(PathingDirection::WEST);
 						}
 
-						if (leftTileValid && rightTileValid && leftPathableTiles > 0 && rightPathableTiles > 0)
+						auto northNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::NORTH)];
+						if (WithinSquare<SECTOR_SIDE_LENGTH>(northNext) && sector.m_tileMovementCosts[northNext.m_x][northNext.m_y]
+							&& !visited[northNext.m_x][northNext.m_y])
 						{
-							leftSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)] = borderIndex;
-							rightSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)] = borderIndex;
-							break;
+							openTiles[*sector.m_tileMovementCosts[northNext.m_x][northNext.m_y] + iter->first].push_back(northNext);
+						}
+
+						auto southNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::SOUTH)];
+						if (WithinSquare<SECTOR_SIDE_LENGTH>(southNext) && sector.m_tileMovementCosts[southNext.m_x][southNext.m_y]
+							&& !visited[southNext.m_x][southNext.m_y])
+						{
+							openTiles[*sector.m_tileMovementCosts[southNext.m_x][southNext.m_y] + iter->first].push_back(southNext);
+						}
+
+						auto eastNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::EAST)];
+						if (WithinSquare<SECTOR_SIDE_LENGTH>(eastNext) && sector.m_tileMovementCosts[eastNext.m_x][eastNext.m_y]
+							&& !visited[eastNext.m_x][eastNext.m_y])
+						{
+							openTiles[*sector.m_tileMovementCosts[eastNext.m_x][eastNext.m_y] + iter->first].push_back(eastNext);
+						}
+
+						auto westNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::WEST)];
+						if (WithinSquare<SECTOR_SIDE_LENGTH>(westNext) && sector.m_tileMovementCosts[westNext.m_x][westNext.m_y]
+							&& !visited[westNext.m_x][westNext.m_y])
+						{
+							openTiles[*sector.m_tileMovementCosts[westNext.m_x][westNext.m_y] + iter->first].push_back(westNext);
+						}
+						iter->second.erase(iter->second.begin());
+						if (iter->second.size() == 0)
+						{
+							openTiles.erase(iter->first);
 						}
 					}
 				});
 			}
-
-			// Top border (one-sided)
-			borderThreads.emplace_back([sectorI, &quadrant]() {
-				auto& sector = quadrant.m_sectors[sectorI][0];
-				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
-				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
-				{
-					auto borderIndex = [&i, &middleIndex]() {
-						if (i % 2 == 0) return middleIndex - (i / 2);
-						else return middleIndex + (i / 2);
-					}();
-
-					bool tileValid = sector.m_tileMovementCosts[borderIndex][0].has_value();
-					int pathableTiles = 0;
-					if (sector.m_tileMovementCosts[borderIndex][1]) ++pathableTiles;
-					if (borderIndex > 0 && sector.m_tileMovementCosts[borderIndex - 1][0]) ++pathableTiles;
-					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[borderIndex + 1][0]) ++pathableTiles;
-
-					if (tileValid && pathableTiles > 0)
-					{
-						sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)] = borderIndex;
-					}
-				}
-			});
-
-			// Bottom border (one-sided)
-			borderThreads.emplace_back([sectorI, &quadrant]() {
-				auto& sector = quadrant.m_sectors[sectorI][QUADRANT_SIDE_LENGTH - 1];
-				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
-				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
-				{
-					auto borderIndex = [&i, &middleIndex]() {
-						if (i % 2 == 0) return middleIndex - (i / 2);
-						else return middleIndex + (i / 2);
-					}();
-
-					bool tileValid = sector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 1].has_value();
-					int pathableTiles = 0;
-					if (sector.m_tileMovementCosts[borderIndex][SECTOR_SIDE_LENGTH - 2]) ++pathableTiles;
-					if (borderIndex > 0 && sector.m_tileMovementCosts[borderIndex - 1][SECTOR_SIDE_LENGTH - 1]) ++pathableTiles;
-					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[borderIndex + 1][SECTOR_SIDE_LENGTH - 1]) ++pathableTiles;
-
-					if (tileValid && pathableTiles > 0)
-					{
-						sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)] = borderIndex;
-					}
-				}
-			});
-
-			// Left border (one-sided)
-			borderThreads.emplace_back([sectorI, &quadrant]() {
-				auto& sector = quadrant.m_sectors[0][sectorI];
-				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
-				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
-				{
-					auto borderIndex = [&i, &middleIndex]() {
-						if (i % 2 == 0) return middleIndex - (i / 2);
-						else return middleIndex + (i / 2);
-					}();
-
-					bool tileValid = sector.m_tileMovementCosts[0][borderIndex].has_value();
-					int pathableTiles = 0;
-					if (sector.m_tileMovementCosts[1][borderIndex]) ++pathableTiles;
-					if (borderIndex > 0 && sector.m_tileMovementCosts[0][borderIndex - 1]) ++pathableTiles;
-					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[0][borderIndex + 1]) ++pathableTiles;
-
-					if (tileValid && pathableTiles > 0)
-					{
-						sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)] = borderIndex;
-					}
-				}
-			});
-
-			// Right border (one-sided)
-			borderThreads.emplace_back([sectorI, &quadrant]() {
-				auto& sector = quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][sectorI];
-				auto middleIndex = SECTOR_SIDE_LENGTH / 2;
-				for (int i = 1; i <= SECTOR_SIDE_LENGTH; ++i)
-				{
-					auto borderIndex = [&i, &middleIndex]() {
-						if (i % 2 == 0) return middleIndex - (i / 2);
-						else return middleIndex + (i / 2);
-					}();
-
-					bool tileValid = sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex].has_value();
-					int pathableTiles = 0;
-					if (sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 2][borderIndex]) ++pathableTiles;
-					if (borderIndex > 0 && sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex - 1]) ++pathableTiles;
-					if (borderIndex < SECTOR_SIDE_LENGTH - 1 && sector.m_tileMovementCosts[SECTOR_SIDE_LENGTH - 1][borderIndex + 1]) ++pathableTiles;
-
-					if (tileValid && pathableTiles > 0)
-					{
-						sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)] = borderIndex;
-					}
-				}
-			});
 		}
 		for (auto&& thread : borderThreads)
 		{
