@@ -481,35 +481,20 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 							return CoordinateVector2{ midpoint, midpoint };
 						}
 						// Spiral out, until a moveable tile is found
-						auto midpointX = midpoint;
-						auto midpointY = midpoint;
-						// Will actually start out going east
-						PathingDirection nextTileDirection = PathingDirection::NORTH;
-						while (midpointX < SECTOR_SIDE_LENGTH && midpointX >= 0
-							&& midpointY < SECTOR_SIDE_LENGTH && midpointY >= 0)
+						int xOffset = 0;
+						int yOffset = 0;
+						int nextXChange = 0;
+						int nextYChange = -1;
+						for (int i = 0; i < SECTOR_SIDE_LENGTH * SECTOR_SIDE_LENGTH; ++i, xOffset += nextXChange, yOffset += nextYChange)
 						{
-							if (abs(midpointX - midpoint) == abs(midpointY - midpoint))
+							if (sector.m_tileMovementCosts[midpoint + xOffset][midpoint + yOffset])
 							{
-								nextTileDirection = Clockwise90(nextTileDirection);
+								return CoordinateVector2{ midpoint + xOffset, midpoint + yOffset };
 							}
-							switch (nextTileDirection)
+							if (xOffset == yOffset || (xOffset < 0 && (xOffset == -yOffset)) || (xOffset > 0 && xOffset == 1 - yOffset))
 							{
-							case PathingDirection::NORTH:
-								--midpointY;
-								break;
-							case PathingDirection::EAST:
-								++midpointX;
-								break;
-							case PathingDirection::SOUTH:
-								++midpointY;
-								break;
-							case PathingDirection::WEST:
-								--midpointX;
-								break;
-							}
-							if (sector.m_tileMovementCosts[midpointX][midpointY])
-							{
-								return CoordinateVector2{ midpointX, midpointY };
+								std::swap(nextXChange, nextYChange);
+								nextXChange = -nextXChange;
 							}
 						}
 						return std::nullopt;
@@ -534,7 +519,7 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 						| 1 << static_cast<u8>(PathingDirection::EAST)
 						| 1 << static_cast<u8>(PathingDirection::WEST);
 					openTiles[0].push_back(*centerTileCoords);
-					
+
 					while (openTiles.size() && directionBits != 0)
 					{
 						auto iter = openTiles.begin();
@@ -549,29 +534,29 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 							continue;
 						}
 						visited[tile.m_x][tile.m_y] = true;
-						if (((directionBits & static_cast<u8>(PathingDirection::NORTH)) != 0)
+						if (((directionBits & (1u << static_cast<u8>(PathingDirection::NORTH))) != 0)
 							&& tile.m_y == 0)
 						{
 							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::NORTH)] = static_cast<int>(tile.m_x);
-							directionBits &= ~static_cast<u8>(PathingDirection::NORTH);
+							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::NORTH));
 						}
-						if (((directionBits & static_cast<u8>(PathingDirection::SOUTH)) != 0)
+						if (((directionBits & (1u << static_cast<u8>(PathingDirection::SOUTH))) != 0)
 							&& tile.m_y == SECTOR_SIDE_LENGTH - 1)
 						{
 							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::SOUTH)] = static_cast<int>(tile.m_x);
-							directionBits &= ~static_cast<u8>(PathingDirection::NORTH);
+							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::SOUTH));
 						}
-						if (((directionBits & static_cast<u8>(PathingDirection::SOUTH)) != 0)
+						if (((directionBits & (1u << static_cast<u8>(PathingDirection::EAST))) != 0)
 							&& tile.m_x == SECTOR_SIDE_LENGTH - 1)
 						{
 							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::EAST)] = static_cast<int>(tile.m_y);
-							directionBits &= ~static_cast<u8>(PathingDirection::NORTH);
+							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::EAST));
 						}
-						if (((directionBits & static_cast<u8>(PathingDirection::EAST)) != 0)
+						if (((directionBits & (1u << static_cast<u8>(PathingDirection::WEST))) != 0)
 							&& tile.m_x == 0)
 						{
 							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::WEST)] = static_cast<int>(tile.m_y);
-							directionBits &= ~static_cast<u8>(PathingDirection::WEST);
+							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::WEST));
 						}
 
 						auto northNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::NORTH)];
