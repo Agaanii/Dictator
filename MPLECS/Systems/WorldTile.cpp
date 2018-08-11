@@ -472,119 +472,116 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 					auto& sector = quadrant.m_sectors[sectorI][sectorJ];
 
 					// Select a tile in the middle of the sector
-					auto centerTileCoords = [&sector]() -> std::optional<CoordinateVector2> {
-						auto midpoint = []() -> s64 {
-							if constexpr(SECTOR_SIDE_LENGTH % 2 == 0)
-							{
-								return SECTOR_SIDE_LENGTH / 2 - 1;
-							}
-							else
-							{
-								return SECTOR_SIDE_LENGTH / 2;
-							}
-						}();
-						if (sector.m_tileMovementCosts[midpoint][midpoint])
+					auto midpoint = []() -> s64 {
+						if constexpr(SECTOR_SIDE_LENGTH % 2 == 0)
 						{
-							return CoordinateVector2{ midpoint, midpoint };
+							return SECTOR_SIDE_LENGTH / 2 - 1;
 						}
-						// Spiral out, until a moveable tile is found
-						int xOffset = 0;
-						int yOffset = 0;
-						int nextXChange = 0;
-						int nextYChange = -1;
-						for (int i = 0; i < SECTOR_SIDE_LENGTH * SECTOR_SIDE_LENGTH; ++i, xOffset += nextXChange, yOffset += nextYChange)
+						else
 						{
-							if (sector.m_tileMovementCosts[midpoint + xOffset][midpoint + yOffset])
-							{
-								return CoordinateVector2{ midpoint + xOffset, midpoint + yOffset };
-							}
-							if (xOffset == yOffset || (xOffset < 0 && (xOffset == -yOffset)) || (xOffset > 0 && xOffset == 1 - yOffset))
-							{
-								std::swap(nextXChange, nextYChange);
-								nextXChange = -nextXChange;
-							}
+							return SECTOR_SIDE_LENGTH / 2;
 						}
-						return std::nullopt;
 					}();
-					if (!centerTileCoords)
+					// Spiral out, until a moveable tile is found
+					int xOffset = 0;
+					int yOffset = 0;
+					int nextXChange = 0;
+					int nextYChange = -1;
+					for (int i = 0; i < SECTOR_SIDE_LENGTH * SECTOR_SIDE_LENGTH; ++i, xOffset += nextXChange, yOffset += nextYChange)
 					{
-						// Whole sector is unpathable
-						return;
-					}
-					// Expand out from selected center tile, ordered by movement cost to point
-					bool visited[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
-					for (int i = 0; i < SECTOR_SIDE_LENGTH; ++i)
-					{
-						for (int j = 0; j < SECTOR_SIDE_LENGTH; ++j)
+						if (sector.m_tileMovementCosts[midpoint + xOffset][midpoint + yOffset])
 						{
-							visited[i][j] = false;
-						}
-					}
-					std::map<s64, std::vector<CoordinateVector2>> openTiles;
-					openTiles[0].push_back(*centerTileCoords);
+							auto centerTileCoords = CoordinateVector2{ midpoint + xOffset, midpoint + yOffset };
 
-					while (openTiles.size())
-					{
-						auto iter = openTiles.begin();
-						auto& tile = iter->second.front();
-						if (visited[tile.m_x][tile.m_y])
-						{
-							iter->second.erase(iter->second.begin());
-							if (iter->second.size() == 0)
+							// Expand out from selected center tile, ordered by movement cost to point
+							bool visited[SECTOR_SIDE_LENGTH][SECTOR_SIDE_LENGTH];
+							for (int i = 0; i < SECTOR_SIDE_LENGTH; ++i)
 							{
-								openTiles.erase(iter->first);
+								for (int j = 0; j < SECTOR_SIDE_LENGTH; ++j)
+								{
+									visited[i][j] = false;
+								}
 							}
-							continue;
-						}
-						visited[tile.m_x][tile.m_y] = true;
-						if (tile.m_y == 0)
-						{
-							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::NORTH)][iter->first].push_back(tile.m_x);
-						}
-						if (tile.m_y == SECTOR_SIDE_LENGTH - 1)
-						{
-							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::SOUTH)][iter->first].push_back(tile.m_x);
-						}
-						if (tile.m_x == SECTOR_SIDE_LENGTH - 1)
-						{
-							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::EAST)][iter->first].push_back(tile.m_y);
-						}
-						if (tile.m_x == 0)
-						{
-							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::WEST)][iter->first].push_back(tile.m_y);
-						}
+							std::map<s64, std::vector<CoordinateVector2>> openTiles;
+							openTiles[0].push_back(centerTileCoords);
 
-						auto northNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::NORTH)];
-						if (WithinSquare<SECTOR_SIDE_LENGTH>(northNext) && sector.m_tileMovementCosts[northNext.m_x][northNext.m_y]
-							&& !visited[northNext.m_x][northNext.m_y])
-						{
-							openTiles[*sector.m_tileMovementCosts[northNext.m_x][northNext.m_y] + iter->first].push_back(northNext);
-						}
+							while (openTiles.size())
+							{
+								auto iter = openTiles.begin();
+								auto& tile = iter->second.front();
+								if (visited[tile.m_x][tile.m_y])
+								{
+									iter->second.erase(iter->second.begin());
+									if (iter->second.size() == 0)
+									{
+										openTiles.erase(iter->first);
+									}
+									continue;
+								}
+								visited[tile.m_x][tile.m_y] = true;
+								if (tile.m_y == 0)
+								{
+									sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::NORTH)][iter->first].push_back(tile.m_x);
+								}
+								if (tile.m_y == SECTOR_SIDE_LENGTH - 1)
+								{
+									sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::SOUTH)][iter->first].push_back(tile.m_x);
+								}
+								if (tile.m_x == SECTOR_SIDE_LENGTH - 1)
+								{
+									sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::EAST)][iter->first].push_back(tile.m_y);
+								}
+								if (tile.m_x == 0)
+								{
+									sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::WEST)][iter->first].push_back(tile.m_y);
+								}
 
-						auto southNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::SOUTH)];
-						if (WithinSquare<SECTOR_SIDE_LENGTH>(southNext) && sector.m_tileMovementCosts[southNext.m_x][southNext.m_y]
-							&& !visited[southNext.m_x][southNext.m_y])
-						{
-							openTiles[*sector.m_tileMovementCosts[southNext.m_x][southNext.m_y] + iter->first].push_back(southNext);
-						}
+								auto northNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::NORTH)];
+								if (WithinSquare<SECTOR_SIDE_LENGTH>(northNext) && sector.m_tileMovementCosts[northNext.m_x][northNext.m_y]
+									&& !visited[northNext.m_x][northNext.m_y])
+								{
+									openTiles[*sector.m_tileMovementCosts[northNext.m_x][northNext.m_y] + iter->first].push_back(northNext);
+								}
 
-						auto eastNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::EAST)];
-						if (WithinSquare<SECTOR_SIDE_LENGTH>(eastNext) && sector.m_tileMovementCosts[eastNext.m_x][eastNext.m_y]
-							&& !visited[eastNext.m_x][eastNext.m_y])
-						{
-							openTiles[*sector.m_tileMovementCosts[eastNext.m_x][eastNext.m_y] + iter->first].push_back(eastNext);
-						}
+								auto southNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::SOUTH)];
+								if (WithinSquare<SECTOR_SIDE_LENGTH>(southNext) && sector.m_tileMovementCosts[southNext.m_x][southNext.m_y]
+									&& !visited[southNext.m_x][southNext.m_y])
+								{
+									openTiles[*sector.m_tileMovementCosts[southNext.m_x][southNext.m_y] + iter->first].push_back(southNext);
+								}
 
-						auto westNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::WEST)];
-						if (WithinSquare<SECTOR_SIDE_LENGTH>(westNext) && sector.m_tileMovementCosts[westNext.m_x][westNext.m_y]
-							&& !visited[westNext.m_x][westNext.m_y])
-						{
-							openTiles[*sector.m_tileMovementCosts[westNext.m_x][westNext.m_y] + iter->first].push_back(westNext);
+								auto eastNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::EAST)];
+								if (WithinSquare<SECTOR_SIDE_LENGTH>(eastNext) && sector.m_tileMovementCosts[eastNext.m_x][eastNext.m_y]
+									&& !visited[eastNext.m_x][eastNext.m_y])
+								{
+									openTiles[*sector.m_tileMovementCosts[eastNext.m_x][eastNext.m_y] + iter->first].push_back(eastNext);
+								}
+
+								auto westNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::WEST)];
+								if (WithinSquare<SECTOR_SIDE_LENGTH>(westNext) && sector.m_tileMovementCosts[westNext.m_x][westNext.m_y]
+									&& !visited[westNext.m_x][westNext.m_y])
+								{
+									openTiles[*sector.m_tileMovementCosts[westNext.m_x][westNext.m_y] + iter->first].push_back(westNext);
+								}
+								iter->second.erase(iter->second.begin());
+								if (iter->second.size() == 0)
+								{
+									openTiles.erase(iter->first);
+								}
+							}
+							if (sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::NORTH)].size()
+								|| sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::SOUTH)].size()
+								|| sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::EAST)].size()
+								|| sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::WEST)].size())
+							{
+								// First time we find a way to the edge, keep it
+								return;
+							}
 						}
-						iter->second.erase(iter->second.begin());
-						if (iter->second.size() == 0)
+						if (xOffset == yOffset || (xOffset < 0 && (xOffset == -yOffset)) || (xOffset > 0 && xOffset == 1 - yOffset))
 						{
-							openTiles.erase(iter->first);
+							std::swap(nextXChange, nextYChange);
+							nextXChange = -nextXChange;
 						}
 					}
 				});
