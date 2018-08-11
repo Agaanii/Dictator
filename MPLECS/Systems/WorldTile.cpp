@@ -83,7 +83,8 @@ namespace TileNED
 
 		// Relevant index of the tile on each border being used for 
 		// pathing between sectors
-		std::optional<int> m_pathingBorderTiles[static_cast<int>(PathingDirection::_COUNT)];
+		std::map<s64, std::vector<s64>> m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::_COUNT)];
+		std::optional<s64> m_pathingBorderTiles[static_cast<int>(PathingDirection::_COUNT)];
 	};
 	struct Quadrant
 	{
@@ -330,6 +331,12 @@ bool WithinSquare(const CoordinateVector2& coords)
 		&& coords.m_y < SQUARE_SIDE_LENGTH;
 }
 
+std::optional<s64> FindCommonBorderTile(
+	const TileNED::Sector& sector1,
+	int sector1Side,
+	const TileNED::Sector& sector2,
+	int sector2Side);
+
 std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
 {
 	using namespace TileConstants;
@@ -514,13 +521,9 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 						}
 					}
 					std::map<s64, std::vector<CoordinateVector2>> openTiles;
-					u8 directionBits = 1 << static_cast<u8>(PathingDirection::NORTH)
-						| 1 << static_cast<u8>(PathingDirection::SOUTH)
-						| 1 << static_cast<u8>(PathingDirection::EAST)
-						| 1 << static_cast<u8>(PathingDirection::WEST);
 					openTiles[0].push_back(*centerTileCoords);
 
-					while (openTiles.size() && directionBits != 0)
+					while (openTiles.size())
 					{
 						auto iter = openTiles.begin();
 						auto& tile = iter->second.front();
@@ -534,29 +537,21 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 							continue;
 						}
 						visited[tile.m_x][tile.m_y] = true;
-						if (((directionBits & (1u << static_cast<u8>(PathingDirection::NORTH))) != 0)
-							&& tile.m_y == 0)
+						if (tile.m_y == 0)
 						{
-							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::NORTH)] = static_cast<int>(tile.m_x);
-							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::NORTH));
+							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::NORTH)][iter->first].push_back(tile.m_x);
 						}
-						if (((directionBits & (1u << static_cast<u8>(PathingDirection::SOUTH))) != 0)
-							&& tile.m_y == SECTOR_SIDE_LENGTH - 1)
+						if (tile.m_y == SECTOR_SIDE_LENGTH - 1)
 						{
-							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::SOUTH)] = static_cast<int>(tile.m_x);
-							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::SOUTH));
+							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::SOUTH)][iter->first].push_back(tile.m_x);
 						}
-						if (((directionBits & (1u << static_cast<u8>(PathingDirection::EAST))) != 0)
-							&& tile.m_x == SECTOR_SIDE_LENGTH - 1)
+						if (tile.m_x == SECTOR_SIDE_LENGTH - 1)
 						{
-							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::EAST)] = static_cast<int>(tile.m_y);
-							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::EAST));
+							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::EAST)][iter->first].push_back(tile.m_y);
 						}
-						if (((directionBits & (1u << static_cast<u8>(PathingDirection::WEST))) != 0)
-							&& tile.m_x == 0)
+						if (tile.m_x == 0)
 						{
-							sector.m_pathingBorderTiles[static_cast<u8>(PathingDirection::WEST)] = static_cast<int>(tile.m_y);
-							directionBits = directionBits & ~(1u << static_cast<u8>(PathingDirection::WEST));
+							sector.m_pathingBorderTileCandidates[static_cast<u8>(PathingDirection::WEST)][iter->first].push_back(tile.m_y);
 						}
 
 						auto northNext = tile + Pathing::neighborOffsets[static_cast<u8>(PathingDirection::NORTH)];
@@ -599,6 +594,64 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 		{
 			// Make sure all finish before we start finding paths
 			thread.join();
+		}
+
+		std::vector<std::thread> borderSelectionThreads;
+		for (int sectorI = 0; sectorI < QUADRANT_SIDE_LENGTH; ++sectorI)
+		{
+			for (int sectorJ = 0; sectorJ < QUADRANT_SIDE_LENGTH - 1; ++sectorJ)
+			{
+				auto& northSector = quadrant.m_sectors[sectorI][sectorJ];
+				auto& southSector = quadrant.m_sectors[sectorI][sectorJ + 1];
+				auto& westSector = quadrant.m_sectors[sectorJ][sectorI];
+				auto& eastSector = quadrant.m_sectors[sectorJ + 1][sectorI];
+
+				// Upper/lower border
+				auto northSouthTile = FindCommonBorderTile(northSector, static_cast<int>(PathingDirection::SOUTH),
+					southSector, static_cast<int>(PathingDirection::NORTH));
+				if (northSouthTile)
+				{
+					northSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)] = *northSouthTile;
+					southSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)] = *northSouthTile;
+				}
+
+				// Left/right border
+				auto eastWestTile = FindCommonBorderTile(westSector, static_cast<int>(PathingDirection::EAST),
+					eastSector, static_cast<int>(PathingDirection::WEST));
+				if (eastWestTile)
+				{
+					westSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)] = *eastWestTile;
+					eastSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)] = *eastWestTile;
+				}
+			}
+
+			auto& westSector = quadrant.m_sectors[0][sectorI];
+			if (westSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::WEST)].size() > 0)
+			{
+				westSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)] =
+					westSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::WEST)].begin()->second.front();
+			}
+
+			auto& eastSector = quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][sectorI];
+			if (eastSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::EAST)].size() > 0)
+			{
+				eastSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)] =
+					eastSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::EAST)].begin()->second.front();
+			}
+
+			auto& northSector = quadrant.m_sectors[sectorI][0];
+			if (northSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::NORTH)].size() > 0)
+			{
+				northSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)] =
+					westSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::NORTH)].begin()->second.front();
+			}
+
+			auto& southSector = quadrant.m_sectors[sectorI][QUADRANT_SIDE_LENGTH - 1];
+			if (southSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::SOUTH)].size() > 0)
+			{
+				southSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)] =
+					westSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::SOUTH)].begin()->second.front();
+			}
 		}
 
 		std::vector<std::thread> pathFindingThreads;
@@ -649,6 +702,42 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 			thread.join();
 		}
 	});
+}
+
+std::optional<s64> FindCommonBorderTile(
+	const TileNED::Sector& sector1,
+	int sector1Side,
+	const TileNED::Sector& sector2,
+	int sector2Side)
+{
+	if (sector1.m_pathingBorderTileCandidates[sector1Side].size() > 0
+		&& sector2.m_pathingBorderTileCandidates[sector2Side].size() > 0)
+	{
+		auto& s1Candidates = sector1.m_pathingBorderTileCandidates[sector1Side];
+		auto& s2Candidates = sector2.m_pathingBorderTileCandidates[sector2Side];
+		std::map<s64, std::map<int, std::vector<s64>>> sharedTiles; // outer key = total cost, inner key = total index
+		for (auto&[s1Cost, s1Tiles] : s1Candidates)
+		{
+			for (auto&[s2Cost, s2Tiles] : s2Candidates)
+			{
+				for (int s1I = 0; s1I < s1Tiles.size(); ++s1I)
+				{
+					for (int s2I = 0; s2I < s2Tiles.size(); ++s2I)
+					{
+						if (s1Tiles[s1I] == s2Tiles[s2I])
+						{
+							sharedTiles[s1Cost + s2Cost][s1I + s2I].push_back(s1Tiles[s1I]);
+						}
+					}
+				}
+			}
+		}
+		if (sharedTiles.size())
+		{
+			return sharedTiles.begin()->second.begin()->second.front();
+		}
+	}
+	return std::nullopt;
 }
 
 template<class T>
@@ -1458,57 +1547,65 @@ std::optional<ECS_Core::Components::MoveToPoint> GetPath(
 		// Fill in the cost from current point to each side
 		for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
 		{
-			const auto& startingSector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
-			auto startingExitTile = [&direction,
-				&sector = startingSector]()->CoordinateVector2 {
-				switch (static_cast<PathingDirection>(direction))
-				{
-				case PathingDirection::NORTH: return { *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)], 0 };
-				case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)], TileNED::SECTOR_SIDE_LENGTH - 1 };
-				case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)] };
-				case PathingDirection::WEST: return { 0, *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)] };
-				}
-				return { 0,0 };
-			}();
-			auto startingPath = Pathing::GetPath(
-				startingSector.m_tileMovementCosts,
-				sourcePosition.m_coords,
-				startingExitTile);
-			if (startingPath)
+			const auto& startingSector = quadrant.m_sectors
+				[sourcePosition.m_sectorCoords.m_x]
+				[sourcePosition.m_sectorCoords.m_y];
+			if (startingSector.m_pathingBorderTiles[direction])
 			{
-				quadrant.m_sectorCrossingPathCosts[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
-					[static_cast<int>(PathingDirection::_COUNT)][direction]
-					= startingPath->m_totalPathCost;
-				quadrant.m_sectorCrossingPaths[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
-					[static_cast<int>(PathingDirection::_COUNT)][direction]
-					= startingPath->m_path;
+				auto startingExitTile = [&direction,
+					&sector = startingSector]()->CoordinateVector2 {
+					switch (static_cast<PathingDirection>(direction))
+					{
+					case PathingDirection::NORTH: return { *sector.m_pathingBorderTiles[direction], 0 };
+					case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[direction], TileNED::SECTOR_SIDE_LENGTH - 1 };
+					case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[direction] };
+					case PathingDirection::WEST: return { 0, *sector.m_pathingBorderTiles[direction] };
+					}
+					return { 0,0 };
+				}();
+				auto startingPath = Pathing::GetPath(
+					startingSector.m_tileMovementCosts,
+					sourcePosition.m_coords,
+					startingExitTile);
+				if (startingPath)
+				{
+					quadrant.m_sectorCrossingPathCosts[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
+						[static_cast<int>(PathingDirection::_COUNT)][direction]
+						= startingPath->m_totalPathCost;
+					quadrant.m_sectorCrossingPaths[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
+						[static_cast<int>(PathingDirection::_COUNT)][direction]
+						= startingPath->m_path;
+				}
 			}
 			const auto& endingSector = quadrant.m_sectors
 				[targetPosition.m_sectorCoords.m_x]
-			[targetPosition.m_sectorCoords.m_y];
-			auto endingEntryTile = [&direction,
-				&sector = endingSector]()->CoordinateVector2 {
-				switch (static_cast<PathingDirection>(direction))
-				{
-				case PathingDirection::NORTH: return { *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)], 0 };
-				case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)], TileNED::SECTOR_SIDE_LENGTH - 1 };
-				case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)] };
-				case PathingDirection::WEST: return { 0, *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)] };
-				}
-				return { 0,0 };
-			}();
-			auto endingPath = Pathing::GetPath(
-				endingSector.m_tileMovementCosts,
-				endingEntryTile,
-				targetPosition.m_coords);
-			if (endingPath)
+				[targetPosition.m_sectorCoords.m_y];
+			if (endingSector.m_pathingBorderTiles[direction])
 			{
-				quadrant.m_sectorCrossingPathCosts[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
-					[direction][static_cast<int>(PathingDirection::_COUNT)]
-					= endingPath->m_totalPathCost;
-				quadrant.m_sectorCrossingPaths[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
-					[direction][static_cast<int>(PathingDirection::_COUNT)]
-					= endingPath->m_path;
+				auto endingEntryTile = [&direction,
+					&sector = endingSector]()->CoordinateVector2 {
+					switch (static_cast<PathingDirection>(direction))
+					{
+					case PathingDirection::NORTH: return { *sector.m_pathingBorderTiles[direction], 0 };
+					case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[direction], TileNED::SECTOR_SIDE_LENGTH - 1 };
+					case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[direction] };
+					case PathingDirection::WEST: return { 0, *sector.m_pathingBorderTiles[direction] };
+					}
+					return { 0,0 };
+				}();
+				auto endingPath = Pathing::GetPath(
+					endingSector.m_tileMovementCosts,
+					endingEntryTile,
+					targetPosition.m_coords);
+				if (endingPath)
+				{
+					quadrant.m_sectorCrossingPathCosts[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
+						[direction][static_cast<int>(PathingDirection::_COUNT)]
+						= endingPath->m_totalPathCost;
+					quadrant.m_sectorCrossingPaths[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
+						[direction][static_cast<int>(PathingDirection::_COUNT)]
+						= endingPath->m_path;
+				}
 			}
 		}
 
