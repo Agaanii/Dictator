@@ -84,9 +84,9 @@ void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
 
 		auto alphaFloat = min(1.0, 0.1 + (0.9 * construction.m_buildingProgress));
 		auto& buildingDrawables = drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING];
-		for (auto& prio : buildingDrawables)
+		for (auto& [priority, graphics] : buildingDrawables)
 		{
-			for (auto&& drawable : prio.second)
+			for (auto&& drawable : graphics)
 			{
 				sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(drawable.m_graphic.get());
 				if (shapeDrawable)

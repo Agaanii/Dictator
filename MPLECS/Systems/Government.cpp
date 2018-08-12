@@ -24,9 +24,9 @@ void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityInd
 		manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor;
 	manager.delComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
 	auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
-	for (auto& prio : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
+	for (auto&[p, buildings] : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
 	{
-		for (auto&& building : prio.second)
+		for (auto&& building : buildings)
 		{
 			sf::Shape* shapeDrawable = dynamic_cast<sf::Shape*>(building.m_graphic.get());
 			if (shapeDrawable)
@@ -83,20 +83,20 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	// Grab governor, check resource inventory
 	auto& governorInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(governor);
 	std::set<int> insufficientResources;
-	for (auto&& cost : buildingCostIter->second)
+	for (auto&&[resource, cost] : buildingCostIter->second)
 	{
-		auto govResourceIter = governorInventory.m_collectedYields.find(cost.first);
+		auto govResourceIter = governorInventory.m_collectedYields.find(resource);
 		if (govResourceIter == governorInventory.m_collectedYields.end())
 		{
-			if (cost.second != 0)
+			if (cost != 0)
 			{
-				insufficientResources.insert(cost.first);
+				insufficientResources.insert(resource);
 			}
 			continue;
 		}
-		if (govResourceIter->second < cost.second)
+		if (govResourceIter->second < cost)
 		{
-			insufficientResources.insert(cost.first);
+			insufficientResources.insert(resource);
 		}
 	}
 	if (insufficientResources.size())
@@ -108,9 +108,9 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	auto& ghost = manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
 	ghost.m_placingGovernor = governor;
 	ghost.m_paidYield = buildingCostIter->second;
-	for (auto&& cost : buildingCostIter->second)
+	for (auto&&[resource, cost] : buildingCostIter->second)
 	{
-		governorInventory.m_collectedYields[cost.first] -= cost.second;
+		governorInventory.m_collectedYields[resource] -= cost;
 	}
 	manager.addComponent<ECS_Core::Components::C_TilePosition>(ghostEntity) = position;
 	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(ghostEntity);
@@ -216,9 +216,9 @@ void UpdateAgendas(ECS_Core::Manager& manager)
 		{
 			if (manager.hasComponent<Components::C_ResourceInventory>(territory))
 			{
-				for (auto&& resource : manager.getComponent<Components::C_ResourceInventory>(territory).m_collectedYields)
+				for (auto&&[resource, amount] : manager.getComponent<Components::C_ResourceInventory>(territory).m_collectedYields)
 				{
-					polityCollectedYields[resource.first] += resource.second;
+					polityCollectedYields[resource] += amount;
 				}
 			}
 		}
@@ -284,25 +284,25 @@ void GainIncomes(ECS_Core::Manager& manager)
 			// Experience advances more slowly for higher skill
 			f64 totalWorkerCount{ 0 };
 			f64 totalSubsistenceCount{ 0 };
-			for (auto&& pop : population.m_populations)
+			for (auto&& [birthMonth,pop] : population.m_populations)
 			{
-				if (pop.second.m_class == ECS_Core::Components::PopulationClass::WORKERS)
+				if (pop.m_class == ECS_Core::Components::PopulationClass::WORKERS)
 				{
-					auto totalProductiveEffort = (pop.second.m_womensHealth * pop.second.m_numWomen)
-						+ (pop.second.m_mensHealth * pop.second.m_numMen);
-					auto subsistenceEffort = ((1 - pop.second.m_womensHealth) * pop.second.m_numWomen)
-						+ ((1 - pop.second.m_mensHealth) * pop.second.m_numMen);
+					auto totalProductiveEffort = (pop.m_womensHealth * pop.m_numWomen)
+						+ (pop.m_mensHealth * pop.m_numMen);
+					auto subsistenceEffort = ((1 - pop.m_womensHealth) * pop.m_numWomen)
+						+ ((1 - pop.m_mensHealth) * pop.m_numMen);
 					totalWorkerCount += totalProductiveEffort;
 					totalSubsistenceCount += subsistenceEffort;
-					assignments[pop.first].m_assignments.insert({ -1, { pop.first, totalProductiveEffort } });
+					assignments[ birthMonth].m_assignments.insert({ -1, { birthMonth, totalProductiveEffort } });
 					for (auto&& yieldType : agenda.m_yieldPriority)
 					{
 						// Make sure there are entries in the specialties for every skill needed to work the region
-						pop.second.m_specialties[yieldType];
+						pop.m_specialties[yieldType];
 					}
-					for (auto&& skill : pop.second.m_specialties)
+					for (auto&& [skillType, experience] : pop.m_specialties)
 					{
-						skillMap[skill.first][{skill.second.m_level, skill.second.m_experience}].push_back({ pop.first, totalProductiveEffort });
+						skillMap[skillType][{experience.m_level, experience.m_experience}].push_back({ birthMonth, totalProductiveEffort });
 					}
 				}
 			}
@@ -355,24 +355,24 @@ void GainIncomes(ECS_Core::Manager& manager)
 				}
 			}
 
-			for (auto&& tileType : territoryYield.m_availableYields)
+			for (auto&& [tileType, production] : territoryYield.m_availableYields)
 			{
-				s32 gainAmount = static_cast<s32>(tileType.second.m_productionProgress / tileType.second.m_productionInterval);
-				for (auto&& yield : tileType.second.m_productionYield)
+				s32 gainAmount = static_cast<s32>(production.m_productionProgress / production.m_productionInterval);
+				for (auto&& [resource,yield] : production.m_productionYield)
 				{
-					inventory.m_collectedYields[yield.first] += gainAmount * yield.second;
+					inventory.m_collectedYields[resource] += gainAmount * yield;
 				}
-				tileType.second.m_productionProgress -= tileType.second.m_productionInterval * gainAmount;
+				production.m_productionProgress -= production.m_productionInterval * gainAmount;
 			}
 
 			// And assign experience to workers
-			for (auto&& workers : assignments)
+			for (auto&& [birthMonth,workers] : assignments)
 			{
-				for (auto& assignment : workers.second.m_assignments)
+				for (auto& [skillType, assignment] : workers.m_assignments)
 				{
-					if (assignment.first < 0) continue;
-					population.m_populations[workers.first].m_specialties[assignment.first]
-						.m_experience += assignment.second.m_productiveValue;
+					if (skillType < 0) continue;
+					population.m_populations[birthMonth].m_specialties[skillType]
+						.m_experience += assignment.m_productiveValue;
 				}
 			}
 		}
@@ -446,12 +446,12 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						auto& buildingInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource);
 						bool hasResources = true;
-						for (auto&& cost : costIter->second)
+						for (auto&& [resource, cost] : costIter->second)
 						{
 							// Check to see that all resources required are available
-							auto inventoryStore = buildingInventory.m_collectedYields.find(cost.first);
+							auto inventoryStore = buildingInventory.m_collectedYields.find(resource);
 							if (inventoryStore == buildingInventory.m_collectedYields.end()
-								|| inventoryStore->second < cost.second)
+								|| inventoryStore->second < cost)
 							{
 								hasResources = false;
 								break;
@@ -478,14 +478,14 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(*builder.m_popSource);
 							int sourceTotalMen{ 0 };
 							int sourceTotalWomen{ 0 };
-							for (auto&& pop : populationSource.m_populations)
+							for (auto&& [birthMonth,pop] : populationSource.m_populations)
 							{
-								if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+								if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
 								{
 									continue;
 								}
-								sourceTotalMen += pop.second.m_numMen;
-								sourceTotalWomen += pop.second.m_numWomen;
+								sourceTotalMen += pop.m_numMen;
+								sourceTotalWomen += pop.m_numWomen;
 							}
 							int totalMenToMove = 10;
 							int totalWomenToMove = 5;
@@ -502,26 +502,26 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							int menMoved = 0;
 							int womenMoved = 0;
-							for (auto&& pop : populationSource.m_populations)
+							for (auto&& [birthMonth,pop] : populationSource.m_populations)
 							{
 								if (menMoved == totalMenToMove && totalWomenToMove == 5)
 								{
 									break;
 								}
-								if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+								if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
 								{
 									continue;
 								}
-								auto menToMove = min<int>(totalMenToMove - menMoved, pop.second.m_numMen);
-								auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.second.m_numWomen);
+								auto menToMove = min<int>(totalMenToMove - menMoved, pop.m_numMen);
+								auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.m_numWomen);
 
-								auto& popCopy = population.m_populations[pop.first];
-								popCopy = pop.second;
+								auto& popCopy = population.m_populations[birthMonth];
+								popCopy = pop;
 								popCopy.m_numMen = menToMove;
 								popCopy.m_numWomen = womenToMove;
 
-								pop.second.m_numMen -= menToMove;
-								pop.second.m_numWomen -= womenToMove;
+								pop.m_numMen -= menToMove;
+								pop.m_numWomen -= womenToMove;
 
 
 								menMoved += menToMove;
@@ -569,9 +569,9 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					if (builder.m_popSource && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource))
 					{
 						auto& buildingInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource);
-						for (auto&& cost : costIter->second)
+						for (auto&& [resource, cost] : costIter->second)
 						{
-							buildingInventory.m_collectedYields[cost.first] -= cost.second;
+							buildingInventory.m_collectedYields[resource] -= cost;
 						}
 					}
 				}

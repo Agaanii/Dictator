@@ -41,12 +41,12 @@ void Time::SetupGameplay()
 	auto timeBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(100, 70));
 	timeBackground->setFillColor({});
 	drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ timeBackground,{} });
-	for (auto&& dataStr : uiFrameComponent.m_dataStrings)
+	for (auto&& [key, dataStr] : uiFrameComponent.m_dataStrings)
 	{
-		dataStr.second.m_text->setFillColor({ 255,255,255 });
-		dataStr.second.m_text->setOutlineColor({ 128,128,128 });
-		dataStr.second.m_text->setFont(s_font);
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.second.m_text, dataStr.second.m_relativePosition });
+		dataStr.m_text->setFillColor({ 255,255,255 });
+		dataStr.m_text->setOutlineColor({ 128,128,128 });
+		dataStr.m_text->setFont(s_font);
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.m_text, dataStr.m_relativePosition });
 	}
 }
 

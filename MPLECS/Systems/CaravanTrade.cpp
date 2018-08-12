@@ -33,13 +33,13 @@ void PerformTrade(
 {
 	using namespace ECS_Core;
 	// Drop off everything but some food
-	for (auto&& resource : caravanInventory.m_collectedYields)
+	for (auto&& [resource, amount] : caravanInventory.m_collectedYields)
 	{
-		auto amountToMove = resource.first == Components::Yields::FOOD ?
-			(resource.second > 100 ? (resource.second - 100) : 0)
-			: resource.second;
-		buildingInventory.m_collectedYields[resource.first] += amountToMove;
-		resource.second -= amountToMove;
+		auto amountToMove = resource == Components::Yields::FOOD ?
+			(amount > 100 ? (amount - 100) : 0)
+			: amount;
+		buildingInventory.m_collectedYields[resource] += amountToMove;
+		amount -= amountToMove;
 	}
 	// Then take the most available yields in the inventory of the base, preferring those not carried back this way
 	std::vector<std::pair<ECS_Core::Components::YieldType, f64>> heldResources;
@@ -84,11 +84,11 @@ void PerformTrade(
 	buildingInventory.m_collectedYields[Components::Yields::FOOD] -= foodToTake;
 	caravanInventory.m_collectedYields[Components::Yields::FOOD] = remainingFood + foodToTake;
 	auto resourcesMoved{ 0 };
-	for (auto&& resource : heldResources)
+	for (auto&& [resource, amount] : heldResources)
 	{
-		if (resource.second <= 100) continue;
-		caravanInventory.m_collectedYields[resource.first] += 100;
-		buildingInventory.m_collectedYields[resource.first] -= 100;
+		if (amount <= 100) continue;
+		caravanInventory.m_collectedYields[resource] += 100;
+		buildingInventory.m_collectedYields[resource] -= 100;
 		if (++resourcesMoved >= 3)
 		{
 			break;

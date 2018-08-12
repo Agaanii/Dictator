@@ -149,16 +149,16 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			const ecs::EntityIndex& entityIndex,
 			ECS_Core::Components::C_UIFrame& uiEntity)
 		{
-			for (auto&& str : uiEntity.m_dataStrings)
+			for (auto&& [key, str] : uiEntity.m_dataStrings)
 			{
-				str.second.m_text->setString("");
+				str.m_text->setString("");
 			}
-			for (auto&& str : uiEntity.m_frame->ReadData(entityIndex, manager))
+			for (auto&& [key, str] : uiEntity.m_frame->ReadData(entityIndex, manager))
 			{
-				auto displayIter = uiEntity.m_dataStrings.find(str.first);
+				auto displayIter = uiEntity.m_dataStrings.find(key);
 				if (displayIter != uiEntity.m_dataStrings.end())
 				{
-					displayIter->second.m_text->setString(str.second);
+					displayIter->second.m_text->setString(str);
 				}
 			}
 			if (uiEntity.m_currentDragPosition && inputEntities.size())

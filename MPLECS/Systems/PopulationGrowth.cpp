@@ -26,16 +26,16 @@ void GainLevels(ECS_Core::Manager& manager)
 		Components::C_Population& population,
 		const Components::C_ResourceInventory&)
 	{
-		for (auto&& popSegment : population.m_populations)
+		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
-			for (auto&& specialty : popSegment.second.m_specialties)
+			for (auto&& [skillType,experience]: popSegment.m_specialties)
 			{
 				// TODO: Manually configured XP thresholds
-				s32 xpThreshold = specialty.second.m_level * specialty.second.m_level * 10000;
-				if (specialty.second.m_experience >= xpThreshold)
+				s32 xpThreshold = experience.m_level * experience.m_level * 10000;
+				if (experience.m_experience >= xpThreshold)
 				{
-					++specialty.second.m_level;
-					specialty.second.m_experience -= xpThreshold;
+					++experience.m_level;
+					experience.m_experience -= xpThreshold;
 				}
 			}
 		}
@@ -54,18 +54,18 @@ void AgePopulations(ECS_Core::Manager& manager)
 		Components::C_Population& population,
 		const Components::C_ResourceInventory&)
 	{
-		for (auto&& popSegment : population.m_populations)
+		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
-			auto yearsOld = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
-			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::CHILDREN
+			auto yearsOld = ((12 * time.m_year + time.m_month) + birthMonth) / 12;
+			if (popSegment.m_class == ECS_Core::Components::PopulationClass::CHILDREN
 				&& yearsOld >= 15)
 			{
-				popSegment.second.m_class = ECS_Core::Components::PopulationClass::WORKERS;
+				popSegment.m_class = ECS_Core::Components::PopulationClass::WORKERS;
 			}
-			if (popSegment.second.m_class == ECS_Core::Components::PopulationClass::WORKERS
+			if (popSegment.m_class == ECS_Core::Components::PopulationClass::WORKERS
 				&& yearsOld >= 65)
 			{
-				popSegment.second.m_class = ECS_Core::Components::PopulationClass::ELDERS;
+				popSegment.m_class = ECS_Core::Components::PopulationClass::ELDERS;
 			}
 		}
 		return ecs::IterationBehavior::CONTINUE;
@@ -87,24 +87,24 @@ void BirthChildren(ECS_Core::Manager& manager)
 		s32 potentialFatherCount{ 0 };
 		s32 boyCount{ 0 };
 		s32 girlCount{ 0 };
-		for (auto&& popSegment : population.m_populations)
+		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
 			// Age keys are in months
-			auto popAge = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
+			auto popAge = ((12 * time.m_year + time.m_month) + birthMonth) / 12;
 			if (popAge >= 15 && popAge <= 45)
 			{
 				// Women are of birthing age
-				potentialMotherCount += popSegment.second.m_numWomen;
+				potentialMotherCount += popSegment.m_numWomen;
 			}
 			if (popAge >= 15 && popAge <= 60)
 			{
 				// Fathers are still potent
-				potentialFatherCount += popSegment.second.m_numMen;
+				potentialFatherCount += popSegment.m_numMen;
 			}
 			if (popAge < 15)
 			{
-				boyCount += popSegment.second.m_numMen;
-				girlCount += popSegment.second.m_numWomen;
+				boyCount += popSegment.m_numMen;
+				girlCount += popSegment.m_numWomen;
 			}
 		}
 		// Approximately 1 child every 4 years
@@ -196,34 +196,34 @@ void ConsumeResources(ECS_Core::Manager& manager)
 		// Then children
 		// Then elders
 		// Younger before older
-		for (auto&& pop : population.m_populations)
+		for (auto&& [birthMonth,pop] : population.m_populations)
 		{
-			if (pop.second.m_class != Components::PopulationClass::WORKERS)
+			if (pop.m_class != Components::PopulationClass::WORKERS)
 			{
 				continue;
 			}
 
 			// women eat before men
-			FeedWomen(time, foodAmount, pop.second);
-			FeedMen(time, foodAmount, pop.second);
+			FeedWomen(time, foodAmount, pop);
+			FeedMen(time, foodAmount, pop);
 		}
-		for (auto&& pop : population.m_populations)
+		for (auto&& [birthMonth,pop] : population.m_populations)
 		{
-			if (pop.second.m_class != Components::PopulationClass::CHILDREN)
+			if (pop.m_class != Components::PopulationClass::CHILDREN)
 			{
 				continue;
 			}
-			FeedWomen(time, foodAmount, pop.second);
-			FeedMen(time, foodAmount, pop.second);
+			FeedWomen(time, foodAmount, pop);
+			FeedMen(time, foodAmount, pop);
 		}
-		for (auto&& pop : population.m_populations)
+		for (auto&& [birthMonth,pop] : population.m_populations)
 		{
-			if (pop.second.m_class != Components::PopulationClass::ELDERS)
+			if (pop.m_class != Components::PopulationClass::ELDERS)
 			{
 				continue;
 			}
-			FeedWomen(time, foodAmount, pop.second);
-			FeedMen(time, foodAmount, pop.second);
+			FeedWomen(time, foodAmount, pop);
+			FeedMen(time, foodAmount, pop);
 		}
 
 		return ecs::IterationBehavior::CONTINUE;
@@ -245,25 +245,25 @@ void CauseNaturalDeaths(ECS_Core::Manager& manager)
 		// Multiplied by population age
 		f64 frameYearPercent = time.m_frameDuration / (12 * 30);
 		std::vector<ECS_Core::Components::PopulationKey> deadSegments;
-		for (auto&& popSegment : population.m_populations)
+		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
 			// Age keys are in months
-			auto popAge = ((12 * time.m_year + time.m_month) + popSegment.first) / 12;
+			auto popAge = ((12 * time.m_year + time.m_month) + birthMonth) / 12;
 
 			// Healthiest people are ~25
 			auto distanceFromHealth = max<int>(1, abs(popAge - 25));
 			auto womensDeathChance = frameYearPercent
-				* (1 - (popSegment.second.m_womensHealth / 2))
-				* popSegment.second.m_numWomen
+				* (1 - (popSegment.m_womensHealth / 2))
+				* popSegment.m_numWomen
 				* distanceFromHealth / 150;
 			auto randDouble = RandDouble();
-			auto femaleDeathCount = min<int>(popSegment.second.m_numWomen, static_cast<int>(womensDeathChance / randDouble));
+			auto femaleDeathCount = min<int>(popSegment.m_numWomen, static_cast<int>(womensDeathChance / randDouble));
 			auto mensDeathChance = frameYearPercent
-				* (1 - (popSegment.second.m_mensHealth / 2))
-				* popSegment.second.m_numMen
+				* (1 - (popSegment.m_mensHealth / 2))
+				* popSegment.m_numMen
 				* distanceFromHealth / 150;
 			randDouble = RandDouble();
-			auto maleDeathCount = min<int>(popSegment.second.m_numMen, static_cast<int>(mensDeathChance / randDouble));
+			auto maleDeathCount = min<int>(popSegment.m_numMen, static_cast<int>(mensDeathChance / randDouble));
 
 			if (maleDeathCount < 0)
 			{
@@ -273,13 +273,13 @@ void CauseNaturalDeaths(ECS_Core::Manager& manager)
 			{
 				femaleDeathCount = 0;
 			}
-			popSegment.second.m_numMen -= maleDeathCount;
-			popSegment.second.m_numWomen -= femaleDeathCount;
+			popSegment.m_numMen -= maleDeathCount;
+			popSegment.m_numWomen -= femaleDeathCount;
 
-			if (popSegment.second.m_numMen <= 0
-				&& popSegment.second.m_numWomen <= 0)
+			if (popSegment.m_numMen <= 0
+				&& popSegment.m_numWomen <= 0)
 			{
-				deadSegments.emplace_back(popSegment.first);
+				deadSegments.emplace_back(birthMonth);
 			}
 		}
 		for (auto&& deadKey : deadSegments)

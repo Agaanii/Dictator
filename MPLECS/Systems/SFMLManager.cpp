@@ -830,12 +830,12 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 			ECS_Core::Components::C_SFMLDrawable& drawables)
 	{
 		auto handle = manager.getHandleData(mI);
-		for (auto&& layer : drawables.m_drawables)
+		for (auto&& [layer,priorities] : drawables.m_drawables)
 		{
-			if (layer.first == ECS_Core::Components::DrawLayer::MENU) continue;
-			for (auto&& priority : layer.second)
+			if (layer == ECS_Core::Components::DrawLayer::MENU) continue;
+			for (auto&& [priority, graphics]: priorities)
 			{
-				for (auto&& drawable : priority.second)
+				for (auto&& drawable : graphics)
 				{
 					auto* transform = dynamic_cast<sf::Transformable*>(drawable.m_graphic.get());
 					if (transform)
@@ -844,7 +844,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 							static_cast<float>(position.m_position.m_x + drawable.m_offset.m_x),
 							static_cast<float>(position.m_position.m_y + drawable.m_offset.m_y) });
 					}
-					auto& taggedDrawable = drawablesByLayer[layer.first][priority.first][handle];
+					auto& taggedDrawable = drawablesByLayer[layer][priority][handle];
 					taggedDrawable.m_drawable.insert(drawable.m_graphic);
 					taggedDrawable.m_drawnThisFrame = true;
 				}
@@ -858,12 +858,12 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		ECS_Core::Components::C_SFMLDrawable& drawables)
 	{
 		auto handle = manager.getHandleData(mI);
-		for (auto&& layer : drawables.m_drawables)
+		for (auto&& [layer, priorities]: drawables.m_drawables)
 		{
-			if (layer.first != ECS_Core::Components::DrawLayer::MENU) continue;
-			for (auto&& priority : layer.second)
+			if (layer != ECS_Core::Components::DrawLayer::MENU) continue;
+			for (auto&& [priority, graphics] : priorities)
 			{
-				for (auto&& drawable : priority.second)
+				for (auto&& drawable : graphics)
 				{
 					auto* transform = dynamic_cast<sf::Transformable*>(drawable.m_graphic.get());
 					if (transform)
@@ -872,7 +872,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 							static_cast<float>(uiFrame.m_topLeftCorner.m_x + drawable.m_offset.m_x),
 							static_cast<float>(uiFrame.m_topLeftCorner.m_y + drawable.m_offset.m_y) });
 					}
-					auto& taggedDrawable = drawablesByLayer[layer.first][priority.first][handle];
+					auto& taggedDrawable = drawablesByLayer[layer][priority][handle];
 					taggedDrawable.m_drawable.insert(drawable.m_graphic);
 					taggedDrawable.m_drawnThisFrame = true;
 				}
@@ -880,9 +880,9 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
-	for (auto& layerMap : drawablesByLayer)
+	for (auto& [layer, priorityMap] : drawablesByLayer)
 	{
-		if (layerMap.first == ECS_Core::Components::DrawLayer::MENU)
+		if (layer == ECS_Core::Components::DrawLayer::MENU)
 		{
 			s_window.setView(s_UIView);
 		}
@@ -890,18 +890,18 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		{
 			s_window.setView(s_worldView);
 		}
-		for (auto& handleMap : layerMap.second)
+		for (auto& [priority, handleMap] : priorityMap)
 		{
 			std::vector<ecs::Impl::HandleData> handlesToRemove;
-			for (auto& drawable : handleMap.second)
+			for (auto& [handle, drawable] : handleMap)
 			{
-				if (drawable.second.m_drawnThisFrame)
+				if (drawable.m_drawnThisFrame)
 				{
-					for (auto&& weakGraphicIter = drawable.second.m_drawable.begin(); weakGraphicIter != drawable.second.m_drawable.end();)
+					for (auto&& weakGraphicIter = drawable.m_drawable.begin(); weakGraphicIter != drawable.m_drawable.end();)
 					{
 						if (weakGraphicIter->expired())
 						{
-							drawable.second.m_drawable.erase(weakGraphicIter++);
+							drawable.m_drawable.erase(weakGraphicIter++);
 						}
 						else
 						{
@@ -913,12 +913,12 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 				}
 				else
 				{
-					handlesToRemove.push_back(drawable.first);
+					handlesToRemove.push_back(handle);
 				}
 			}
 			for (auto& handle : handlesToRemove)
 			{
-				handleMap.second.erase(handle);
+				handleMap.erase(handle);
 			}
 		}
 	}

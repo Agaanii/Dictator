@@ -640,14 +640,14 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 			if (northSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::NORTH)].size() > 0)
 			{
 				northSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)] =
-					westSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::NORTH)].begin()->second.front();
+					northSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::NORTH)].begin()->second.front();
 			}
 
 			auto& southSector = quadrant.m_sectors[sectorI][QUADRANT_SIDE_LENGTH - 1];
 			if (southSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::SOUTH)].size() > 0)
 			{
 				southSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)] =
-					westSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::SOUTH)].begin()->second.front();
+					southSector.m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::SOUTH)].begin()->second.front();
 			}
 		}
 
@@ -1060,16 +1060,16 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 						}
 
 						// Draw each segment
-						for (auto&& edge : edges)
+						for (auto&& [edgePosition, direction] : edges)
 						{
-							auto positionOffset = CoordinatesToWorldOffset(edge.first - buildingTilePos.m_position).cast<f64>();
-							bool isVertical = (edge.second == Direction::EAST || edge.second == Direction::WEST);
+							auto positionOffset = CoordinatesToWorldOffset(edgePosition - buildingTilePos.m_position).cast<f64>();
+							bool isVertical = (direction == Direction::EAST || direction == Direction::WEST);
 							static const float BORDER_PIXEL_WIDTH = 0.25f;
 
 							auto indicatorOffset = positionOffset + CartesianVector2<f64>{BORDER_PIXEL_WIDTH, BORDER_PIXEL_WIDTH};
 							auto sideIndicator = std::make_shared<sf::CircleShape>(BORDER_PIXEL_WIDTH, 4);
 							sideIndicator->setFillColor({});
-							switch (edge.second)
+							switch (direction)
 							{
 							case Direction::NORTH:
 								// Move half right, not down
@@ -1098,7 +1098,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 								? sf::Vector2f{ BORDER_PIXEL_WIDTH, 1.f * TileConstants::TILE_SIDE_LENGTH }
 							: sf::Vector2f{ 1.f * TileConstants::TILE_SIDE_LENGTH,BORDER_PIXEL_WIDTH });
 
-							switch (edge.second)
+							switch (direction)
 							{
 							case Direction::NORTH:
 								// Go from top left corner, no offset
@@ -1117,7 +1117,6 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 							}
 							line->setFillColor({});
 							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({ line, positionOffset });
-
 						}
 					}
 				}
@@ -1256,48 +1255,48 @@ void ProcessSelectTile(
 					}),
 						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 						s32 result{ 0 };
-						for (auto&& population : pop.m_populations)
+						for (auto&& [birthMonth,population] : pop.m_populations)
 						{
-							if (population.second.m_class == PopulationClass::WORKERS)
-								result += population.second.m_numMen;
+							if (population.m_class == PopulationClass::WORKERS)
+								result += population.m_numMen;
 						}
 						return result;
 					}),
 						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 						s32 result{ 0 };
-						for (auto&& population : pop.m_populations)
+						for (auto&&[birthMonth, population] : pop.m_populations)
 						{
-							if (population.second.m_class == PopulationClass::WORKERS)
-								result += population.second.m_numWomen;
+							if (population.m_class == PopulationClass::WORKERS)
+								result += population.m_numWomen;
 						}
 						return result;
 					}),
 						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 						s32 result{ 0 };
-						for (auto&& population : pop.m_populations)
+						for (auto&&[birthMonth, population] : pop.m_populations)
 						{
-							if (population.second.m_class == PopulationClass::CHILDREN)
-								result += population.second.m_numMen + population.second.m_numWomen;
+							if (population.m_class == PopulationClass::CHILDREN)
+								result += population.m_numMen + population.m_numWomen;
 						}
 						return result;
 					}),
 						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 						s32 result{ 0 };
-						for (auto&& population : pop.m_populations)
+						for (auto&&[birthMonth, population] : pop.m_populations)
 						{
-							if (population.second.m_class == PopulationClass::ELDERS)
-								result += population.second.m_numMen + population.second.m_numWomen;
+							if (population.m_class == PopulationClass::ELDERS)
+								result += population.m_numMen + population.m_numWomen;
 						}
 						return result;
 					}),
 						UIDataReader<C_Population, f64>([](const C_Population& pop) -> f64 {
 						f64 totalHealth{ 0 };
 						s32 totalPopulation{ 0 };
-						for (auto&& population : pop.m_populations)
+						for (auto&&[birthMonth, population] : pop.m_populations)
 						{
-							totalHealth += (population.second.m_mensHealth * population.second.m_numMen)
-								+ (population.second.m_womensHealth * population.second.m_numWomen);
-							totalPopulation += population.second.m_numMen + population.second.m_numWomen;
+							totalHealth += (population.m_mensHealth * population.m_numMen)
+								+ (population.m_womensHealth * population.m_numWomen);
+							totalPopulation += population.m_numMen + population.m_numWomen;
 						}
 						return totalHealth / max<s32>(1, totalPopulation);
 					}),
@@ -1357,12 +1356,12 @@ void ProcessSelectTile(
 						drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
 
 					}
-					for (auto&& dataStr : uiFrame.m_dataStrings)
+					for (auto&& [key,dataStr] : uiFrame.m_dataStrings)
 					{
-						dataStr.second.m_text->setFillColor({ 255,255,255 });
-						dataStr.second.m_text->setOutlineColor({ 128,128,128 });
-						dataStr.second.m_text->setFont(s_font);
-						drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.second.m_text, dataStr.second.m_relativePosition });
+						dataStr.m_text->setFillColor({ 255,255,255 });
+						dataStr.m_text->setOutlineColor({ 128,128,128 });
+						dataStr.m_text->setFont(s_font);
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.m_text, dataStr.m_relativePosition });
 					}
 				}
 				manager.addComponent<ECS_Core::Components::C_Selection>(entity).m_selector = governorHandle;
@@ -1389,48 +1388,48 @@ void ProcessSelectTile(
 			uiFrame.m_frame = DefineUIFrame("Building",
 				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 				s32 result{ 0 };
-				for (auto&& population : pop.m_populations)
+				for (auto&&[birthMonth, population] : pop.m_populations)
 				{
-					if (population.second.m_class == PopulationClass::WORKERS)
-						result += population.second.m_numMen;
+					if (population.m_class == PopulationClass::WORKERS)
+						result += population.m_numMen;
 				}
 				return result;
 			}),
 				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 				s32 result{ 0 };
-				for (auto&& population : pop.m_populations)
+				for (auto&&[birthMonth, population] : pop.m_populations)
 				{
-					if (population.second.m_class == PopulationClass::WORKERS)
-						result += population.second.m_numWomen;
+					if (population.m_class == PopulationClass::WORKERS)
+						result += population.m_numWomen;
 				}
 				return result;
 			}),
 				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 				s32 result{ 0 };
-				for (auto&& population : pop.m_populations)
+				for (auto&&[birthMonth, population] : pop.m_populations)
 				{
-					if (population.second.m_class == PopulationClass::CHILDREN)
-						result += population.second.m_numMen + population.second.m_numWomen;
+					if (population.m_class == PopulationClass::CHILDREN)
+						result += population.m_numMen + population.m_numWomen;
 				}
 				return result;
 			}),
 				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 				s32 result{ 0 };
-				for (auto&& population : pop.m_populations)
+				for (auto&&[birthMonth, population] : pop.m_populations)
 				{
-					if (population.second.m_class == PopulationClass::ELDERS)
-						result += population.second.m_numMen + population.second.m_numWomen;
+					if (population.m_class == PopulationClass::ELDERS)
+						result += population.m_numMen + population.m_numWomen;
 				}
 				return result;
 			}),
 				UIDataReader<C_Population, f64>([](const C_Population& pop) -> f64 {
 				f64 totalHealth{ 0 };
 				s32 totalPopulation{ 0 };
-				for (auto&& population : pop.m_populations)
+				for (auto&&[birthMonth, population] : pop.m_populations)
 				{
-					totalHealth += (population.second.m_mensHealth * population.second.m_numMen)
-						+ (population.second.m_womensHealth * population.second.m_numWomen);
-					totalPopulation += population.second.m_numMen + population.second.m_numWomen;
+					totalHealth += (population.m_mensHealth * population.m_numMen)
+						+ (population.m_womensHealth * population.m_numWomen);
+					totalPopulation += population.m_numMen + population.m_numWomen;
 				}
 				return totalHealth / max<s32>(1, totalPopulation);
 			}),
@@ -1507,12 +1506,12 @@ void ProcessSelectTile(
 			caravanGraphic->setFillColor({ 200, 100, 30 });
 			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ caravanGraphic, newCaravanButton.m_topLeftCorner });
 
-			for (auto&& dataStr : uiFrame.m_dataStrings)
+			for (auto&& [key,dataStr] : uiFrame.m_dataStrings)
 			{
-				dataStr.second.m_text->setFillColor({ 255,255,255 });
-				dataStr.second.m_text->setOutlineColor({ 128,128,128 });
-				dataStr.second.m_text->setFont(s_font);
-				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.second.m_text, dataStr.second.m_relativePosition });
+				dataStr.m_text->setFillColor({ 255,255,255 });
+				dataStr.m_text->setOutlineColor({ 128,128,128 });
+				dataStr.m_text->setFont(s_font);
+				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.m_text, dataStr.m_relativePosition });
 			}
 		}
 	}
@@ -1823,14 +1822,14 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					// Check that 
 					int sourceTotalMen{ 0 };
 					int sourceTotalWomen{ 0 };
-					for (auto&& pop : sourcePopulation.m_populations)
+					for (auto&&[birthMonth, pop] : sourcePopulation.m_populations)
 					{
-						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+						if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
 						{
 							continue;
 						}
-						sourceTotalMen += pop.second.m_numMen;
-						sourceTotalWomen += pop.second.m_numWomen;
+						sourceTotalMen += pop.m_numMen;
+						sourceTotalWomen += pop.m_numWomen;
 					}
 					int totalMenToMove = 10;
 					int totalWomenToMove = 5;
@@ -1872,26 +1871,26 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 					int menMoved = 0;
 					int womenMoved = 0;
-					for (auto&& pop : sourcePopulation.m_populations)
+					for (auto&&[birthMonth, pop] : sourcePopulation.m_populations)
 					{
 						if (menMoved == totalMenToMove && totalWomenToMove == 5)
 						{
 							break;
 						}
-						if (pop.second.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+						if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
 						{
 							continue;
 						}
-						auto menToMove = min<int>(totalMenToMove - menMoved, pop.second.m_numMen);
-						auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.second.m_numWomen);
+						auto menToMove = min<int>(totalMenToMove - menMoved, pop.m_numMen);
+						auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.m_numWomen);
 
-						auto& popCopy = population.m_populations[pop.first];
-						popCopy = pop.second;
+						auto& popCopy = population.m_populations[birthMonth];
+						popCopy = pop;
 						popCopy.m_numMen = menToMove;
 						popCopy.m_numWomen = womenToMove;
 
-						pop.second.m_numMen -= menToMove;
-						pop.second.m_numWomen -= womenToMove;
+						pop.m_numMen -= menToMove;
+						pop.m_numWomen -= womenToMove;
 
 
 						menMoved += menToMove;
@@ -1903,15 +1902,15 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
 
 					std::map<f64, std::vector<ECS_Core::Components::YieldType>, std::greater<f64>> heldResources;
-					for (auto&& resource : sourceInventory.m_collectedYields)
+					for (auto&& [resource, amount] : sourceInventory.m_collectedYields)
 					{
-						heldResources[resource.second].push_back(resource.first);
+						heldResources[amount].push_back(resource);
 					}
 					int resourcesMoved = 0;
-					for (auto&& heldResource : heldResources)
+					for (auto&& [amount,heldResources] : heldResources)
 					{
-						s32 amountToMove = min<s32>(static_cast<s32>(heldResource.first), 100);
-						for (auto&& resource : heldResource.second)
+						s32 amountToMove = min<s32>(static_cast<s32>(amount), 100);
+						for (auto&& resource : heldResources)
 						{
 							sourceInventory.m_collectedYields[resource] -= amountToMove;
 							moverInventory.m_collectedYields[resource] += amountToMove;
