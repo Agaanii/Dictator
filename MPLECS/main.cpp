@@ -59,6 +59,7 @@ int main()
 	RegisterSystem<BuildingCreation>();
 	RegisterSystem<WorldTile>();
 	RegisterSystem<CaravanTrade>();
+	RegisterSystem<Education>();
 
 	// Draw last
 	RegisterSystem<SFMLManager>();

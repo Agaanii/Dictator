@@ -146,6 +146,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClCompile Include="Systems\BuildingCreation.cpp" />
     <ClCompile Include="Systems\CaravanTrade.cpp" />
     <ClCompile Include="Systems\DamageApplication.cpp" />
+    <ClCompile Include="Systems\Education.cpp" />
     <ClCompile Include="Systems\Government.cpp" />
     <ClCompile Include="Systems\InputTranslation.cpp" />
     <ClCompile Include="Systems\Movement.cpp" />
@@ -157,6 +158,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClCompile Include="Systems\UnitDeath.cpp" />
     <ClCompile Include="Systems\WorldTile.cpp" />
     <ClCompile Include="Util\Pathing.cpp" />
+    <ClCompile Include="Util\WorkerStruct.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Components\ActionComponents.h" />
@@ -187,6 +189,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClInclude Include="Systems\PopulationGrowth.h" />
     <ClInclude Include="Systems\Systems.h" />
     <ClInclude Include="Util\Pathing.h" />
+    <ClInclude Include="Util\WorkerStructs.h" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="Assets\cour.ttf" />

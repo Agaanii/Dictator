@@ -42,6 +42,7 @@ DECLARE_SYSTEM(PopulationGrowth);
 DECLARE_SYSTEM(UI);
 DECLARE_SYSTEM(Time);
 DECLARE_SYSTEM(CaravanTrade);
+DECLARE_SYSTEM(Education);
 
 #define DEFINE_SYSTEM_INSTANTIATION(System)		\
 	template<>									\

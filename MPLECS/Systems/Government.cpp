@@ -16,6 +16,8 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
+#include "../Util/WorkerStructs.h"
+
 #include <algorithm>
 
 void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityIndex& ghostEntity)
@@ -167,41 +169,6 @@ void ConstructRequestedBuildings(ECS_Core::Manager& manager)
 	});
 }
 
-struct WorkerProductionValue
-{
-	WorkerProductionValue() = default;
-	WorkerProductionValue(const s32& workerKey, const f64& productionValue)
-		: m_workerKey(workerKey)
-		, m_productiveValue(productionValue)
-	{ }
-	s32 m_workerKey{ 0 };
-	f64 m_productiveValue{ 0 };
-};
-
-struct WorkerAssignment
-{
-	using AssignmentMap = std::map<ECS_Core::Components::SpecialtyId, WorkerProductionValue>;
-	AssignmentMap m_assignments;
-};
-
-using WorkerAssignmentMap = std::map<s32, WorkerAssignment>;
-
-struct WorkerSkillKey
-{
-	ECS_Core::Components::SpecialtyLevel m_level;
-	ECS_Core::Components::SpecialtyExperience m_xp;
-
-	bool operator< (const WorkerSkillKey& other) const
-	{
-		if (m_level < other.m_level) return true;
-		if (m_level > other.m_level) return false;
-
-		if (m_xp < other.m_xp) return true;
-		if (m_xp > other.m_xp) return false;
-		return false;
-	}
-};
-
 void UpdateAgendas(ECS_Core::Manager& manager)
 {
 	using namespace ECS_Core;
@@ -224,19 +191,17 @@ void UpdateAgendas(ECS_Core::Manager& manager)
 		}
 
 		std::sort(agenda.m_yieldPriority.begin(),
-			agenda.m_yieldPriority.end(), 
+			agenda.m_yieldPriority.end(),
 			[&polityCollectedYields](const int& left, const int& right) -> bool {
-				if (polityCollectedYields[left] < polityCollectedYields[right]) return true;
-				if (polityCollectedYields[right] < polityCollectedYields[left]) return false;
-				return left < right;
-			}
+			if (polityCollectedYields[left] < polityCollectedYields[right]) return true;
+			if (polityCollectedYields[right] < polityCollectedYields[left]) return false;
+			return left < right;
+		}
 		);
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 
-using WorkerSkillMap = std::map<WorkerSkillKey, std::vector<WorkerProductionValue>>;
-using SkillMap = std::map<ECS_Core::Components::SpecialtyId, WorkerSkillMap>;
 f64 AssignYieldWorkers(
 	std::pair<const WorkerSkillKey, std::vector<WorkerProductionValue>> & skillLevel,
 	WorkerAssignmentMap &assignments,
@@ -284,7 +249,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 			// Experience advances more slowly for higher skill
 			f64 totalWorkerCount{ 0 };
 			f64 totalSubsistenceCount{ 0 };
-			for (auto&& [birthMonth,pop] : population.m_populations)
+			for (auto&&[birthMonth, pop] : population.m_populations)
 			{
 				if (pop.m_class == ECS_Core::Components::PopulationClass::WORKERS)
 				{
@@ -294,20 +259,20 @@ void GainIncomes(ECS_Core::Manager& manager)
 						+ ((1 - pop.m_mensHealth) * pop.m_numMen);
 					totalWorkerCount += totalProductiveEffort;
 					totalSubsistenceCount += subsistenceEffort;
-					assignments[ birthMonth].m_assignments.insert({ -1, { birthMonth, totalProductiveEffort } });
+					assignments[birthMonth].m_assignments.insert({ -1, { birthMonth, totalProductiveEffort } });
 					for (auto&& yieldType : agenda.m_yieldPriority)
 					{
 						// Make sure there are entries in the specialties for every skill needed to work the region
 						pop.m_specialties[yieldType];
 					}
-					for (auto&& [skillType, experience] : pop.m_specialties)
+					for (auto&&[skillType, experience] : pop.m_specialties)
 					{
 						skillMap[skillType][{experience.m_level, experience.m_experience}].push_back({ birthMonth, totalProductiveEffort });
 					}
 				}
 			}
 			inventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] += time.m_frameDuration * totalSubsistenceCount / 80;
-			
+
 			// We know who we want to work first
 			// Decide where they're working
 			// Figure out the actual amount yielded by this work
@@ -332,7 +297,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 							break;
 						}
 
-						availableYield->second.m_productionProgress += 
+						availableYield->second.m_productionProgress +=
 							AssignYieldWorkers(skillLevel, assignments, amountToWork, yield)
 							* time.m_frameDuration;
 					}
@@ -355,10 +320,10 @@ void GainIncomes(ECS_Core::Manager& manager)
 				}
 			}
 
-			for (auto&& [tileType, production] : territoryYield.m_availableYields)
+			for (auto&&[tileType, production] : territoryYield.m_availableYields)
 			{
 				s32 gainAmount = static_cast<s32>(production.m_productionProgress / production.m_productionInterval);
-				for (auto&& [resource,yield] : production.m_productionYield)
+				for (auto&&[resource, yield] : production.m_productionYield)
 				{
 					inventory.m_collectedYields[resource] += gainAmount * yield;
 				}
@@ -366,9 +331,9 @@ void GainIncomes(ECS_Core::Manager& manager)
 			}
 
 			// And assign experience to workers
-			for (auto&& [birthMonth,workers] : assignments)
+			for (auto&&[birthMonth, workers] : assignments)
 			{
-				for (auto& [skillType, assignment] : workers.m_assignments)
+				for (auto&[skillType, assignment] : workers.m_assignments)
 				{
 					if (skillType < 0) continue;
 					population.m_populations[birthMonth].m_specialties[skillType]
@@ -379,8 +344,6 @@ void GainIncomes(ECS_Core::Manager& manager)
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
-
-void Government::ProgramInit() {}
 
 f64 AssignYieldWorkers(
 	std::pair<const WorkerSkillKey, std::vector<WorkerProductionValue>> & skillLevel,
@@ -405,6 +368,8 @@ f64 AssignYieldWorkers(
 	}
 	return totalYieldAmount;
 }
+
+void Government::ProgramInit() {}
 
 extern sf::Font s_font;
 void Government::SetupGameplay()
