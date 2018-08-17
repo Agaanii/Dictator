@@ -13,17 +13,17 @@
 
 #include "Education.h"
 
-void TeachChildren(ECS_Core::Manager& manager)
+void Education::TeachChildren()
 {
 	// Get current time
 	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 	if (timeEntities.size() == 0)
 	{
 		return;
 	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Population>([&time](
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
 		ECS_Core::Components::C_Population& population,
 		const ECS_Core::Components::C_ResourceInventory&)
@@ -155,7 +155,7 @@ void Education::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::INPUT:
 		break;
 	case GameLoopPhase::ACTION:
-		TeachChildren(m_managerRef);
+		TeachChildren();
 		break;
 	case GameLoopPhase::ACTION_RESPONSE:
 	case GameLoopPhase::RENDER:
