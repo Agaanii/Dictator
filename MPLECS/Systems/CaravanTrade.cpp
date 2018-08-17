@@ -16,16 +16,9 @@
 void CaravanTrade::ProgramInit() {}
 void CaravanTrade::SetupGameplay() {}
 
-enum class TradeType
-{
-	PREFER_EXCHANGE,
-	HIGHEST_AVAILABLE
-};
-
-void PerformTrade(
+void CaravanTrade::PerformTrade(
 	ECS_Core::Components::C_ResourceInventory& caravanInventory,
-	ECS_Core::Components::C_ResourceInventory& buildingInventory, 
-	ECS_Core::Manager& manager,
+	ECS_Core::Components::C_ResourceInventory& buildingInventory,
 	TradeType tradeType)
 {
 	using namespace ECS_Core;
@@ -99,7 +92,7 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	switch (phase)
 	{
 	case GameLoopPhase::ACTION_RESPONSE:
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanUnit>([&manager = m_managerRef](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanUnit>([&manager = m_managerRef, this](
 			const ecs::EntityIndex&,
 			const Components::C_TilePosition& position,
 			Components::C_MovingUnit& mover,
@@ -121,7 +114,7 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					return ecs::IterationBehavior::CONTINUE;
 				}
 				auto& baseInventory = manager.getComponent<Components::C_ResourceInventory>(path.m_originBuildingHandle);
-				PerformTrade(inventory, baseInventory, manager, TradeType::HIGHEST_AVAILABLE);
+				PerformTrade(inventory, baseInventory, TradeType::HIGHEST_AVAILABLE);
 
 				auto& moveToPoint = std::get<Components::MoveToPoint>(*mover.m_currentMovement);
 				std::reverse(moveToPoint.m_path.begin(), moveToPoint.m_path.end());
@@ -145,7 +138,6 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				}
 				PerformTrade(inventory, 
 					manager.getComponent<Components::C_ResourceInventory>(path.m_targetBuildingHandle),
-					manager,
 					TradeType::PREFER_EXCHANGE);
 				
 				auto& moveToPoint = std::get<Components::MoveToPoint>(*mover.m_currentMovement);

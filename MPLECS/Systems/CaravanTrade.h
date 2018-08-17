@@ -9,6 +9,13 @@
 // This is where any other functions would get put if needed
 
 #include "../ECS/System.h"
+
+enum class TradeType
+{
+	PREFER_EXCHANGE,
+	HIGHEST_AVAILABLE
+};
+
 class CaravanTrade : public SystemBase
 {
 public:
@@ -19,6 +26,9 @@ public:
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:
-	// Internal functions go here, unnless needed for unit testing
+	void PerformTrade(
+		ECS_Core::Components::C_ResourceInventory& caravanInventory,
+		ECS_Core::Components::C_ResourceInventory& buildingInventory,
+		TradeType tradeType);
 };
 template <> std::unique_ptr<CaravanTrade> InstantiateSystem();
