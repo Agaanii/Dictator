@@ -49,3 +49,12 @@ public:
 protected:
 	ECS_Core::Manager& m_managerRef;
 };
+template<typename SystemType>
+std::unique_ptr<SystemType> InstantiateSystem();
+
+#define DEFINE_SYSTEM_INSTANTIATION(System)		\
+	template<>									\
+	std::unique_ptr<System> InstantiateSystem()	\
+	{											\
+		return std::make_unique<System>();		\
+	}

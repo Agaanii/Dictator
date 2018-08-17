@@ -53,7 +53,7 @@ int main()
 	RegisterSystem<Time>();
 
 	RegisterSystem<DamageApplication>();
-	RegisterSystem<NewtonianMovement>();
+	RegisterSystem<Movement>();
 	RegisterSystem<Government>();
 	RegisterSystem<PopulationGrowth>();
 	RegisterSystem<BuildingCreation>();

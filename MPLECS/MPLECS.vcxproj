@@ -186,8 +186,21 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     <ClInclude Include="ECS\MPL\TypeList.hpp" />
     <ClInclude Include="ECS\MPL\TypeListOps.hpp" />
     <ClInclude Include="ECS\MPL\Unique.hpp" />
+    <ClInclude Include="Systems\BuildingCreation.h" />
+    <ClInclude Include="Systems\CaravanTrade.h" />
+    <ClInclude Include="Systems\DamageApplication.h" />
+    <ClInclude Include="Systems\Education.h" />
+    <ClInclude Include="Systems\Government.h" />
+    <ClInclude Include="Systems\InputTranslation.h" />
+    <ClInclude Include="Systems\Movement.h" />
     <ClInclude Include="Systems\PopulationGrowth.h" />
+    <ClInclude Include="Systems\SFMLManager.h" />
     <ClInclude Include="Systems\Systems.h" />
+    <ClInclude Include="Systems\SystemTemplate.h" />
+    <ClInclude Include="Systems\Time.h" />
+    <ClInclude Include="Systems\UI.h" />
+    <ClInclude Include="Systems\UnitDeath.h" />
+    <ClInclude Include="Systems\WorldTile.h" />
     <ClInclude Include="Util\Pathing.h" />
     <ClInclude Include="Util\WorkerStructs.h" />
   </ItemGroup>

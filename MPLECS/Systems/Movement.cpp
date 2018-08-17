@@ -14,10 +14,10 @@
 #include "../ECS/System.h"
 #include "../ECS/ECS.h"
 
-void NewtonianMovement::ProgramInit() {}
-void NewtonianMovement::SetupGameplay() {}
+void Movement::ProgramInit() {}
+void Movement::SetupGameplay() {}
 
-void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
+void Movement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	if (phase != GameLoopPhase::ACTION)
 	{
@@ -73,9 +73,9 @@ void NewtonianMovement::Operate(GameLoopPhase phase, const timeuS& frameDuration
 	});
 }
 
-bool NewtonianMovement::ShouldExit()
+bool Movement::ShouldExit()
 {
 	return false;
 }
 
-DEFINE_SYSTEM_INSTANTIATION(NewtonianMovement);
+DEFINE_SYSTEM_INSTANTIATION(Movement);

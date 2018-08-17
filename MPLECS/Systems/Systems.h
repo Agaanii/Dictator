@@ -12,45 +12,17 @@
 
 #include "../ECS/System.h"
 
-template<typename SystemType>
-std::unique_ptr<SystemType> InstantiateSystem();
-
-// Poor man's metaclass
-// Herb, real metaclasses when?
-#define DECLARE_SYSTEM(SystemName)														\
-class SystemName : public SystemBase													\
-{																						\
-public:																					\
-	SystemName() : SystemBase() { }														\
-	virtual ~SystemName() {}															\
-    virtual void ProgramInit() override;                                               \
-	virtual void SetupGameplay() override;												\
-	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;	\
-	virtual bool ShouldExit() override;													\
-};																						\
-template <> std::unique_ptr<SystemName> InstantiateSystem();
-
-DECLARE_SYSTEM(DamageApplication);
-DECLARE_SYSTEM(NewtonianMovement);
-DECLARE_SYSTEM(SFMLManager);
-DECLARE_SYSTEM(InputTranslation);
-DECLARE_SYSTEM(UnitDeath);
-DECLARE_SYSTEM(BuildingCreation);
-DECLARE_SYSTEM(WorldTile);
-DECLARE_SYSTEM(Government);
-DECLARE_SYSTEM(PopulationGrowth);
-DECLARE_SYSTEM(UI);
-DECLARE_SYSTEM(Time);
-DECLARE_SYSTEM(CaravanTrade);
-DECLARE_SYSTEM(Education);
-
-#define DEFINE_SYSTEM_INSTANTIATION(System)		\
-	template<>									\
-	std::unique_ptr<System> InstantiateSystem()	\
-	{											\
-		return std::make_unique<System>();		\
-	}
-
-// Make the compiler happy with our template
-// No need to register this one (Though it won't be a lot of operations anyway)
-DECLARE_SYSTEM(SystemTemplate);
+#include "SystemTemplate.h"
+#include "BuildingCreation.h"
+#include "CaravanTrade.h"
+#include  "DamageApplication.h"
+#include "Education.h"
+#include "Government.h"
+#include "InputTranslation.h"
+#include "Movement.h"
+#include "PopulationGrowth.h"
+#include "SFMLManager.h"
+#include "Time.h"
+#include "UI.h"
+#include "UnitDeath.h"
+#include "WorldTile.h"
