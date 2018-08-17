@@ -11,9 +11,6 @@
 
 #include "SystemTemplate.h"
 
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
-
 void SystemTemplate::ProgramInit() {}
 void SystemTemplate::SetupGameplay() {}
 

@@ -16,29 +16,21 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
+#include "BuildingCreation.h"
 
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
-
-namespace Buildings
-{
-	void AdvanceBuildingConstruction(ECS_Core::Manager& manager);
-}
-
-void Buildings::AdvanceBuildingConstruction(ECS_Core::Manager& manager)
+void BuildingCreation::AdvanceBuildingConstruction()
 {
 	// Get current time
 	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 	if (timeEntities.size() == 0)
 	{
 		return;
 	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 	
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_DrawableConstructingBuilding>(
-		[&manager, &time](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_DrawableConstructingBuilding>(
+		[&manager = m_managerRef, &time](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_BuildingDescription& building,
 			ECS_Core::Components::C_TilePosition& buildingTilePosition,
@@ -114,11 +106,10 @@ void BuildingCreation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 
 	case GameLoopPhase::ACTION:
 		// Advance construction
-		Buildings::AdvanceBuildingConstruction(m_managerRef);
+		AdvanceBuildingConstruction();
 		break;
 	case GameLoopPhase::RENDER:
 		// Update building visuals
-
 		break;
 	case GameLoopPhase::CLEANUP:
 		// Kill any buildings that have run out of health

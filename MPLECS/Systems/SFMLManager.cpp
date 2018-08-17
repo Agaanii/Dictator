@@ -10,10 +10,7 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
-
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
+#include "SFMLManager.h"
 
 #include <SFML/Graphics.hpp>
 #include <optional>

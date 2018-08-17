@@ -9,9 +9,7 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
-
-#include "../ECS/System.h"
+#include "UI.h"
 
 void UI::ProgramInit() {}
 void UI::SetupGameplay() {}

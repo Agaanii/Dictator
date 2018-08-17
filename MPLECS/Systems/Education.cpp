@@ -11,10 +11,7 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
-
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
+#include "Education.h"
 
 void TeachChildren(ECS_Core::Manager& manager)
 {

@@ -9,10 +9,7 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
-
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
+#include "Time.h"
 
 #include "../Components/UIComponents.h"
 

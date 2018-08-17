@@ -9,12 +9,9 @@
 // During the Action_Response phase, applies the damage to the units
 // During the cleanup phase, clears any pending damage that should go away
 
-#include "Systems.h"
-
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
-
 #include "../Core/typedef.h"
+
+#include "DamageApplication.h"
 
 void TakeDamage(ECS_Core::Manager& manager);
 void ClearPendingDamage(ECS_Core::Manager& manager);

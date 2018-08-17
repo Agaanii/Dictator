@@ -9,12 +9,7 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
-
-#include "../Components/UIComponents.h"
-
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
+#include "Government.h"
 
 #include "../Util/WorkerStructs.h"
 

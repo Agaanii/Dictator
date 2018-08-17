@@ -10,16 +10,13 @@
 
 #include "../Core/typedef.h"
 
-#include "Systems.h"
-
-#include "../ECS/System.h"
-#include "../ECS/ECS.h"
-#include "../Components/UIComponents.h"
+#include "WorldTile.h"
 
 #include "../Util/Pathing.h"
 
+#include "../Components/UIComponents.h"
+
 #include <chrono>
-#include <iostream>
 #include <limits>
 #include <random>
 #include <thread>
