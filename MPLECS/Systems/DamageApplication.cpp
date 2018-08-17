@@ -13,9 +13,6 @@
 
 #include "DamageApplication.h"
 
-void TakeDamage(ECS_Core::Manager& manager);
-void ClearPendingDamage(ECS_Core::Manager& manager);
-
 void DamageApplication::ProgramInit() {}
 void DamageApplication::SetupGameplay() {}
 
@@ -29,10 +26,10 @@ void DamageApplication::Operate(GameLoopPhase phase, const timeuS& frameDuration
 	case GameLoopPhase::RENDER:
 		return;
 	case GameLoopPhase::ACTION_RESPONSE:
-		TakeDamage(m_managerRef);
+		TakeDamage();
 		break;
 	case GameLoopPhase::CLEANUP:
-		ClearPendingDamage(m_managerRef);
+		ClearPendingDamage();
 		break;
 	}
 }
@@ -42,18 +39,18 @@ bool DamageApplication::ShouldExit()
 	return false;
 }
 
-void TakeDamage(ECS_Core::Manager& manager)
+void DamageApplication::TakeDamage()
 {
 	// Get current time
 	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 	if (timeEntities.size() == 0)
 	{
 		return;
 	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Health>(
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Health>(
 		[&time](ecs::EntityIndex mI,
 			ECS_Core::Components::C_Health& health,
 			ECS_Core::Components::C_Healable& healing,
@@ -80,9 +77,9 @@ void TakeDamage(ECS_Core::Manager& manager)
 	});
 }
 
-void ClearPendingDamage(ECS_Core::Manager& manager)
+void DamageApplication::ClearPendingDamage()
 {
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Health>(
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Health>(
 		[](ecs::EntityIndex mI,
 			ECS_Core::Components::C_Health& health,
 			ECS_Core::Components::C_Healable& healing,

@@ -19,6 +19,7 @@ public:
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:
-	// Internal functions go here, unnless needed for unit testing
+	void TakeDamage();
+	void ClearPendingDamage();
 };
 template <> std::unique_ptr<DamageApplication> InstantiateSystem();
