@@ -19,178 +19,31 @@
 #include <chrono>
 #include <limits>
 #include <random>
-#include <thread>
-
-// Terms:
-// * Tile: Unit of the world terrain
-//         It has a position in a sector
-//         At standard zoom, it's 5px square
-// * Sector: A 20 x 20 grid of Tiles.
-// * Quadrant: A 2x2 Grid of Sectors
-// A world position is a combination of Quadrant X, Y
-//    Sector X, Y
-//    Tile X, Y
-//  Printed as QX.QY:SX.SY:TX.TY
-// The world starts with 1 quadrant, player spawns in the center of it
-//    So spawn position is 0.0:1.1:0.0
-// When a position beyond the current spawned quadrants becomes relevant,
-// new quadrants are spawned from the current world out to that quadrant
-// A thickness of up to 3 quadrants may be spawned to try to create pathing 
-// to the target quadrant
 
 extern sf::Font s_font;
-namespace TileConstants
-{
-	constexpr int TILE_SIDE_LENGTH = 5;
-	constexpr int SECTOR_SIDE_LENGTH = 100;
-	constexpr int QUADRANT_SIDE_LENGTH = 6;
-
-	constexpr int BASE_QUADRANT_ORIGIN_COORDINATE =
-		-TILE_SIDE_LENGTH *
-		SECTOR_SIDE_LENGTH *
-		QUADRANT_SIDE_LENGTH / 2;
-
-	// Will later be configuration data
-	constexpr int TILE_TYPE_COUNT = 8;
-}
 using namespace ECS_Core::Components;
-// Non-entity data the tile system needs.
-namespace TileNED
+
+enum class DrawPriority
 {
-	using QuadrantId = CoordinateVector2;
-	using namespace TileConstants;
+	LANDSCAPE,
+	TERRITORY_BORDER,
+	FLAVOR_BUILDING,
+	LOGICAL_BUILDING,
+};
 
-	struct Tile
-	{
-		ECS_Core::Components::TileType m_tileType;
-		std::optional<int> m_movementCost; // If notset, unpathable
-										   // Each 1 pixel is 4 components: RGBA
-		sf::Uint32 m_tilePixels[TILE_SIDE_LENGTH * TILE_SIDE_LENGTH];
-		std::optional<ecs::Impl::Handle> m_owningBuilding; // If notset, no building owns this tile
-	};
+bool WorldTile::SortByOriginDist::operator()(
+	const CoordinateVector2& left,
+	const CoordinateVector2& right) const
+{
+	if (left == right) return false;
+	if (left.MagnitudeSq() < right.MagnitudeSq()) return true;
+	if (left.MagnitudeSq() > right.MagnitudeSq()) return false;
 
-	struct Sector
-	{
-		Tile m_tiles
-			[TileConstants::SECTOR_SIDE_LENGTH]
-		[TileConstants::SECTOR_SIDE_LENGTH];
-		std::optional<int> m_tileMovementCosts
-			[TileConstants::SECTOR_SIDE_LENGTH]
-		[TileConstants::SECTOR_SIDE_LENGTH];
+	if (left.m_x < right.m_x) return true;
+	if (left.m_x > right.m_x) return false;
 
-		// Relevant index of the tile on each border being used for 
-		// pathing between sectors
-		std::map<s64, std::vector<s64>> m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::_COUNT)];
-		std::optional<s64> m_pathingBorderTiles[static_cast<int>(PathingDirection::_COUNT)];
-	};
-	struct Quadrant
-	{
-		Sector m_sectors
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH];
-
-		sf::Texture m_texture;
-		std::optional<int> m_sectorCrossingPathCosts
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH]
-		[static_cast<int>(PathingDirection::_COUNT) + 1]
-		[static_cast<int>(PathingDirection::_COUNT) + 1];
-		std::optional<std::deque<CoordinateVector2>> m_sectorCrossingPaths
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH]
-		[static_cast<int>(PathingDirection::_COUNT) + 1]
-		[static_cast<int>(PathingDirection::_COUNT) + 1];
-	};
-	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
-	SpawnedQuadrantMap s_spawnedQuadrants;
-	bool s_baseQuadrantSpawned{ false };
-	bool s_startingBuilderSpawned{ false };
-
-	struct SectorSeed
-	{
-		int m_seedTileType{ rand() % TileConstants::TILE_TYPE_COUNT };
-		CoordinateVector2 m_seedPosition{
-			rand() % TileConstants::SECTOR_SIDE_LENGTH,
-			rand() % TileConstants::SECTOR_SIDE_LENGTH };
-	};
-	struct QuadrantSeed
-	{
-		SectorSeed m_sectors
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH];
-	};
-	using SeededQuadrantMap = std::map<QuadrantId, QuadrantSeed>;
-	SeededQuadrantMap s_quadrantSeeds;
-
-	void CheckBuildingPlacements(ECS_Core::Manager& manager);
-
-	using WorldCoordinates = TilePosition;
-
-	struct TileSide
-	{
-		TileSide() = default;
-		TileSide(const TileNED::WorldCoordinates& coords, const Direction& direction)
-			: m_coords(coords)
-			, m_direction(direction)
-		{}
-		bool operator<(const TileSide& other) const
-		{
-			if (m_direction < other.m_direction)
-			{
-				return true;
-			}
-			else if (other.m_direction < m_direction)
-			{
-				return false;
-			}
-			return m_coords < other.m_coords;
-		}
-		TileNED::WorldCoordinates m_coords;
-		Direction m_direction{ Direction::NORTH };
-	};
-	std::set<TileSide> GetAdjacents(const WorldCoordinates& coordinates);
-
-	void GrowTerritories(ECS_Core::Manager& manager);
-	TileNED::Tile & GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager);
-	TileNED::Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager);
-	void SpawnBetween(
-		CoordinateVector2 origin,
-		CoordinateVector2 target,
-		ECS_Core::Manager& manager);
-	void ReturnDeadBuildingTiles(ECS_Core::Manager& manager);
-
-	struct SortByOriginDist
-	{
-		// Acts as operator<
-		bool operator()(
-			const CoordinateVector2& left,
-			const CoordinateVector2& right) const
-		{
-			if (left == right) return false;
-			if (left.MagnitudeSq() < right.MagnitudeSq()) return true;
-			if (left.MagnitudeSq() > right.MagnitudeSq()) return false;
-
-			if (left.m_x < right.m_x) return true;
-			if (left.m_x > right.m_x) return false;
-
-			if (left.m_y < right.m_y) return true;
-			return false;
-		}
-	};
-
-	using CoordinateFromOriginSet = std::set<CoordinateVector2, SortByOriginDist>;
-	void TouchConnectedCoordinates(
-		const CoordinateVector2& origin,
-		CoordinateFromOriginSet& untouched,
-		CoordinateFromOriginSet& touched);
-
-	enum class DrawPriority
-	{
-		LANDSCAPE,
-		TERRITORY_BORDER,
-		FLAVOR_BUILDING,
-		LOGICAL_BUILDING,
-	};
+	if (left.m_y < right.m_y) return true;
+	return false;
 }
 
 TilePosition& TilePosition::operator+=(const TilePosition& other)
@@ -245,15 +98,7 @@ TilePosition& TilePosition::operator-=(const TilePosition& other)
 	return *this;
 }
 
-struct SectorSeedPosition
-{
-	int m_type;
-	// Position is within the 3x3 sector square
-	// Top left sector (-1, -1) from current sector is origin
-	CoordinateVector2 m_position;
-};
-
-std::vector<SectorSeedPosition> GetRelevantSeeds(
+std::vector<WorldTile::SectorSeedPosition> WorldTile::GetRelevantSeeds(
 	const CoordinateVector2 & coordinates,
 	int secX,
 	int secY)
@@ -301,7 +146,7 @@ std::vector<SectorSeedPosition> GetRelevantSeeds(
 				quadPosition.m_y = coordinates.m_y;
 			}
 
-			auto quad = TileNED::s_quadrantSeeds[quadPosition];
+			auto quad = m_quadrantSeeds[quadPosition];
 			auto& seedingSector = quad.m_sectors[secPosition.m_x][secPosition.m_y];
 
 			relevantSeeds.push_back({
@@ -328,23 +173,17 @@ bool WithinSquare(const CoordinateVector2& coords)
 		&& coords.m_y < SQUARE_SIDE_LENGTH;
 }
 
-std::optional<s64> FindCommonBorderTile(
-	const TileNED::Sector& sector1,
-	int sector1Side,
-	const TileNED::Sector& sector2,
-	int sector2Side);
-
-std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manager& manager)
+std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 {
 	using namespace TileConstants;
-	if (TileNED::s_spawnedQuadrants.find(coordinates)
-		!= TileNED::s_spawnedQuadrants.end())
+	if (m_spawnedQuadrants.find(coordinates)
+		!= m_spawnedQuadrants.end())
 	{
 		// Quadrant is already here
 		return std::thread([]() {});
 	}
 
-	return std::thread([&manager, coordinates]() {
+	return std::thread([&manager = m_managerRef, coordinates, this]() {
 		auto index = manager.createHandle();
 		auto quadrantSideLength = QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH;
 		manager.addComponent<ECS_Core::Components::C_QuadrantPosition>(
@@ -361,7 +200,7 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 		auto rect = std::make_shared<sf::RectangleShape>(sf::Vector2f(
 			static_cast<float>(quadrantSideLength),
 			static_cast<float>(quadrantSideLength)));
-		auto& quadrant = TileNED::s_spawnedQuadrants[coordinates];
+		auto& quadrant = m_spawnedQuadrants[coordinates];
 		quadrant.m_texture.create(quadrantSideLength, quadrantSideLength);
 		for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
 		{
@@ -432,7 +271,7 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 		}
 		rect->setTexture(&quadrant.m_texture);
 		auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);
-		drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::LANDSCAPE)].push_back({ rect,{ 0,0 } });
+		drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(DrawPriority::LANDSCAPE)].push_back({ rect,{ 0,0 } });
 
 		// Threads to fill in movement costs in the sector data
 		std::vector<std::thread> movementFillThreads;
@@ -671,8 +510,8 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 								switch (side)
 								{
 								case PathingDirection::NORTH: return { index, 0 };
-								case PathingDirection::SOUTH: return { index, TileNED::SECTOR_SIDE_LENGTH - 1 };
-								case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1, index };
+								case PathingDirection::SOUTH: return { index, TileConstants::SECTOR_SIDE_LENGTH - 1 };
+								case PathingDirection::EAST: return { TileConstants::SECTOR_SIDE_LENGTH - 1, index };
 								case PathingDirection::WEST: return { 0, index };
 								}
 								return {};
@@ -698,10 +537,10 @@ std::thread SpawnQuadrant(const CoordinateVector2& coordinates, ECS_Core::Manage
 	});
 }
 
-std::optional<s64> FindCommonBorderTile(
-	const TileNED::Sector& sector1,
+std::optional<s64> WorldTile::FindCommonBorderTile(
+	const Sector& sector1,
 	int sector1Side,
-	const TileNED::Sector& sector2,
+	const Sector& sector2,
 	int sector2Side)
 {
 	if (sector1.m_pathingBorderTileCandidates[sector1Side].size() > 0
@@ -746,7 +585,7 @@ int min(T&& a, U&& b)
 	return a < b ? a : b;
 }
 
-TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& worldPos)
+WorldTile::WorldCoordinates WorldTile::WorldPositionToCoordinates(const CoordinateVector2& worldPos)
 {
 	using namespace TileConstants;
 	auto offsetFromQuadrantOrigin = worldPos - CoordinateVector2(
@@ -764,7 +603,7 @@ TileNED::WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2& wo
 	};
 }
 
-CoordinateVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& worldCoords)
+CoordinateVector2 WorldTile::CoordinatesToWorldPosition(const WorldCoordinates& worldCoords)
 {
 	using namespace TileConstants;
 	return {
@@ -780,7 +619,7 @@ CoordinateVector2 CoordinatesToWorldPosition(const TileNED::WorldCoordinates& wo
 	};
 }
 
-CoordinateVector2 CoordinatesToWorldOffset(const TileNED::WorldCoordinates& worldOffset)
+CoordinateVector2 WorldTile::CoordinatesToWorldOffset(const WorldCoordinates& worldOffset)
 {
 	using namespace TileConstants;
 	return {
@@ -794,24 +633,23 @@ CoordinateVector2 CoordinatesToWorldOffset(const TileNED::WorldCoordinates& worl
 	};
 }
 
-void TileNED::SpawnBetween(
+void WorldTile::SpawnBetween(
 	CoordinateVector2 origin,
-	CoordinateVector2 target,
-	ECS_Core::Manager& manager)
+	CoordinateVector2 target)
 {
 	// Base case: Spawn between a place and itself
 	if (origin == target)
 	{
 		// Spawn just in case, will return immediately in most cases.
-		SpawnQuadrant(target, manager);
+		SpawnQuadrant(target);
 		return;
 	}
 
-	SpawnQuadrant(target, manager);
-	SpawnQuadrant(origin, manager);
+	SpawnQuadrant(target);
+	SpawnQuadrant(origin);
 
 	auto mid = (target + origin) / 2;
-	SpawnQuadrant(mid, manager);
+	SpawnQuadrant(mid);
 
 	if (mid == target || mid == origin)
 	{
@@ -819,17 +657,17 @@ void TileNED::SpawnBetween(
 		return;
 	}
 
-	SpawnBetween(origin, mid, manager);
-	SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target, manager);
+	SpawnBetween(origin, mid);
+	SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target);
 }
 
 // Precondition: touched is empty
-void TileNED::TouchConnectedCoordinates(
+void WorldTile::TouchConnectedCoordinates(
 	const CoordinateVector2& origin,
 	CoordinateFromOriginSet& untouched,
 	CoordinateFromOriginSet& touched)
 {
-	if (s_spawnedQuadrants.find(origin) == s_spawnedQuadrants.end())
+	if (m_spawnedQuadrants.find(origin) == m_spawnedQuadrants.end())
 	{
 		return;
 	}
@@ -846,7 +684,7 @@ void TileNED::TouchConnectedCoordinates(
 	TouchConnectedCoordinates(origin - CoordinateVector2(1, 0), untouched, touched);
 }
 
-CoordinateVector2 FindNearestQuadrant(const TileNED::SpawnedQuadrantMap& searchedQuadrants, const CoordinateVector2& quadrantCoords)
+CoordinateVector2 WorldTile::FindNearestQuadrant(const SpawnedQuadrantMap& searchedQuadrants, const CoordinateVector2& quadrantCoords)
 {
 	CoordinateVector2 closest;
 	s64 smallestDistance = std::numeric_limits<s64>::max();
@@ -865,7 +703,7 @@ CoordinateVector2 FindNearestQuadrant(const TileNED::SpawnedQuadrantMap& searche
 	return closest;
 }
 
-CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& searchedQuadrants, const CoordinateVector2& quadrantCoords)
+CoordinateVector2 WorldTile::FindNearestQuadrant(const CoordinateFromOriginSet& searchedQuadrants, const CoordinateVector2& quadrantCoords)
 {
 	CoordinateVector2 closest;
 	s64 smallestDistance = std::numeric_limits<s64>::max();
@@ -883,16 +721,17 @@ CoordinateVector2 FindNearestQuadrant(const TileNED::CoordinateFromOriginSet& se
 	return closest;
 }
 
-void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
+void WorldTile::CheckBuildingPlacements()
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>([&manager](
+	m_managerRef.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
+		[&manager = m_managerRef, this](
 		const ecs::EntityIndex&,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition& ghostTilePosition,
 		Components::C_BuildingGhost& ghost)
 	{
-		auto& tile = GetTile(ghostTilePosition.m_position, manager);
+		auto& tile = GetTile(ghostTilePosition.m_position);
 		bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost };
 		manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&collisionFound, &ghostTilePosition](
 			const ecs::EntityIndex&,
@@ -927,7 +766,7 @@ void TileNED::CheckBuildingPlacements(ECS_Core::Manager& manager)
 	});
 }
 
-std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords)
+std::set<WorldTile::TileSide> WorldTile::GetAdjacents(const WorldCoordinates& coords)
 {
 	return {
 		{ coords + WorldCoordinates{ { 0,0 },{ 0,0 },{ 1,0 } }, Direction::EAST },
@@ -937,26 +776,27 @@ std::set<TileNED::TileSide> TileNED::GetAdjacents(const WorldCoordinates& coords
 	};
 }
 
-void TileNED::GrowTerritories(ECS_Core::Manager& manager)
+void WorldTile::GrowTerritories()
 {
 	using namespace ECS_Core;
 	// Get current time
 	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 	if (timeEntities.size() == 0)
 	{
 		return;
 	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 
 	// Run through the buildings that are in progress, make sure they contain their own building placement
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>([&manager](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_InProgressBuilding>(
+		[&manager = m_managerRef, this](
 		const ecs::EntityIndex& entity,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition& tilePos,
 		const Components::C_BuildingConstruction&)
 	{
-		auto& placementTile = GetTile(tilePos.m_position, manager);
+		auto& placementTile = GetTile(tilePos.m_position);
 		if (!placementTile.m_owningBuilding)
 		{
 			placementTile.m_owningBuilding = manager.getHandle(entity);
@@ -966,7 +806,8 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 
 	std::random_device rd;
 	std::mt19937 g(rd());
-	manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&manager, &time, &g](
+	m_managerRef.forEntitiesMatching<Signatures::S_CompleteBuilding>(
+		[&manager = m_managerRef, &time, &g, this](
 		const ecs::EntityIndex& territoryEntity,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition& buildingTilePos,
@@ -985,7 +826,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 			{
 				for (auto& adjacent : GetAdjacents(tile))
 				{
-					auto& adjacentTile = GetTile(adjacent.m_coords, manager);
+					auto& adjacentTile = GetTile(adjacent.m_coords);
 					if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
 					{
 						auto tileDistance = (CoordinatesToWorldPosition(adjacent.m_coords) - buildingWorldPos).MagnitudeSq();
@@ -1006,7 +847,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 
 					territory.m_nextGrowthTile = { 0.f, selectedGrowthTiles.front() };
 
-					auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
+					auto& tile = GetTile(territory.m_nextGrowthTile->m_tile);
 					tile.m_owningBuilding = manager.getHandle(territoryEntity);
 				}
 			}
@@ -1015,7 +856,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 		// Now grow if we can
 		if (territory.m_nextGrowthTile)
 		{
-			auto& tile = GetTile(territory.m_nextGrowthTile->m_tile, manager);
+			auto& tile = GetTile(territory.m_nextGrowthTile->m_tile);
 			territory.m_nextGrowthTile->m_progress += (0.2 * time.m_frameDuration / sqrt(territory.m_ownedTiles.size()));
 			if (territory.m_nextGrowthTile->m_progress >= 1)
 			{
@@ -1026,7 +867,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 				yieldPotential.m_availableYields.clear();
 				for (auto&& tilePos : territory.m_ownedTiles)
 				{
-					auto& ownedTile = GetTile(tilePos, manager);
+					auto& ownedTile = GetTile(tilePos);
 					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
 					++yield.m_workableTiles;
 					yield.m_productionYield = {
@@ -1040,7 +881,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 					// redraw the borders
 					{
 						// Remove previous borders
-						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].erase(static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER));
+						drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN].erase(static_cast<u64>(DrawPriority::TERRITORY_BORDER));
 
 						// Tile in territory + direction from tile which is open
 						std::set<std::pair<TilePosition, Direction>> edges;
@@ -1087,7 +928,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 								indicatorOffset.m_y += TileConstants::TILE_SIDE_LENGTH / 2;
 								break;
 							}
-							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({ sideIndicator, indicatorOffset });
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(DrawPriority::TERRITORY_BORDER)].push_back({ sideIndicator, indicatorOffset });
 
 							// sf Line type is always 1 pixel wide, so use rectangle so we can control thickness
 							auto line = std::make_shared<sf::RectangleShape>(
@@ -1113,7 +954,7 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 								break;
 							}
 							line->setFillColor({});
-							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(TileNED::DrawPriority::TERRITORY_BORDER)].push_back({ line, positionOffset });
+							drawable.m_drawables[ECS_Core::Components::DrawLayer::TERRAIN][static_cast<u64>(DrawPriority::TERRITORY_BORDER)].push_back({ line, positionOffset });
 						}
 					}
 				}
@@ -1123,29 +964,28 @@ void TileNED::GrowTerritories(ECS_Core::Manager& manager)
 	});
 }
 
-TileNED::Tile &TileNED::GetTile(const TilePosition& buildingTilePos, ECS_Core::Manager & manager)
+WorldTile::Tile& WorldTile::GetTile(const TilePosition& buildingTilePos)
 {
-	return FetchQuadrant(buildingTilePos.m_quadrantCoords, manager)
+	return FetchQuadrant(buildingTilePos.m_quadrantCoords)
 		.m_sectors[buildingTilePos.m_sectorCoords.m_x][buildingTilePos.m_sectorCoords.m_y]
 		.m_tiles[buildingTilePos.m_coords.m_x][buildingTilePos.m_coords.m_y];
 }
 
-TileNED::Quadrant& TileNED::FetchQuadrant(const CoordinateVector2 & quadrantCoords, ECS_Core::Manager & manager)
+WorldTile::Quadrant& WorldTile::FetchQuadrant(const CoordinateVector2 & quadrantCoords)
 {
-	if (TileNED::s_spawnedQuadrants.find(quadrantCoords) == TileNED::s_spawnedQuadrants.end())
+	if (m_spawnedQuadrants.find(quadrantCoords) == m_spawnedQuadrants.end())
 	{
 		// We're going to need to spawn world up to that point.
 		// first: find the closest available world tile
-		auto closest = FindNearestQuadrant(s_spawnedQuadrants, quadrantCoords);
+		auto closest = FindNearestQuadrant(m_spawnedQuadrants, quadrantCoords);
 
 		SpawnBetween(
 			closest,
-			quadrantCoords,
-			manager);
+			quadrantCoords);
 
 		// Find all quadrants which can't be reached by repeated cardinal direction movement from the origin
 		CoordinateFromOriginSet touchedCoordinates, untouchedCoordinates;
-		for (auto&& quadrant : s_spawnedQuadrants)
+		for (auto&& quadrant : m_spawnedQuadrants)
 		{
 			untouchedCoordinates.insert(quadrant.first);
 		}
@@ -1168,25 +1008,26 @@ TileNED::Quadrant& TileNED::FetchQuadrant(const CoordinateVector2 & quadrantCoor
 			{
 				break;
 			}
-			SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y }, manager);
-			SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y }, manager);
+			SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y });
+			SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y });
 
 			touchedCoordinates.clear();
 			TouchConnectedCoordinates(nearestConnected, untouchedCoordinates, touchedCoordinates);
 		}
 	}
-	return s_spawnedQuadrants[quadrantCoords];
+	return m_spawnedQuadrants[quadrantCoords];
 }
 
-void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
+void WorldTile::ReturnDeadBuildingTiles()
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_DestroyedBuilding>([&manager](
+	m_managerRef.forEntitiesMatching<Signatures::S_DestroyedBuilding>(
+		[&manager = m_managerRef, this](
 		const ecs::EntityIndex& deadBuildingEntity,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition& buildingPosition)
 	{
-		auto& buildingTile = FetchQuadrant(buildingPosition.m_position.m_quadrantCoords, manager)
+		auto& buildingTile = FetchQuadrant(buildingPosition.m_position.m_quadrantCoords)
 			.m_sectors[buildingPosition.m_position.m_sectorCoords.m_x][buildingPosition.m_position.m_sectorCoords.m_y]
 			.m_tiles[buildingPosition.m_position.m_coords.m_x][buildingPosition.m_position.m_coords.m_y];
 		buildingTile.m_owningBuilding.reset();
@@ -1195,7 +1036,7 @@ void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 		{
 			for (auto&& tile : manager.getComponent<ECS_Core::Components::C_Territory>(deadBuildingEntity).m_ownedTiles)
 			{
-				FetchQuadrant(tile.m_quadrantCoords, manager)
+				FetchQuadrant(tile.m_quadrantCoords)
 					.m_sectors[tile.m_sectorCoords.m_x][tile.m_sectorCoords.m_y]
 					.m_tiles[tile.m_coords.m_x][tile.m_coords.m_y].m_owningBuilding.reset();
 			}
@@ -1204,13 +1045,13 @@ void TileNED::ReturnDeadBuildingTiles(ECS_Core::Manager& manager)
 	});
 }
 
-void ProcessSelectTile(
+void WorldTile::ProcessSelectTile(
 	const Action::LocalPlayer::SelectTile& select,
-	ECS_Core::Manager& manager,
 	const ecs::EntityIndex& governorEntity)
 {
 	bool unitFound = false;
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>([&unitFound, &select, &manager, &governorEntity](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
+		[&unitFound, &select, &manager = m_managerRef, &governorEntity, this](
 		const ecs::EntityIndex& entity,
 		const ECS_Core::Components::C_TilePosition& position,
 		const ECS_Core::Components::C_MovingUnit&,
@@ -1374,14 +1215,14 @@ void ProcessSelectTile(
 		return;
 	}
 
-	auto& tile = TileNED::GetTile(select.m_position, manager);
+	auto& tile = GetTile(select.m_position);
 	if (tile.m_owningBuilding)
 	{
 		using namespace ECS_Core::Components;
-		if (manager.hasComponent<C_Population>(*tile.m_owningBuilding)
-			&& !manager.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
+		if (m_managerRef.hasComponent<C_Population>(*tile.m_owningBuilding)
+			&& !m_managerRef.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
 		{
-			auto& uiFrame = manager.addComponent<C_UIFrame>(*tile.m_owningBuilding);
+			auto& uiFrame = m_managerRef.addComponent<C_UIFrame>(*tile.m_owningBuilding);
 			uiFrame.m_frame = DefineUIFrame("Building",
 				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 				s32 result{ 0 };
@@ -1459,7 +1300,7 @@ void ProcessSelectTile(
 			ECS_Core::Components::Button newBuildingButton;
 			newBuildingButton.m_size = { 30,30 };
 			newBuildingButton.m_topLeftCorner = uiFrame.m_size - newBuildingButton.m_size;
-			newBuildingButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+			newBuildingButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
 			{
 				Action::CreateBuildingUnit create;
 				create.m_movementSpeed = 5;
@@ -1476,17 +1317,17 @@ void ProcessSelectTile(
 			ECS_Core::Components::Button newCaravanButton;
 			newCaravanButton.m_size = { 30, 30 };
 			newCaravanButton.m_topLeftCorner = { 0, uiFrame.m_size.m_y - 30 };
-			newCaravanButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+			newCaravanButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
 			{
 				return Action::LocalPlayer::PlanCaravan(manager.getHandle(clickedEntity));
 			};
 			uiFrame.m_buttons.push_back(newCaravanButton);
 
-			if (!manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
+			if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
 			{
-				manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
+				m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
 			}
-			auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
+			auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
 			auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
 			windowBackground->setFillColor({});
 			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
@@ -1514,17 +1355,16 @@ void ProcessSelectTile(
 	}
 }
 
-std::optional<ECS_Core::Components::MoveToPoint> GetPath(
+std::optional<ECS_Core::Components::MoveToPoint> WorldTile::GetPath(
 	const TilePosition& sourcePosition,
-	const TilePosition& targetPosition,
-	ECS_Core::Manager& manager)
+	const TilePosition& targetPosition)
 {
 	// Make sure you can get from source tile to target tile
 	// Are they in the same quadrant?
 	if (sourcePosition.m_quadrantCoords != targetPosition.m_quadrantCoords)
 	{
-		auto& targetQuadrant = TileNED::FetchQuadrant(targetPosition.m_quadrantCoords, manager);
-		auto& sourceQuadrant = TileNED::FetchQuadrant(sourcePosition.m_quadrantCoords, manager);
+		auto& targetQuadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
+		auto& sourceQuadrant = FetchQuadrant(sourcePosition.m_quadrantCoords);
 
 		// Get shortest path between quadrants
 
@@ -1536,7 +1376,7 @@ std::optional<ECS_Core::Components::MoveToPoint> GetPath(
 	}
 	else if (sourcePosition.m_sectorCoords != targetPosition.m_sectorCoords)
 	{
-		auto& quadrant = TileNED::FetchQuadrant(targetPosition.m_quadrantCoords, manager);
+		auto& quadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
 		// Fill in the cost from current point to each side
 		for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
 		{
@@ -1550,8 +1390,8 @@ std::optional<ECS_Core::Components::MoveToPoint> GetPath(
 					switch (static_cast<PathingDirection>(direction))
 					{
 					case PathingDirection::NORTH: return { *sector.m_pathingBorderTiles[direction], 0 };
-					case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[direction], TileNED::SECTOR_SIDE_LENGTH - 1 };
-					case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[direction] };
+					case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[direction], TileConstants::SECTOR_SIDE_LENGTH - 1 };
+					case PathingDirection::EAST: return { TileConstants::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[direction] };
 					case PathingDirection::WEST: return { 0, *sector.m_pathingBorderTiles[direction] };
 					}
 					return { 0,0 };
@@ -1580,8 +1420,8 @@ std::optional<ECS_Core::Components::MoveToPoint> GetPath(
 					switch (static_cast<PathingDirection>(direction))
 					{
 					case PathingDirection::NORTH: return { *sector.m_pathingBorderTiles[direction], 0 };
-					case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[direction], TileNED::SECTOR_SIDE_LENGTH - 1 };
-					case PathingDirection::EAST: return { TileNED::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[direction] };
+					case PathingDirection::SOUTH: return { *sector.m_pathingBorderTiles[direction], TileConstants::SECTOR_SIDE_LENGTH - 1 };
+					case PathingDirection::EAST: return { TileConstants::SECTOR_SIDE_LENGTH - 1 , *sector.m_pathingBorderTiles[direction] };
 					case PathingDirection::WEST: return { 0, *sector.m_pathingBorderTiles[direction] };
 					}
 					return { 0,0 };
@@ -1663,7 +1503,7 @@ std::optional<ECS_Core::Components::MoveToPoint> GetPath(
 	}
 	else
 	{
-		auto& quadrant = TileNED::FetchQuadrant(targetPosition.m_quadrantCoords, manager);
+		auto& quadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
 		auto& sector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
 		auto totalPath = Pathing::GetPath(sector.m_tileMovementCosts,
 			sourcePosition.m_coords,
@@ -1685,10 +1525,10 @@ std::optional<ECS_Core::Components::MoveToPoint> GetPath(
 
 void WorldTile::ProgramInit() {}
 void WorldTile::SetupGameplay() {
-	std::thread([&manager = m_managerRef]() {
-		auto spawnThread = SpawnQuadrant({ 0, 0 }, manager);
+	std::thread([this]() {
+		auto spawnThread = SpawnQuadrant({ 0, 0 });
 		spawnThread.join();
-		TileNED::s_baseQuadrantSpawned = true;
+		m_baseQuadrantSpawned = true;
 	}).detach();
 }
 
@@ -1697,9 +1537,9 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	switch (phase)
 	{
 	case GameLoopPhase::PREPARATION:
-		if (TileNED::s_baseQuadrantSpawned && !TileNED::s_startingBuilderSpawned)
+		if (m_baseQuadrantSpawned && !m_startingBuilderSpawned)
 		{
-			using namespace TileNED;
+			using namespace TileConstants;
 			// Spawn the initial builder unit
 			// First, pick the location
 			// Try a random sector
@@ -1713,7 +1553,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				auto tileX = rand() % SECTOR_SIDE_LENGTH;
 				auto tileY = rand() % SECTOR_SIDE_LENGTH;
 
-				auto& sector = FetchQuadrant({ 0,0 }, m_managerRef).m_sectors[sectorX][sectorY];
+				auto& sector = FetchQuadrant({ 0,0 }).m_sectors[sectorX][sectorY];
 				if (sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)] &&
 					Pathing::GetPath(sector.m_tileMovementCosts,
 						{ tileX, tileY },
@@ -1732,7 +1572,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						{ *sector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)], 0 }))
 				{
 					tileFound = true;
-					s_startingBuilderSpawned = true;
+					m_startingBuilderSpawned = true;
 					m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&](
 						const ecs::EntityIndex&,
 						const ECS_Core::Components::C_UserInputs&,
@@ -1752,7 +1592,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 	case GameLoopPhase::INPUT:
 		// Fill in tile position of the mouse
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Input>([this](
 			const ecs::EntityIndex&,
 			ECS_Core::Components::C_UserInputs& inputComponent)
 		{
@@ -1769,7 +1609,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			return ecs::IterationBehavior::CONTINUE;
 		});
 
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef, this](
 			const ecs::EntityIndex& governorEntity,
 			ECS_Core::Components::C_ActionPlan& actionPlan)
 		{
@@ -1784,7 +1624,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover).m_position;
 					auto& targetPosition = setMovement.m_targetPosition;
 
-					auto path = GetPath(sourcePosition, targetPosition, manager);
+					auto path = GetPath(sourcePosition, targetPosition);
 					if (!path)
 					{
 						continue;
@@ -1801,7 +1641,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				else if (std::holds_alternative<Action::CreateCaravan>(action))
 				{
 					auto& createCaravan = std::get<Action::CreateCaravan>(action);
-					auto& deliveryTile = TileNED::GetTile(createCaravan.m_deliveryPosition, manager);
+					auto& deliveryTile = GetTile(createCaravan.m_deliveryPosition);
 					if (!deliveryTile.m_owningBuilding || !createCaravan.m_popSource)
 					{
 						continue;
@@ -1845,8 +1685,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					// Make sure we can get there
 					auto path = GetPath(
 						createCaravan.m_spawningPosition,
-						manager.getComponent<ECS_Core::Components::C_TilePosition>(*deliveryTile.m_owningBuilding).m_position,
-						manager);
+						manager.getComponent<ECS_Core::Components::C_TilePosition>(*deliveryTile.m_owningBuilding).m_position);
 					if (!path)
 					{
 						continue;
@@ -1944,7 +1783,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					}
 					auto& position = manager.getComponent<ECS_Core::Components::C_TilePosition>(settle.m_builderIndex).m_position;
 					// Check to make sure this tile is unoccupied
-					if (TileNED::GetTile(position, manager).m_owningBuilding)
+					if (GetTile(position).m_owningBuilding)
 					{
 						continue;
 					}
@@ -1963,13 +1802,13 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		break;
 	case GameLoopPhase::ACTION:
 		// Grow territories that are able to do so before taking any actions
-		TileNED::GrowTerritories(m_managerRef);
+		GrowTerritories();
 		break;
 
 	case GameLoopPhase::ACTION_RESPONSE:
 		// Update position of any world-tile drawables
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_TilePositionable>(
-			[](
+			[this](
 				ecs::EntityIndex mI,
 				ECS_Core::Components::C_PositionCartesian& position,
 				const ECS_Core::Components::C_TilePosition& tilePosition)
@@ -1980,10 +1819,10 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			return ecs::IterationBehavior::CONTINUE;
 		});
 
-		TileNED::CheckBuildingPlacements(m_managerRef);
+		CheckBuildingPlacements();
 
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
-			[&manager = m_managerRef](
+			[&manager = m_managerRef, this](
 				const ecs::EntityIndex& governorEntity,
 				ECS_Core::Components::C_UserInputs& inputs,
 				ECS_Core::Components::C_ActionPlan& actionPlan)
@@ -1994,7 +1833,6 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				{
 					ProcessSelectTile(
 						std::get<Action::LocalPlayer::SelectTile>(action),
-						manager,
 						governorEntity);
 					continue;
 				}
@@ -2055,7 +1893,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::RENDER:
 		break;
 	case GameLoopPhase::CLEANUP:
-		TileNED::ReturnDeadBuildingTiles(m_managerRef);
+		ReturnDeadBuildingTiles();
 		return;
 	}
 }
