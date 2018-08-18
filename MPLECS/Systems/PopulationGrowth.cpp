@@ -15,10 +15,10 @@
 void PopulationGrowth::ProgramInit() {}
 void PopulationGrowth::SetupGameplay() {}
 
-void GainLevels(ECS_Core::Manager& manager)
+void PopulationGrowth::GainLevels()
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Population>([](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Population>([](
 		const ecs::EntityIndex&,
 		Components::C_Population& population,
 		const Components::C_ResourceInventory&)
@@ -40,13 +40,13 @@ void GainLevels(ECS_Core::Manager& manager)
 	});
 }
 
-void AgePopulations(ECS_Core::Manager& manager)
+void PopulationGrowth::AgePopulations()
 {
 	using namespace ECS_Core;
-	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	auto& timeEntity = m_managerRef.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
-	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
-	manager.forEntitiesMatching<Signatures::S_Population>([&time](
+	auto& time = m_managerRef.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	m_managerRef.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
 		Components::C_Population& population,
 		const Components::C_ResourceInventory&)
@@ -69,13 +69,13 @@ void AgePopulations(ECS_Core::Manager& manager)
 	});
 }
 
-void BirthChildren(ECS_Core::Manager& manager)
+void PopulationGrowth::BirthChildren()
 {
 	using namespace ECS_Core;
-	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	auto& timeEntity = m_managerRef.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
-	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
-	manager.forEntitiesMatching<Signatures::S_Population>([&time](
+	auto& time = m_managerRef.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	m_managerRef.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
 		Components::C_Population& population,
 		const Components::C_ResourceInventory&) -> ecs::IterationBehavior
@@ -138,7 +138,7 @@ void BirthChildren(ECS_Core::Manager& manager)
 	});
 }
 
-void FeedWomen(
+void PopulationGrowth::FeedWomen(
 	const ECS_Core::Components::C_TimeTracker& time,
 	f64& foodAmount,
 	ECS_Core::Components::PopulationSegment& pop)
@@ -157,7 +157,7 @@ void FeedWomen(
 	}
 }
 
-void FeedMen(
+void PopulationGrowth::FeedMen(
 	const ECS_Core::Components::C_TimeTracker& time,
 	f64& foodAmount,
 	ECS_Core::Components::PopulationSegment& pop)
@@ -176,13 +176,13 @@ void FeedMen(
 	}
 }
 
-void ConsumeResources(ECS_Core::Manager& manager)
+void PopulationGrowth::ConsumeResources()
 {
 	using namespace ECS_Core;
-	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	auto& timeEntity = m_managerRef.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
-	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
-	manager.forEntitiesMatching<Signatures::S_Population>([&time](
+	auto& time = m_managerRef.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	m_managerRef.forEntitiesMatching<Signatures::S_Population>([&time, this](
 		const ecs::EntityIndex&,
 		Components::C_Population& population,
 		Components::C_ResourceInventory& resources) -> ecs::IterationBehavior
@@ -227,13 +227,13 @@ void ConsumeResources(ECS_Core::Manager& manager)
 	});
 }
 
-void CauseNaturalDeaths(ECS_Core::Manager& manager)
+void PopulationGrowth::CauseNaturalDeaths()
 {
 	using namespace ECS_Core;
-	auto& timeEntity = manager.entitiesMatching<Signatures::S_TimeTracker>();
+	auto& timeEntity = m_managerRef.entitiesMatching<Signatures::S_TimeTracker>();
 	if (timeEntity.size() == 0) return;
-	auto& time = manager.getComponent<Components::C_TimeTracker>(timeEntity.front());
-	manager.forEntitiesMatching<Signatures::S_Population>([&time](
+	auto& time = m_managerRef.getComponent<Components::C_TimeTracker>(timeEntity.front());
+	m_managerRef.forEntitiesMatching<Signatures::S_Population>([&time](
 		const ecs::EntityIndex&,
 		Components::C_Population& population,
 		const Components::C_ResourceInventory&) -> ecs::IterationBehavior
@@ -298,17 +298,17 @@ void PopulationGrowth::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::CLEANUP:
 		return;
 	case GameLoopPhase::ACTION:
-		GainLevels(m_managerRef);
+		GainLevels();
 		{
 			auto&& timeEntity = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(
 				m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front());
 			if (timeEntity.IsNewMonth())
 			{
-				AgePopulations(m_managerRef);
-				BirthChildren(m_managerRef);
+				AgePopulations();
+				BirthChildren();
 			}
-			ConsumeResources(m_managerRef);
-			CauseNaturalDeaths(m_managerRef);
+			ConsumeResources();
+			CauseNaturalDeaths();
 		}
 		return;
 	}

@@ -19,6 +19,19 @@ public:
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:
-	// Internal functions go here, unnless needed for unit testing
+	void GainLevels();
+	void AgePopulations();
+	void BirthChildren();
+	void FeedWomen(
+		const ECS_Core::Components::C_TimeTracker& time,
+		f64& foodAmount,
+		ECS_Core::Components::PopulationSegment& pop);
+	void FeedMen(
+		const ECS_Core::Components::C_TimeTracker& time,
+		f64& foodAmount,
+		ECS_Core::Components::PopulationSegment& pop);
+
+	void ConsumeResources();
+	void CauseNaturalDeaths();
 };
 template <> std::unique_ptr<PopulationGrowth> InstantiateSystem();
