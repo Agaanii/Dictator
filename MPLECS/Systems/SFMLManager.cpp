@@ -12,62 +12,9 @@
 
 #include "SFMLManager.h"
 
-#include <SFML/Graphics.hpp>
 #include <optional>
 
-sf::RenderWindow s_window(sf::VideoMode(1600, 900), "Loesby is good at this.");
-bool closingTriggered = false;
-bool close = false;
 sf::Font s_font;
-sf::Vector2u s_mostRecentWindowSize;
-
-sf::View s_worldView({ 0, 0, 1600, 900 });
-sf::View s_UIView({ 0, 0, 1600, 900 });
-
-void ReadSFMLInput(ECS_Core::Manager& manager);
-void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration);
-void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration);
-
-namespace EventResponse
-{
-	using namespace sf;
-	void OnWindowResize(const Event::SizeEvent& size, ECS_Core::Manager& manager);
-
-	void OnLoseFocus(ECS_Core::Components::C_UserInputs& input);
-	void OnGainFocus();
-	
-	void OnKeyDown(ECS_Core::Components::C_UserInputs& input, const Event::KeyEvent& key);
-	void OnKeyUp(ECS_Core::Components::C_UserInputs& input, const Event::KeyEvent& key);
-	
-	void OnTextEntered(const Event::TextEvent& text);
-	
-	void OnMouseMove(ECS_Core::Components::C_UserInputs& input, const Event::MouseMoveEvent& move);
-
-	void UpdateMouseWorldPosition(ECS_Core::Components::C_UserInputs & input);
-
-	void OnMouseEnter();
-	void OnMouseLeave(ECS_Core::Components::C_UserInputs& input);
-	
-	void OnMouseButtonDown(ECS_Core::Components::C_UserInputs& input, const Event::MouseButtonEvent& button);
-	void OnMouseButtonUp(ECS_Core::Components::C_UserInputs& input, const Event::MouseButtonEvent& button);
-
-	void OnMouseWheelMove(ECS_Core::Components::C_UserInputs& input, const Event::MouseWheelEvent& wheel);
-	void OnMouseWheelScroll(ECS_Core::Components::C_UserInputs& input, const Event::MouseWheelScrollEvent& scroll);
-
-	void OnTouchBegin(const Event::TouchEvent& touch);
-	void OnTouchMove(const Event::TouchEvent& touch);
-	void OnTouchEnd(const Event::TouchEvent& touch);
-
-	void OnSensor(const Event::SensorEvent& touch);
-
-	void OnJoystickMove(const Event::JoystickMoveEvent& joyMove);
-
-	void OnJoystickButtonDown(const Event::JoystickButtonEvent& joyButton);
-	void OnJoystickButtonUp(const Event::JoystickButtonEvent& joyButton);
-
-	void OnJoystickConnect(const Event::JoystickConnectEvent& joyConnect);
-	void OnJoystickDisconnect(const Event::JoystickConnectEvent& joyDisconnect);
-}
 
 std::optional<ECS_Core::Components::InputKeys> GetInputKey(sf::Keyboard::Key sfKey)
 {
@@ -329,41 +276,41 @@ namespace sf
 	}
 }
 
-void EventResponse::OnWindowResize(const sf::Event::SizeEvent& size, ECS_Core::Manager& manager)
+void SFMLManager::OnWindowResize(const sf::Event::SizeEvent& size)
 { 
-	auto& currentViewSize = s_worldView.getSize();
+	auto& currentViewSize = m_worldView.getSize();
 	auto newViewSize = currentViewSize;
-	newViewSize.x *= 1.f * size.width / s_mostRecentWindowSize.x;
-	newViewSize.y *= 1.f * size.height / s_mostRecentWindowSize.y;
+	newViewSize.x *= 1.f * size.width / m_mostRecentWindowSize.x;
+	newViewSize.y *= 1.f * size.height / m_mostRecentWindowSize.y;
 
-	auto currentViewOrigin = s_worldView.getCenter() - (currentViewSize / 2);
-	s_worldView = sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y});
+	auto currentViewOrigin = m_worldView.getCenter() - (currentViewSize / 2);
+	m_worldView = sf::View({ currentViewOrigin.x, currentViewOrigin.y, newViewSize.x, newViewSize.y});
 
-	s_UIView = sf::View({ 0, 0, static_cast<float>(size.width), static_cast<float>(size.height) });
+	m_UIView = sf::View({ 0, 0, static_cast<float>(size.width), static_cast<float>(size.height) });
 
 	// update window info
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_WindowInfo>([](
+	m_managerRef.forEntitiesMatching<Signatures::S_WindowInfo>([this](
 		const ecs::EntityIndex&,
 		Components::C_WindowInfo& windowInfo)
 	{
-		windowInfo.m_windowSize = CartesianVector2<unsigned int>{ s_window.getSize().x, s_window.getSize().y }.cast<f64>();
+		windowInfo.m_windowSize = CartesianVector2<unsigned int>{ m_window.getSize().x, m_window.getSize().y }.cast<f64>();
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 
-void EventResponse::OnLoseFocus(ECS_Core::Components::C_UserInputs& input)
+void SFMLManager::OnLoseFocus(ECS_Core::Components::C_UserInputs& input)
 {
 	input.m_activeModifiers = 0;
 	input.m_newKeyUp = input.m_unprocessedCurrentKeys;
 	input.m_unprocessedCurrentKeys.clear();
 }
 
-void EventResponse::OnGainFocus()
+void SFMLManager::OnGainFocus()
 {
 }
 
-void EventResponse::OnKeyDown(
+void SFMLManager::OnKeyDown(
 	ECS_Core::Components::C_UserInputs& input,
 	const sf::Event::KeyEvent& key)
 {
@@ -378,7 +325,7 @@ void EventResponse::OnKeyDown(
 	input.m_unprocessedCurrentKeys.emplace(*inputKey);
 }
 
-void EventResponse::OnKeyUp(
+void SFMLManager::OnKeyUp(
 	ECS_Core::Components::C_UserInputs& input,
 	const sf::Event::KeyEvent& key)
 {
@@ -393,11 +340,11 @@ void EventResponse::OnKeyUp(
 	input.m_unprocessedCurrentKeys.erase(*inputKey);
 }
 
-void EventResponse::OnTextEntered(const sf::Event::TextEvent& text)
+void SFMLManager::OnTextEntered(const sf::Event::TextEvent& text)
 {
 }
 
-void EventResponse::OnMouseMove(
+void SFMLManager::OnMouseMove(
 	ECS_Core::Components::C_UserInputs& input, 
 	const sf::Event::MouseMoveEvent& move)
 {
@@ -407,23 +354,23 @@ void EventResponse::OnMouseMove(
 	UpdateMouseWorldPosition(input);
 }
 
-void EventResponse::UpdateMouseWorldPosition(ECS_Core::Components::C_UserInputs & input)
+void SFMLManager::UpdateMouseWorldPosition(ECS_Core::Components::C_UserInputs & input)
 {
-	auto worldViewCenter = s_worldView.getCenter();
-	auto worldViewSize = s_worldView.getSize();
+	auto worldViewCenter = m_worldView.getCenter();
+	auto worldViewSize = m_worldView.getSize();
 
 	// UI view matches window size in pixels
-	auto xPercent = 1.0 * input.m_currentMousePosition.m_screenPosition.m_x / s_UIView.getSize().x;
-	auto yPercent = 1.0 * input.m_currentMousePosition.m_screenPosition.m_y / s_UIView.getSize().y;
+	auto xPercent = 1.0 * input.m_currentMousePosition.m_screenPosition.m_x / m_UIView.getSize().x;
+	auto yPercent = 1.0 * input.m_currentMousePosition.m_screenPosition.m_y / m_UIView.getSize().y;
 	input.m_currentMousePosition.m_worldPosition.m_x = ((xPercent - 0.5f) * worldViewSize.x) + worldViewCenter.x;
 	input.m_currentMousePosition.m_worldPosition.m_y = ((yPercent - 0.5f) * worldViewSize.y) + worldViewCenter.y;
 }
 
-void EventResponse::OnMouseEnter()
+void SFMLManager::OnMouseEnter()
 {
 }
 
-void EventResponse::OnMouseLeave(
+void SFMLManager::OnMouseLeave(
 	ECS_Core::Components::C_UserInputs& input)
 {
 	// When mouse leaves the window, treat all mouse buttons as lifting
@@ -437,7 +384,7 @@ void EventResponse::OnMouseLeave(
 	}
 }
 
-void EventResponse::OnMouseButtonDown(
+void SFMLManager::OnMouseButtonDown(
 	ECS_Core::Components::C_UserInputs& input,
 	const sf::Event::MouseButtonEvent& button)
 {
@@ -452,7 +399,7 @@ void EventResponse::OnMouseButtonDown(
 	initialPosition.m_initialActiveModifiers = input.m_activeModifiers;
 }
 
-void EventResponse::OnMouseButtonUp(
+void SFMLManager::OnMouseButtonUp(
 	ECS_Core::Components::C_UserInputs& input,
 	const sf::Event::MouseButtonEvent& button)
 {
@@ -460,52 +407,52 @@ void EventResponse::OnMouseButtonUp(
 	input.m_unprocessedThisFrameUpMouseButtonFlags |= static_cast<u8>(mouseButton);
 }
 
-void EventResponse::OnMouseWheelMove(
+void SFMLManager::OnMouseWheelMove(
 	ECS_Core::Components::C_UserInputs& input,
 	const sf::Event::MouseWheelEvent& wheel)
 {
 }
 
-void EventResponse::OnMouseWheelScroll(
+void SFMLManager::OnMouseWheelScroll(
 	ECS_Core::Components::C_UserInputs& input,
 	const sf::Event::MouseWheelScrollEvent& scroll)
 {
-	s_worldView.zoom(1 - (scroll.delta / 20));
+	m_worldView.zoom(1 - (scroll.delta / 20));
 }
 
-void EventResponse::OnTouchBegin(const sf::Event::TouchEvent& touch)
+void SFMLManager::OnTouchBegin(const sf::Event::TouchEvent& touch)
 {
 }
 
-void EventResponse::OnTouchMove(const sf::Event::TouchEvent& touch)
+void SFMLManager::OnTouchMove(const sf::Event::TouchEvent& touch)
 {
 }
 
-void EventResponse::OnTouchEnd(const sf::Event::TouchEvent& touch)
+void SFMLManager::OnTouchEnd(const sf::Event::TouchEvent& touch)
 {
 }
 
-void EventResponse::OnSensor(const sf::Event::SensorEvent& touch)
+void SFMLManager::OnSensor(const sf::Event::SensorEvent& touch)
 {
 }
 
-void EventResponse::OnJoystickMove(const sf::Event::JoystickMoveEvent& joyMove)
+void SFMLManager::OnJoystickMove(const sf::Event::JoystickMoveEvent& joyMove)
 {
 }
 
-void EventResponse::OnJoystickButtonDown(const sf::Event::JoystickButtonEvent& joyButton)
+void SFMLManager::OnJoystickButtonDown(const sf::Event::JoystickButtonEvent& joyButton)
 {
 }
 
-void EventResponse::OnJoystickButtonUp(const sf::Event::JoystickButtonEvent& joyButton)
+void SFMLManager::OnJoystickButtonUp(const sf::Event::JoystickButtonEvent& joyButton)
 {
 }
 
-void EventResponse::OnJoystickConnect(const sf::Event::JoystickConnectEvent& joyConnect)
+void SFMLManager::OnJoystickConnect(const sf::Event::JoystickConnectEvent& joyConnect)
 {
 }
 
-void EventResponse::OnJoystickDisconnect(const sf::Event::JoystickConnectEvent& joyDisconnect)
+void SFMLManager::OnJoystickDisconnect(const sf::Event::JoystickConnectEvent& joyDisconnect)
 {
 }
 
@@ -513,7 +460,7 @@ void SFMLManager::ProgramInit()
 {
 	auto windowInfoIndex = m_managerRef.createHandle();
 	auto& windowInfo = m_managerRef.addComponent<ECS_Core::Components::C_WindowInfo>(windowInfoIndex);
-	windowInfo.m_windowSize = CartesianVector2<unsigned int>{ s_window.getSize().x, s_window.getSize().y }.cast<f64>();
+	windowInfo.m_windowSize = CartesianVector2<unsigned int>{ m_window.getSize().x, m_window.getSize().y }.cast<f64>();
 }
 
 void SFMLManager::SetupGameplay()
@@ -530,10 +477,10 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	switch (phase)
 	{
 	case GameLoopPhase::PREPARATION:
-		ReadSFMLInput(m_managerRef);
+		ReadSFMLInput();
 	case GameLoopPhase::ACTION:
 	case GameLoopPhase::ACTION_RESPONSE:
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([this](
 			const ecs::EntityIndex&,
 			const ECS_Core::Components::C_UserInputs&,
 			const ECS_Core::Components::C_ActionPlan& plan)
@@ -543,18 +490,18 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				if (std::holds_alternative<Action::LocalPlayer::CenterCamera>(action))
 				{
 					auto& centerCamera = std::get<Action::LocalPlayer::CenterCamera>(action);
-					s_worldView.setCenter({ 1.f * centerCamera.m_worldPosition.m_x, 1.f * centerCamera.m_worldPosition.m_y });
-					s_worldView.setSize(160.f, 90.f);
+					m_worldView.setCenter({ 1.f * centerCamera.m_worldPosition.m_x, 1.f * centerCamera.m_worldPosition.m_y });
+					m_worldView.setSize(160.f, 90.f);
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
 		return;
 	case GameLoopPhase::INPUT:
-		ReceiveInput(m_managerRef, frameDuration);
+		ReceiveInput(frameDuration);
 		break;
 	case GameLoopPhase::RENDER:
-		RenderWorld(m_managerRef, frameDuration);
+		RenderWorld(frameDuration);
 		break;
 	case GameLoopPhase::CLEANUP:
 	{
@@ -565,19 +512,20 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			input.Reset();
 			return ecs::IterationBehavior::CONTINUE;
 		});
-		close = closingTriggered;
+		m_close = m_closingTriggered;
 	}
 		break;
 	}
-	s_mostRecentWindowSize = s_window.getSize();
+	m_mostRecentWindowSize = m_window.getSize();
 }
 
-void ReadSFMLInput(ECS_Core::Manager& manager)
+void SFMLManager::ReadSFMLInput()
 {
 	sf::Event event;
-	while (s_window.pollEvent(event))
+	while (m_window.pollEvent(event))
 	{
-		manager.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&event, &manager](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
+			[&event, &manager = m_managerRef, this](
 			const ecs::EntityIndex&,
 			ECS_Core::Components::C_UserInputs& inputComponent,
 			const ECS_Core::Components::C_ActionPlan&)
@@ -586,62 +534,62 @@ void ReadSFMLInput(ECS_Core::Manager& manager)
 			switch (event.type)
 			{
 			case sf::Event::Closed:
-				closingTriggered = true;
+				m_closingTriggered = true;
 				break;
 
 				// Window Management
 			case sf::Event::Resized:
-				EventResponse::OnWindowResize(event.size, manager); break;
+				OnWindowResize(event.size); break;
 			case sf::Event::LostFocus:
-				EventResponse::OnLoseFocus(inputComponent); break;
+				OnLoseFocus(inputComponent); break;
 			case sf::Event::GainedFocus:
-				EventResponse::OnGainFocus(); break;
+				OnGainFocus(); break;
 
 			case sf::Event::TextEntered:
-				EventResponse::OnTextEntered(event.text); break;
+				OnTextEntered(event.text); break;
 
 			case sf::Event::KeyPressed:
-				EventResponse::OnKeyDown(inputComponent, event.key); break;
+				OnKeyDown(inputComponent, event.key); break;
 			case sf::Event::KeyReleased:
-				EventResponse::OnKeyUp(inputComponent, event.key); break;
+				OnKeyUp(inputComponent, event.key); break;
 
 			case sf::Event::MouseWheelMoved:
-				EventResponse::OnMouseWheelMove(inputComponent, event.mouseWheel); break;
+				OnMouseWheelMove(inputComponent, event.mouseWheel); break;
 			case sf::Event::MouseWheelScrolled:
-				EventResponse::OnMouseWheelScroll(inputComponent, event.mouseWheelScroll); break;
+				OnMouseWheelScroll(inputComponent, event.mouseWheelScroll); break;
 			case sf::Event::MouseButtonPressed:
-				EventResponse::OnMouseButtonDown(inputComponent, event.mouseButton); break;
+				OnMouseButtonDown(inputComponent, event.mouseButton); break;
 			case sf::Event::MouseButtonReleased:
-				EventResponse::OnMouseButtonUp(inputComponent, event.mouseButton); break;
+				OnMouseButtonUp(inputComponent, event.mouseButton); break;
 
 			case sf::Event::MouseMoved:
-				EventResponse::OnMouseMove(inputComponent, event.mouseMove); break;
+				OnMouseMove(inputComponent, event.mouseMove); break;
 
 			case sf::Event::MouseEntered:
-				EventResponse::OnMouseEnter(); break;
+				OnMouseEnter(); break;
 			case sf::Event::MouseLeft:
-				EventResponse::OnMouseLeave(inputComponent); break;
+				OnMouseLeave(inputComponent); break;
 
 			case sf::Event::TouchBegan:
-				EventResponse::OnTouchBegin(event.touch); break;
+				OnTouchBegin(event.touch); break;
 			case sf::Event::TouchMoved:
-				EventResponse::OnTouchMove(event.touch); break;
+				OnTouchMove(event.touch); break;
 			case sf::Event::TouchEnded:
-				EventResponse::OnTouchEnd(event.touch); break;
+				OnTouchEnd(event.touch); break;
 
 			case sf::Event::SensorChanged:
-				EventResponse::OnSensor(event.sensor); break;
+				OnSensor(event.sensor); break;
 
 			case sf::Event::JoystickButtonPressed:
-				EventResponse::OnJoystickButtonDown(event.joystickButton); break;
+				OnJoystickButtonDown(event.joystickButton); break;
 			case sf::Event::JoystickButtonReleased:
-				EventResponse::OnJoystickButtonUp(event.joystickButton); break;
+				OnJoystickButtonUp(event.joystickButton); break;
 			case sf::Event::JoystickMoved:
-				EventResponse::OnJoystickMove(event.joystickMove); break;
+				OnJoystickMove(event.joystickMove); break;
 			case sf::Event::JoystickConnected:
-				EventResponse::OnJoystickConnect(event.joystickConnect); break;
+				OnJoystickConnect(event.joystickConnect); break;
 			case sf::Event::JoystickDisconnected:
-				EventResponse::OnJoystickDisconnect(event.joystickConnect); break;
+				OnJoystickDisconnect(event.joystickConnect); break;
 
 			case sf::Event::Count:
 				// wat. This shouldn't ever happen, this isn't an action but a utility
@@ -652,42 +600,52 @@ void ReadSFMLInput(ECS_Core::Manager& manager)
 	}
 }
 
-void ReceiveInput(ECS_Core::Manager& manager, const timeuS& frameDuration)
+void SFMLManager::ReceiveInput(const timeuS& frameDuration)
 {
-	f32 scalar = static_cast<f32>(150. * s_worldView.getSize().x / 400);
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&scalar, &manager, &frameDuration](
+	f32 scalar = static_cast<f32>(150. * m_worldView.getSize().x / 400);
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
+		[&scalar, &manager = m_managerRef, &frameDuration, this](
 		const ecs::EntityIndex&,
 		ECS_Core::Components::C_UserInputs& inputComponent,
 		const ECS_Core::Components::C_ActionPlan&)
 	{
 		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_DOWN))
 		{
-			s_worldView.move({ 0, scalar * frameDuration / 1000000 });
+			m_worldView.move({ 0, scalar * frameDuration / 1000000 });
 			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_DOWN);
 		}
 		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_UP))
 		{
-			s_worldView.move({ 0, -scalar * frameDuration / 1000000 });
+			m_worldView.move({ 0, -scalar * frameDuration / 1000000 });
 			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_UP);
 		}
 		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_LEFT))
 		{
-			s_worldView.move({ -scalar * frameDuration / 1000000, 0 });
+			m_worldView.move({ -scalar * frameDuration / 1000000, 0 });
 			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_LEFT);
 		}
 		if (inputComponent.m_unprocessedCurrentKeys.count(ECS_Core::Components::InputKeys::ARROW_RIGHT))
 		{
-			s_worldView.move({ scalar * frameDuration / 1000000, 0 });
+			m_worldView.move({ scalar * frameDuration / 1000000, 0 });
 			inputComponent.ProcessKey(ECS_Core::Components::InputKeys::ARROW_RIGHT);
 		}
-		EventResponse::UpdateMouseWorldPosition(inputComponent);
+		UpdateMouseWorldPosition(inputComponent);
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 
-void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputComponent, const timeuS& frameDuration)
+void SFMLManager::DisplayCurrentInputs(
+	const ECS_Core::Components::C_UserInputs& inputComponent,
+	const timeuS& frameDuration)
 {
-	sf::Text modifierText, newDownText, newUpText, currentDepressedText, windowPositionText, worldPositionText, worldCoordinatesText, frameDurationText;
+	sf::Text modifierText,
+		newDownText,
+		newUpText,
+		currentDepressedText,
+		windowPositionText,
+		worldPositionText,
+		worldCoordinatesText,
+		frameDurationText;
 	std::vector<sf::Text*> texts{
 		&modifierText,
 		&newDownText,
@@ -768,7 +726,7 @@ void DisplayCurrentInputs(const ECS_Core::Components::C_UserInputs& inputCompone
 		text->setPosition(0, 300.f + 45.f * row++);
 		text->setFillColor(sf::Color(255, 255, 255));
 		text->setOutlineColor(sf::Color(15, 15, 15));
-		s_window.draw(*text);
+		m_window.draw(*text);
 	}
 }
 
@@ -786,16 +744,7 @@ namespace std
 		}
 		return left.owner_before(right);
 	}
-}
 
-struct TaggedDrawable
-{
-	bool m_drawnThisFrame;
-	std::set<std::weak_ptr<sf::Drawable>> m_drawable;
-};
-
-namespace std
-{
 	bool operator<(const ecs::Impl::HandleData& left, const ecs::Impl::HandleData& right)
 	{
 		if (left.entityIndex < right.entityIndex) return true;
@@ -806,22 +755,21 @@ namespace std
 	}
 }
 
-std::map<ECS_Core::Components::DrawLayer, std::map<u64, std::map<ecs::Impl::HandleData, TaggedDrawable>>> drawablesByLayer;
-void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
+void SFMLManager::RenderWorld(const timeuS& frameDuration)
 {
-	s_window.clear();
+	m_window.clear();
 
 	// Get current time
 	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 	if (timeEntities.size() == 0)
 	{
 		return;
 	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
-		[&manager](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Drawable>(
+		[&manager =m_managerRef, this](
 			ecs::EntityIndex mI,
 			const ECS_Core::Components::C_PositionCartesian& position,
 			ECS_Core::Components::C_SFMLDrawable& drawables)
@@ -841,7 +789,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 							static_cast<float>(position.m_position.m_x + drawable.m_offset.m_x),
 							static_cast<float>(position.m_position.m_y + drawable.m_offset.m_y) });
 					}
-					auto& taggedDrawable = drawablesByLayer[layer][priority][handle];
+					auto& taggedDrawable = m_drawablesByLayer[layer][priority][handle];
 					taggedDrawable.m_drawable.insert(drawable.m_graphic);
 					taggedDrawable.m_drawnThisFrame = true;
 				}
@@ -849,7 +797,8 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_UIDrawable>([&manager](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UIDrawable>(
+		[&manager = m_managerRef, this](
 		ecs::EntityIndex mI,
 		ECS_Core::Components::C_UIFrame& uiFrame,
 		ECS_Core::Components::C_SFMLDrawable& drawables)
@@ -869,7 +818,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 							static_cast<float>(uiFrame.m_topLeftCorner.m_x + drawable.m_offset.m_x),
 							static_cast<float>(uiFrame.m_topLeftCorner.m_y + drawable.m_offset.m_y) });
 					}
-					auto& taggedDrawable = drawablesByLayer[layer][priority][handle];
+					auto& taggedDrawable = m_drawablesByLayer[layer][priority][handle];
 					taggedDrawable.m_drawable.insert(drawable.m_graphic);
 					taggedDrawable.m_drawnThisFrame = true;
 				}
@@ -877,15 +826,15 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
-	for (auto& [layer, priorityMap] : drawablesByLayer)
+	for (auto& [layer, priorityMap] : m_drawablesByLayer)
 	{
 		if (layer == ECS_Core::Components::DrawLayer::MENU)
 		{
-			s_window.setView(s_UIView);
+			m_window.setView(m_UIView);
 		}
 		else
 		{
-			s_window.setView(s_worldView);
+			m_window.setView(m_worldView);
 		}
 		for (auto& [priority, handleMap] : priorityMap)
 		{
@@ -903,7 +852,7 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 						else
 						{
 							auto graphic = weakGraphicIter->lock();
-							s_window.draw(*graphic);
+							m_window.draw(*graphic);
 							++weakGraphicIter;
 						}
 					}
@@ -920,8 +869,9 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		}
 	}
 
-	s_window.setView(s_UIView);
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([frameDuration](
+	m_window.setView(m_UIView);
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
+		[frameDuration, this](
 		const ecs::EntityIndex&,
 		const ECS_Core::Components::C_UserInputs& inputs,
 		const ECS_Core::Components::C_ActionPlan&)
@@ -929,12 +879,12 @@ void RenderWorld(ECS_Core::Manager& manager, const timeuS& frameDuration)
 		DisplayCurrentInputs(inputs, frameDuration);
 		return ecs::IterationBehavior::CONTINUE;
 	});	
-	s_window.display();
+	m_window.display();
 }
 
 bool SFMLManager::ShouldExit()
 {
-	return close;
+	return m_close;
 }
 
 DEFINE_SYSTEM_INSTANTIATION(SFMLManager);
