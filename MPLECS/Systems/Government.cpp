@@ -11,16 +11,14 @@
 
 #include "Government.h"
 
-#include "../Util/WorkerStructs.h"
-
 #include <algorithm>
 
-void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityIndex& ghostEntity)
+void Government::BeginBuildingConstruction(const ecs::EntityIndex& ghostEntity)
 {
-	manager.addComponent<ECS_Core::Components::C_BuildingConstruction>(ghostEntity).m_placingGovernor =
-		manager.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor;
-	manager.delComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
-	auto& drawable = manager.getComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
+	m_managerRef.addComponent<ECS_Core::Components::C_BuildingConstruction>(ghostEntity).m_placingGovernor =
+		m_managerRef.getComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity).m_placingGovernor;
+	m_managerRef.delComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
+	auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
 	for (auto&[p, buildings] : drawable.m_drawables[ECS_Core::Components::DrawLayer::BUILDING])
 	{
 		for (auto&& building : buildings)
@@ -32,28 +30,17 @@ void BeginBuildingConstruction(ECS_Core::Manager & manager, const ecs::EntityInd
 	}
 }
 
-std::map<int, ECS_Core::Components::YieldBuckets> s_buildingCosts
-{
-	{
-		0, 
-		{
-			{ECS_Core::Components::Yields::FOOD, 50},
-			{ECS_Core::Components::Yields::WOOD, 50}
-		}
-	}
-};
-
-bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governor, TilePosition & position, int buildingType)
+bool Government::CreateBuildingGhost(ecs::Impl::Handle &governor, TilePosition & position, int buildingType)
 {
 	// Validate inputs
-	if (!manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(governor))
+	if (!m_managerRef.hasComponent<ECS_Core::Components::C_ResourceInventory>(governor))
 	{
 		return false;
 	}
 	using namespace ECS_Core;
 	bool governorHasPending{ false };
 	// Look through current ghosts, make sure this governor doesn't yet have one active
-	manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
+	m_managerRef.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
 		[&governor, &governorHasPending](
 			const ecs::EntityIndex&,
 			const Components::C_BuildingDescription&,
@@ -71,14 +58,14 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 		return false;
 	}
 
-	auto buildingCostIter = s_buildingCosts.find(buildingType);
-	if (buildingCostIter == s_buildingCosts.end())
+	auto buildingCostIter = m_buildingCosts.find(buildingType);
+	if (buildingCostIter == m_buildingCosts.end())
 	{
 		return false;
 	}
 
 	// Grab governor, check resource inventory
-	auto& governorInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(governor);
+	auto& governorInventory = m_managerRef.getComponent<ECS_Core::Components::C_ResourceInventory>(governor);
 	std::set<int> insufficientResources;
 	for (auto&&[resource, cost] : buildingCostIter->second)
 	{
@@ -101,19 +88,19 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 		return false;
 	}
 
-	auto ghostEntity = manager.createHandle();
-	auto& ghost = manager.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
+	auto ghostEntity = m_managerRef.createHandle();
+	auto& ghost = m_managerRef.addComponent<ECS_Core::Components::C_BuildingGhost>(ghostEntity);
 	ghost.m_placingGovernor = governor;
 	ghost.m_paidYield = buildingCostIter->second;
 	for (auto&&[resource, cost] : buildingCostIter->second)
 	{
 		governorInventory.m_collectedYields[resource] -= cost;
 	}
-	manager.addComponent<ECS_Core::Components::C_TilePosition>(ghostEntity) = position;
-	manager.addComponent<ECS_Core::Components::C_PositionCartesian>(ghostEntity);
-	manager.addComponent<ECS_Core::Components::C_BuildingDescription>(ghostEntity).m_buildingType = buildingType;
+	m_managerRef.addComponent<ECS_Core::Components::C_TilePosition>(ghostEntity) = position;
+	m_managerRef.addComponent<ECS_Core::Components::C_PositionCartesian>(ghostEntity);
+	m_managerRef.addComponent<ECS_Core::Components::C_BuildingDescription>(ghostEntity).m_buildingType = buildingType;
 
-	auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
+	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(ghostEntity);
 	auto shape = std::make_shared<sf::CircleShape>(2.5f);
 	shape->setOutlineColor(sf::Color(128, 128, 128, 255));
 	shape->setFillColor(sf::Color(128, 128, 128, 128));
@@ -121,10 +108,11 @@ bool CreateBuildingGhost(ECS_Core::Manager & manager, ecs::Impl::Handle &governo
 	return true;
 }
 
-void ConstructRequestedBuildings(ECS_Core::Manager& manager)
+void Government::ConstructRequestedBuildings()
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<Signatures::S_Planner>([&manager](
+	m_managerRef.forEntitiesMatching<Signatures::S_Planner>(
+		[&manager = m_managerRef, this](
 		const ecs::EntityIndex& governorIndex,
 		ECS_Core::Components::C_ActionPlan& actionPlan)
 	{
@@ -136,7 +124,8 @@ void ConstructRequestedBuildings(ECS_Core::Manager& manager)
 			if (std::holds_alternative<Action::LocalPlayer::CreateBuildingFromGhost>(action))
 			{
 				auto& create = std::get<Action::LocalPlayer::CreateBuildingFromGhost>(action);
-				manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>([&manager, &governorHandle](
+				manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
+					[&manager, &governorHandle, this](
 					const ecs::EntityIndex& ghostEntity,
 					const Components::C_BuildingDescription&,
 					const Components::C_TilePosition&,
@@ -150,24 +139,24 @@ void ConstructRequestedBuildings(ECS_Core::Manager& manager)
 					{
 						return ecs::IterationBehavior::CONTINUE;
 					}
-					BeginBuildingConstruction(manager, ghostEntity);
+					BeginBuildingConstruction(ghostEntity);
 					return ecs::IterationBehavior::BREAK;
 				});
 			}
 			else if (std::holds_alternative<Action::LocalPlayer::CreateBuildingGhost>(action))
 			{
 				auto& ghost = std::get<Action::LocalPlayer::CreateBuildingGhost>(action);
-				CreateBuildingGhost(manager, governorHandle, ghost.m_position, ghost.m_buildingClassId);
+				CreateBuildingGhost(governorHandle, ghost.m_position, ghost.m_buildingClassId);
 			}
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
 
-void UpdateAgendas(ECS_Core::Manager& manager)
+void Government::UpdateAgendas()
 {
 	using namespace ECS_Core;
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>([&manager](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Governor>([&manager = m_managerRef](
 		ecs::EntityIndex mI,
 		const ECS_Core::Components::C_Realm& realm,
 		ECS_Core::Components::C_Agenda& agenda)
@@ -197,31 +186,26 @@ void UpdateAgendas(ECS_Core::Manager& manager)
 	});
 }
 
-f64 AssignYieldWorkers(
-	std::pair<const WorkerSkillKey, std::vector<WorkerProductionValue>> & skillLevel,
-	WorkerAssignmentMap &assignments,
-	f64 &amountToWork,
-	const int& yield);
-
-void GainIncomes(ECS_Core::Manager& manager)
+void Government::GainIncomes()
 {
 	// Get current time
 	// Assume the first entity is the one that has a valid time
-	auto timeEntities = manager.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+	auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 	if (timeEntities.size() == 0)
 	{
 		return;
 	}
-	const auto& time = manager.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Governor>(
-		[&manager, &time](
+	const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Governor>(
+		[&manager = m_managerRef, &time, this](
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_Realm& realm,
 			const ECS_Core::Components::C_Agenda& agenda)
 	{
 		for (auto&& territoryHandle : realm.m_territories)
 		{
-			if (!manager.isHandleValid(territoryHandle) || !manager.hasComponent<ECS_Core::Components::C_TileProductionPotential>(territoryHandle)
+			if (!manager.isHandleValid(territoryHandle)
+				|| !manager.hasComponent<ECS_Core::Components::C_TileProductionPotential>(territoryHandle)
 				|| !manager.hasComponent<ECS_Core::Components::C_Territory>(territoryHandle)
 				|| !manager.hasComponent<ECS_Core::Components::C_Population>(territoryHandle)
 				|| !manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(territoryHandle))
@@ -340,7 +324,7 @@ void GainIncomes(ECS_Core::Manager& manager)
 	});
 }
 
-f64 AssignYieldWorkers(
+f64 Government::AssignYieldWorkers(
 	std::pair<const WorkerSkillKey, std::vector<WorkerProductionValue>> & skillLevel,
 	WorkerAssignmentMap &assignments,
 	f64 &amountToWork,
@@ -387,18 +371,19 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::INPUT:
 		break;
 	case GameLoopPhase::ACTION:
-		ConstructRequestedBuildings(m_managerRef);
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_WealthPlanner>([&manager = m_managerRef](
-			const ecs::EntityIndex& entityIndex,
-			const ECS_Core::Components::C_ActionPlan& actionPlan,
-			ECS_Core::Components::C_Realm& realm) {
+		ConstructRequestedBuildings();
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_WealthPlanner>(
+			[&manager = m_managerRef, this](
+				const ecs::EntityIndex& entityIndex,
+				const ECS_Core::Components::C_ActionPlan& actionPlan,
+				ECS_Core::Components::C_Realm& realm) {
 			for (auto&& action : actionPlan.m_plan)
 			{
 				if (std::holds_alternative<Action::CreateBuildingUnit>(action))
 				{
 					auto& builder = std::get<Action::CreateBuildingUnit>(action);
-					auto costIter = s_buildingCosts.find(builder.m_buildingTypeId);
-					if (costIter == s_buildingCosts.end())
+					auto costIter = m_buildingCosts.find(builder.m_buildingTypeId);
+					if (costIter == m_buildingCosts.end())
 					{
 						continue;
 					}
@@ -406,7 +391,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						auto& buildingInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource);
 						bool hasResources = true;
-						for (auto&& [resource, cost] : costIter->second)
+						for (auto&&[resource, cost] : costIter->second)
 						{
 							// Check to see that all resources required are available
 							auto inventoryStore = buildingInventory.m_collectedYields.find(resource);
@@ -438,7 +423,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(*builder.m_popSource);
 							int sourceTotalMen{ 0 };
 							int sourceTotalWomen{ 0 };
-							for (auto&& [birthMonth,pop] : populationSource.m_populations)
+							for (auto&&[birthMonth, pop] : populationSource.m_populations)
 							{
 								if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
 								{
@@ -462,7 +447,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							int menMoved = 0;
 							int womenMoved = 0;
-							for (auto&& [birthMonth,pop] : populationSource.m_populations)
+							for (auto&&[birthMonth, pop] : populationSource.m_populations)
 							{
 								if (menMoved == totalMenToMove && totalWomenToMove == 5)
 								{
@@ -529,7 +514,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					if (builder.m_popSource && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource))
 					{
 						auto& buildingInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource);
-						for (auto&& [resource, cost] : costIter->second)
+						for (auto&&[resource, cost] : costIter->second)
 						{
 							buildingInventory.m_collectedYields[resource] -= cost;
 						}
@@ -540,16 +525,18 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		});
 		break;
 	case GameLoopPhase::ACTION_RESPONSE:
-		UpdateAgendas(m_managerRef);
-		GainIncomes(m_managerRef);
+		UpdateAgendas();
+		GainIncomes();
 		break;
 	case GameLoopPhase::RENDER:
 		break;
 	case GameLoopPhase::CLEANUP:
 		using namespace ECS_Core;
-		m_managerRef.forEntitiesMatching<Signatures::S_Governor>([&manager = m_managerRef](const ecs::EntityIndex& entity,
-			Components::C_Realm& realm,
-			const Components::C_Agenda&)
+		m_managerRef.forEntitiesMatching<Signatures::S_Governor>(
+			[&manager = m_managerRef](
+				const ecs::EntityIndex& entity,
+				Components::C_Realm& realm,
+				const Components::C_Agenda&)
 		{
 			for (auto iter = realm.m_territories.begin(); iter != realm.m_territories.end();)
 			{
