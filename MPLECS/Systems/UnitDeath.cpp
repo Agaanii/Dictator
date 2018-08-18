@@ -11,8 +11,6 @@
 
 #include "UnitDeath.h"
 
-void KillDyingUnits(ECS_Core::Manager& manager);
-
 void UnitDeath::ProgramInit() {}
 void UnitDeath::SetupGameplay() {}
 
@@ -28,15 +26,15 @@ void UnitDeath::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		return;
 
 	case GameLoopPhase::CLEANUP:
-		KillDyingUnits(m_managerRef);
+		KillDyingUnits();
 		break;
 	}
 }
 
-void KillDyingUnits(ECS_Core::Manager& manager)
+void UnitDeath::KillDyingUnits()
 {
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Living>(
-		[&manager](ecs::EntityIndex mI,
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Living>(
+		[&manager =m_managerRef](ecs::EntityIndex mI,
 			const ECS_Core::Components::C_Health& health)
 	{
 		if (health.m_currentHealth <= 0)
@@ -46,8 +44,8 @@ void KillDyingUnits(ECS_Core::Manager& manager)
 		return ecs::IterationBehavior::CONTINUE;
 	});
 
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_Dead>(
-		[&manager](ecs::EntityIndex mI)
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Dead>(
+		[&manager = m_managerRef](ecs::EntityIndex mI)
 	{
 		manager.kill(mI);
 		return ecs::IterationBehavior::CONTINUE;
