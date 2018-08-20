@@ -12,19 +12,25 @@
 
 #include "InputTranslation.h"
 
-#include <functional>
+InputTranslation::InputTranslation()
+	: SystemBase()
+{
+	m_functions[ECS_Core::Components::InputKeys::BACKSPACE] = [this](auto _1, auto _2) {TogglePause(_1, _2); };
+	m_functions[ECS_Core::Components::InputKeys::EQUAL] = [this](auto _1, auto _2) {IncreaseGameSpeed(_1, _2); };
+	m_functions[ECS_Core::Components::InputKeys::DASH] = [this](auto _1, auto _2) {DecreaseGameSpeed(_1, _2); };
+}
 
 void InputTranslation::ProgramInit() {}
 void InputTranslation::SetupGameplay() {}
 
-bool CheckPlaceBuildingCommand(
+bool InputTranslation::CheckPlaceBuildingCommand(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	using namespace ECS_Core;
 	bool ghostFound{ false };
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>([&manager, &inputs, &actionPlan, &ghostFound](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>(
+		[&inputs, &actionPlan, &ghostFound](
 		const ecs::EntityIndex& ghostEntity,
 		const Components::C_BuildingDescription&,
 		const Components::C_TilePosition&,
@@ -43,14 +49,14 @@ bool CheckPlaceBuildingCommand(
 	return ghostFound;
 }
 
-bool CheckStartTargetedMovement(
+bool InputTranslation::CheckStartTargetedMovement(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	using namespace ECS_Core;
 	bool movementFound{ false };
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>([&manager, &inputs, &actionPlan, &movementFound](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>(
+		[&manager = m_managerRef, &inputs, &actionPlan, &movementFound](
 		const ecs::EntityIndex& targetEntity,
 		const Components::C_MovementTarget& movement,
 		const Components::C_TilePosition& position)
@@ -63,7 +69,8 @@ bool CheckStartTargetedMovement(
 		movementFound = true;
 		return ecs::IterationBehavior::BREAK;
 	});
-	manager.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>([&manager, &inputs, &actionPlan, &movementFound](
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>(
+		[&manager = m_managerRef, &inputs, &actionPlan, &movementFound](
 		const ecs::EntityIndex& targetEntity,
 		const Components::C_CaravanPlan& movement,
 		const Components::C_TilePosition& position)
@@ -86,26 +93,24 @@ bool CheckStartTargetedMovement(
 	return movementFound;
 }
 
-void TranslateDownClicks(
+void InputTranslation::TranslateDownClicks(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	using namespace ECS_Core;
 	if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{	
-		if (!CheckPlaceBuildingCommand(inputs, actionPlan, manager)
-			&& !CheckStartTargetedMovement(inputs, actionPlan, manager))
+		if (!CheckPlaceBuildingCommand(inputs, actionPlan)
+			&& !CheckStartTargetedMovement(inputs, actionPlan))
 		{
 			actionPlan.m_plan.push_back(Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition));
 		}
 	}
 }
 
-void CreateBuildingGhost(
+void InputTranslation::CreateBuildingGhost(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	Action::LocalPlayer::CreateBuildingGhost ghost;
 	ghost.m_buildingClassId = 0;
@@ -113,47 +118,32 @@ void CreateBuildingGhost(
 	actionPlan.m_plan.push_back(ghost);
 }
 
-void TogglePause(
+void InputTranslation::TogglePause(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_pauseAction = Action::LocalPlayer::PauseAction::TOGGLE_PAUSE;
 	actionPlan.m_plan.push_back(action);
 }
 
-void IncreaseGameSpeed(
+void InputTranslation::IncreaseGameSpeed(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SPEED_UP;
 	actionPlan.m_plan.push_back(action);
 }
 
-void DecreaseGameSpeed(
+void InputTranslation::DecreaseGameSpeed(
 	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan,
-	ECS_Core::Manager& manager)
+	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SLOW_DOWN;
 	actionPlan.m_plan.push_back(action);
 }
-
-std::map < ECS_Core::Components::InputKeys, std::function<void(
-	ECS_Core::Components::C_UserInputs&,
-	ECS_Core::Components::C_ActionPlan&,
-	ECS_Core::Manager&)>> functions
-	=
-{
-	// {ECS_Core::Components::InputKeys::B, CreateBuildingGhost},
-	{ECS_Core::Components::InputKeys::BACKSPACE, TogglePause},
-	{ECS_Core::Components::InputKeys::EQUAL, IncreaseGameSpeed },
-	{ECS_Core::Components::InputKeys::DASH, DecreaseGameSpeed} 
-};
 
 void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
@@ -161,7 +151,8 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	switch (phase)
 	{
 	case GameLoopPhase::INPUT:
-		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>([&manager = m_managerRef](
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
+			[&manager = m_managerRef, this](
 			const ecs::EntityIndex& governorEntity,
 			ECS_Core::Components::C_UserInputs& inputs,
 			ECS_Core::Components::C_ActionPlan& actionPlan)
@@ -171,17 +162,17 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			// So we only have to deal with the direct keybinds here
 			if (inputs.m_unprocessedThisFrameDownMouseButtonFlags != 0)
 			{
-				TranslateDownClicks(inputs, actionPlan, manager);
+				TranslateDownClicks(inputs, actionPlan);
 			}
 
 			// Individual button actions - onRelease
 			// TODO: Make options for onKeyDown vs OnKeyUp
 			for (auto&& button : inputs.m_newKeyUp)
 			{
-				auto functionIter = functions.find(button);
-				if (functionIter != functions.end())
+				auto functionIter = m_functions.find(button);
+				if (functionIter != m_functions.end())
 				{
-					functionIter->second(inputs, actionPlan, manager);
+					functionIter->second(inputs, actionPlan);
 					inputs.ProcessKey(button);
 				}
 			}
