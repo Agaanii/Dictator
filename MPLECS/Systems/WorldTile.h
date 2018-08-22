@@ -163,6 +163,12 @@ protected:
 	std::optional<Tile*> GetTile(const TilePosition& buildingTilePos);
 	Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords);
 	std::thread SpawnQuadrant(const CoordinateVector2& coordinates);
+	void FillSectorPathing(
+		Sector& sector,
+		std::vector<std::thread>& pathFindingThreads,
+		Quadrant& quadrant,
+		int sectorI,
+		int sectorJ);
 	std::thread SpawnBetween(
 		CoordinateVector2 origin,
 		CoordinateVector2 target);
