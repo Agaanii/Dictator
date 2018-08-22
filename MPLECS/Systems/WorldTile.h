@@ -163,7 +163,7 @@ protected:
 	std::optional<Tile*> GetTile(const TilePosition& buildingTilePos);
 	Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords);
 	std::thread SpawnQuadrant(const CoordinateVector2& coordinates);
-	void SpawnBetween(
+	std::thread SpawnBetween(
 		CoordinateVector2 origin,
 		CoordinateVector2 target);
 	void ReturnDeadBuildingTiles();

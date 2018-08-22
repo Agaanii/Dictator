@@ -633,11 +633,11 @@ CoordinateVector2 WorldTile::CoordinatesToWorldOffset(const WorldCoordinates& wo
 	};
 }
 
-void WorldTile::SpawnBetween(
+std::thread WorldTile::SpawnBetween(
 	CoordinateVector2 origin,
 	CoordinateVector2 target)
 {
-	std::thread([=]() {
+	return std::thread([=]() {
 		// Base case: Spawn between a place and itself
 		if (origin == target)
 		{
@@ -658,9 +658,9 @@ void WorldTile::SpawnBetween(
 			return;
 		}
 
-		SpawnBetween(origin, mid);
-		SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target);
-	}).detach();
+		SpawnBetween(origin, mid).join();
+		SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target).join();
+	});
 }
 
 // Precondition: touched is empty
@@ -1001,45 +1001,47 @@ WorldTile::Quadrant& WorldTile::FetchQuadrant(const CoordinateVector2 & quadrant
 {
 	if (m_spawnedQuadrants.find(quadrantCoords) == m_spawnedQuadrants.end())
 	{
-		// We're going to need to spawn world up to that point.
-		// first: find the closest available world tile
-		auto closest = FindNearestQuadrant(m_spawnedQuadrants, quadrantCoords);
+		std::thread([=]() {
+			// We're going to need to spawn world up to that point.
+			// first: find the closest available world tile
+			auto closest = FindNearestQuadrant(m_spawnedQuadrants, quadrantCoords);
 
-		SpawnBetween(
-			closest,
-			quadrantCoords);
+			SpawnBetween(
+				closest,
+				quadrantCoords).join();
 
-		// Find all quadrants which can't be reached by repeated cardinal direction movement from the origin
-		CoordinateFromOriginSet touchedCoordinates, untouchedCoordinates;
-		for (auto&& quadrant : m_spawnedQuadrants)
-		{
-			untouchedCoordinates.insert(quadrant.first);
-		}
-		TouchConnectedCoordinates({ 0, 0 }, untouchedCoordinates, touchedCoordinates);
-
-		// Start with the closest untouched, connect it. We'll only need to add one to connect it, we know they're corner-to-corner
-		// To be secure about it, connect on both sides. Screw your RAM.
-		while (untouchedCoordinates.size())
-		{
-			auto nearestDisconnected = untouchedCoordinates.begin();
-			auto nearestConnected = FindNearestQuadrant(touchedCoordinates, *nearestDisconnected);
-			for (; nearestDisconnected != untouchedCoordinates.end(); ++nearestDisconnected)
+			// Find all quadrants which can't be reached by repeated cardinal direction movement from the origin
+			CoordinateFromOriginSet touchedCoordinates, untouchedCoordinates;
+			for (auto&& quadrant : m_spawnedQuadrants)
 			{
-				if ((nearestConnected - *nearestDisconnected).MagnitudeSq() == 2)
+				untouchedCoordinates.insert(quadrant.first);
+			}
+			TouchConnectedCoordinates({ 0, 0 }, untouchedCoordinates, touchedCoordinates);
+
+			// Start with the closest untouched, connect it. We'll only need to add one to connect it, we know they're corner-to-corner
+			// To be secure about it, connect on both sides. Screw your RAM.
+			while (untouchedCoordinates.size())
+			{
+				auto nearestDisconnected = untouchedCoordinates.begin();
+				auto nearestConnected = FindNearestQuadrant(touchedCoordinates, *nearestDisconnected);
+				for (; nearestDisconnected != untouchedCoordinates.end(); ++nearestDisconnected)
+				{
+					if ((nearestConnected - *nearestDisconnected).MagnitudeSq() == 2)
+					{
+						break;
+					}
+				}
+				if (nearestDisconnected == untouchedCoordinates.end())
 				{
 					break;
 				}
-			}
-			if (nearestDisconnected == untouchedCoordinates.end())
-			{
-				break;
-			}
-			SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y });
-			SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y });
+				SpawnQuadrant({ nearestDisconnected->m_x, nearestConnected.m_y }).join();
+				SpawnQuadrant({ nearestConnected.m_x, nearestDisconnected->m_y }).join();
 
-			touchedCoordinates.clear();
-			TouchConnectedCoordinates(nearestConnected, untouchedCoordinates, touchedCoordinates);
-		}
+				touchedCoordinates.clear();
+				TouchConnectedCoordinates(nearestConnected, untouchedCoordinates, touchedCoordinates);
+			}
+		}).detach();
 	}
 	return m_spawnedQuadrants[quadrantCoords];
 }
