@@ -160,7 +160,7 @@ protected:
 		int secY);
 
 	void GrowTerritories();
-	Tile& GetTile(const TilePosition& buildingTilePos);
+	std::optional<Tile*> GetTile(const TilePosition& buildingTilePos);
 	Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords);
 	std::thread SpawnQuadrant(const CoordinateVector2& coordinates);
 	void SpawnBetween(

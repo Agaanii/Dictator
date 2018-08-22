@@ -637,28 +637,30 @@ void WorldTile::SpawnBetween(
 	CoordinateVector2 origin,
 	CoordinateVector2 target)
 {
-	// Base case: Spawn between a place and itself
-	if (origin == target)
-	{
-		// Spawn just in case, will return immediately in most cases.
-		SpawnQuadrant(target);
-		return;
-	}
+	std::thread([=]() {
+		// Base case: Spawn between a place and itself
+		if (origin == target)
+		{
+			// Spawn just in case, will return immediately in most cases.
+			SpawnQuadrant(target).join();
+			return;
+		}
 
-	SpawnQuadrant(target);
-	SpawnQuadrant(origin);
+		SpawnQuadrant(target).join();
+		SpawnQuadrant(origin).join();
 
-	auto mid = (target + origin) / 2;
-	SpawnQuadrant(mid);
+		auto mid = (target + origin) / 2;
+		SpawnQuadrant(mid).join();
 
-	if (mid == target || mid == origin)
-	{
-		// We're all filled in on this segment.
-		return;
-	}
+		if (mid == target || mid == origin)
+		{
+			// We're all filled in on this segment.
+			return;
+		}
 
-	SpawnBetween(origin, mid);
-	SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target);
+		SpawnBetween(origin, mid);
+		SpawnBetween(mid + CoordinateVector2(sign(target.m_x - origin.m_x), sign(target.m_y - origin.m_y)), target);
+	}).detach();
 }
 
 // Precondition: touched is empty
@@ -726,42 +728,46 @@ void WorldTile::CheckBuildingPlacements()
 	using namespace ECS_Core;
 	m_managerRef.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
 		[&manager = m_managerRef, this](
-		const ecs::EntityIndex&,
-		const Components::C_BuildingDescription&,
-		const Components::C_TilePosition& ghostTilePosition,
-		Components::C_BuildingGhost& ghost)
+			const ecs::EntityIndex&,
+			const Components::C_BuildingDescription&,
+			const Components::C_TilePosition& ghostTilePosition,
+			Components::C_BuildingGhost& ghost)
 	{
-		auto& tile = GetTile(ghostTilePosition.m_position);
-		bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost };
-		manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&collisionFound, &ghostTilePosition](
-			const ecs::EntityIndex&,
-			const Components::C_BuildingDescription&,
-			const Components::C_TilePosition& buildingTilePosition,
-			const Components::C_Territory&,
-			const Components::C_TileProductionPotential&,
-			const Components::C_ResourceInventory&) -> ecs::IterationBehavior
+		auto tileOpt = GetTile(ghostTilePosition.m_position);
+		if (tileOpt)
 		{
-			if (ghostTilePosition.m_position == buildingTilePosition.m_position)
+			auto& tile = **tileOpt;
+			bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost };
+			manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&collisionFound, &ghostTilePosition](
+				const ecs::EntityIndex&,
+				const Components::C_BuildingDescription&,
+				const Components::C_TilePosition& buildingTilePosition,
+				const Components::C_Territory&,
+				const Components::C_TileProductionPotential&,
+				const Components::C_ResourceInventory&) -> ecs::IterationBehavior
 			{
-				collisionFound = true;
-				return ecs::IterationBehavior::BREAK;
-			}
-			return ecs::IterationBehavior::CONTINUE;
-		});
-		manager.forEntitiesMatching<Signatures::S_InProgressBuilding>([&collisionFound, &ghostTilePosition](
-			const ecs::EntityIndex&,
-			const Components::C_BuildingDescription&,
-			const Components::C_TilePosition& constructingTilePosition,
-			const Components::C_BuildingConstruction&) -> ecs::IterationBehavior
-		{
-			if (ghostTilePosition.m_position == constructingTilePosition.m_position)
+				if (ghostTilePosition.m_position == buildingTilePosition.m_position)
+				{
+					collisionFound = true;
+					return ecs::IterationBehavior::BREAK;
+				}
+				return ecs::IterationBehavior::CONTINUE;
+			});
+			manager.forEntitiesMatching<Signatures::S_InProgressBuilding>([&collisionFound, &ghostTilePosition](
+				const ecs::EntityIndex&,
+				const Components::C_BuildingDescription&,
+				const Components::C_TilePosition& constructingTilePosition,
+				const Components::C_BuildingConstruction&) -> ecs::IterationBehavior
 			{
-				collisionFound = true;
-				return ecs::IterationBehavior::BREAK;
-			}
-			return ecs::IterationBehavior::CONTINUE;
-		});
-		ghost.m_currentPlacementValid = !collisionFound;
+				if (ghostTilePosition.m_position == constructingTilePosition.m_position)
+				{
+					collisionFound = true;
+					return ecs::IterationBehavior::BREAK;
+				}
+				return ecs::IterationBehavior::CONTINUE;
+			});
+			ghost.m_currentPlacementValid = !collisionFound;
+		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
 }
@@ -796,10 +802,14 @@ void WorldTile::GrowTerritories()
 		const Components::C_TilePosition& tilePos,
 		const Components::C_BuildingConstruction&)
 	{
-		auto& placementTile = GetTile(tilePos.m_position);
-		if (!placementTile.m_owningBuilding)
+		auto placementTileOpt = GetTile(tilePos.m_position);
+		if (placementTileOpt)
 		{
-			placementTile.m_owningBuilding = manager.getHandle(entity);
+			auto& placementTile = **placementTileOpt;
+			if (!placementTile.m_owningBuilding)
+			{
+				placementTile.m_owningBuilding = manager.getHandle(entity);
+			}
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
@@ -826,13 +836,17 @@ void WorldTile::GrowTerritories()
 			{
 				for (auto& adjacent : GetAdjacents(tile))
 				{
-					auto& adjacentTile = GetTile(adjacent.m_coords);
-					if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
+					auto adjacentTileOpt = GetTile(adjacent.m_coords);
+					if (adjacentTileOpt)
 					{
-						auto tileDistance = (CoordinatesToWorldPosition(adjacent.m_coords) - buildingWorldPos).MagnitudeSq();
-						if (tileDistance <= 2000)
+						auto& adjacentTile = **adjacentTileOpt;
+						if (!adjacentTile.m_owningBuilding && adjacentTile.m_movementCost)
 						{
-							availableGrowthTiles[tileDistance].push_back(adjacent.m_coords);
+							auto tileDistance = (CoordinatesToWorldPosition(adjacent.m_coords) - buildingWorldPos).MagnitudeSq();
+							if (tileDistance <= 2000)
+							{
+								availableGrowthTiles[tileDistance].push_back(adjacent.m_coords);
+							}
 						}
 					}
 				}
@@ -847,8 +861,11 @@ void WorldTile::GrowTerritories()
 
 					territory.m_nextGrowthTile = { 0.f, selectedGrowthTiles.front() };
 
-					auto& tile = GetTile(territory.m_nextGrowthTile->m_tile);
-					tile.m_owningBuilding = manager.getHandle(territoryEntity);
+					auto tile = GetTile(territory.m_nextGrowthTile->m_tile);
+					if (tile)
+					{
+						(*tile)->m_owningBuilding = manager.getHandle(territoryEntity);
+					}
 				}
 			}
 		}
@@ -867,12 +884,16 @@ void WorldTile::GrowTerritories()
 				yieldPotential.m_availableYields.clear();
 				for (auto&& tilePos : territory.m_ownedTiles)
 				{
-					auto& ownedTile = GetTile(tilePos);
-					auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
-					++yield.m_workableTiles;
-					yield.m_productionYield = {
-						{ ECS_Core::Components::Yields::FOOD, 1 } };
-					yield.m_productionYield[ownedTile.m_tileType] += 2;
+					auto ownedTileOpt = GetTile(tilePos);
+					if (ownedTileOpt)
+					{
+						auto&& ownedTile = **ownedTileOpt;
+						auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
+						++yield.m_workableTiles;
+						yield.m_productionYield = {
+							{ ECS_Core::Components::Yields::FOOD, 1 } };
+						yield.m_productionYield[ownedTile.m_tileType] += 2;
+					}
 				}
 
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
@@ -964,9 +985,14 @@ void WorldTile::GrowTerritories()
 	});
 }
 
-WorldTile::Tile& WorldTile::GetTile(const TilePosition& buildingTilePos)
+std::optional<WorldTile::Tile*> WorldTile::GetTile(const TilePosition& buildingTilePos)
 {
-	return FetchQuadrant(buildingTilePos.m_quadrantCoords)
+	if (!m_spawnedQuadrants.count(buildingTilePos.m_quadrantCoords))
+	{
+		FetchQuadrant(buildingTilePos.m_quadrantCoords);
+		return std::nullopt;
+	}
+	return &FetchQuadrant(buildingTilePos.m_quadrantCoords)
 		.m_sectors[buildingTilePos.m_sectorCoords.m_x][buildingTilePos.m_sectorCoords.m_y]
 		.m_tiles[buildingTilePos.m_coords.m_x][buildingTilePos.m_coords.m_y];
 }
@@ -1052,10 +1078,10 @@ void WorldTile::ProcessSelectTile(
 	bool unitFound = false;
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
 		[&unitFound, &select, &manager = m_managerRef, &governorEntity, this](
-		const ecs::EntityIndex& entity,
-		const ECS_Core::Components::C_TilePosition& position,
-		const ECS_Core::Components::C_MovingUnit&,
-		const ECS_Core::Components::C_Population&) {
+			const ecs::EntityIndex& entity,
+			const ECS_Core::Components::C_TilePosition& position,
+			const ECS_Core::Components::C_MovingUnit&,
+			const ECS_Core::Components::C_Population&) {
 		if (select.m_position == position.m_position)
 		{
 			if (!manager.hasComponent<ECS_Core::Components::C_Selection>(entity))
@@ -1093,7 +1119,7 @@ void WorldTile::ProcessSelectTile(
 					}),
 						UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
 						s32 result{ 0 };
-						for (auto&& [birthMonth,population] : pop.m_populations)
+						for (auto&&[birthMonth, population] : pop.m_populations)
 						{
 							if (population.m_class == PopulationClass::WORKERS)
 								result += population.m_numMen;
@@ -1194,7 +1220,7 @@ void WorldTile::ProcessSelectTile(
 						drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ buildGraphic, buildButton.m_topLeftCorner });
 
 					}
-					for (auto&& [key,dataStr] : uiFrame.m_dataStrings)
+					for (auto&&[key, dataStr] : uiFrame.m_dataStrings)
 					{
 						dataStr.m_text->setFillColor({ 255,255,255 });
 						dataStr.m_text->setOutlineColor({ 128,128,128 });
@@ -1215,141 +1241,145 @@ void WorldTile::ProcessSelectTile(
 		return;
 	}
 
-	auto& tile = GetTile(select.m_position);
-	if (tile.m_owningBuilding)
+	auto tileOpt = GetTile(select.m_position);
+	if (tileOpt)
 	{
-		using namespace ECS_Core::Components;
-		if (m_managerRef.hasComponent<C_Population>(*tile.m_owningBuilding)
-			&& !m_managerRef.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
+		auto&& tile = **tileOpt;
+		if (tile.m_owningBuilding)
 		{
-			auto& uiFrame = m_managerRef.addComponent<C_UIFrame>(*tile.m_owningBuilding);
-			uiFrame.m_frame = DefineUIFrame("Building",
-				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
-				s32 result{ 0 };
-				for (auto&&[birthMonth, population] : pop.m_populations)
-				{
-					if (population.m_class == PopulationClass::WORKERS)
-						result += population.m_numMen;
-				}
-				return result;
-			}),
-				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
-				s32 result{ 0 };
-				for (auto&&[birthMonth, population] : pop.m_populations)
-				{
-					if (population.m_class == PopulationClass::WORKERS)
-						result += population.m_numWomen;
-				}
-				return result;
-			}),
-				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
-				s32 result{ 0 };
-				for (auto&&[birthMonth, population] : pop.m_populations)
-				{
-					if (population.m_class == PopulationClass::CHILDREN)
-						result += population.m_numMen + population.m_numWomen;
-				}
-				return result;
-			}),
-				UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
-				s32 result{ 0 };
-				for (auto&&[birthMonth, population] : pop.m_populations)
-				{
-					if (population.m_class == PopulationClass::ELDERS)
-						result += population.m_numMen + population.m_numWomen;
-				}
-				return result;
-			}),
-				UIDataReader<C_Population, f64>([](const C_Population& pop) -> f64 {
-				f64 totalHealth{ 0 };
-				s32 totalPopulation{ 0 };
-				for (auto&&[birthMonth, population] : pop.m_populations)
-				{
-					totalHealth += (population.m_mensHealth * population.m_numMen)
-						+ (population.m_womensHealth * population.m_numWomen);
-					totalPopulation += population.m_numMen + population.m_numWomen;
-				}
-				return totalHealth / max<s32>(1, totalPopulation);
-			}),
-				DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
-			uiFrame.m_dataStrings[{0}] = { { 20,0 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{1}] = { { 20,30 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{2}] = { { 20,60 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{3}] = { { 20,90 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{4}] = { { 20, 140 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
-			uiFrame.m_dataStrings[{5, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
-			uiFrame.m_size = { 200, 240 };
-			uiFrame.m_topLeftCorner = { 0, 300 };
-
-			ECS_Core::Components::Button closeButton;
-			closeButton.m_topLeftCorner.m_x = uiFrame.m_size.m_x - 30;
-			closeButton.m_size = { 30, 30 };
-			closeButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+			using namespace ECS_Core::Components;
+			if (m_managerRef.hasComponent<C_Population>(*tile.m_owningBuilding)
+				&& !m_managerRef.hasComponent<C_UIFrame>(*tile.m_owningBuilding))
 			{
-				return Action::LocalPlayer::CloseUIFrame(clickedEntity);
-			};
-			uiFrame.m_buttons.push_back(closeButton);
+				auto& uiFrame = m_managerRef.addComponent<C_UIFrame>(*tile.m_owningBuilding);
+				uiFrame.m_frame = DefineUIFrame("Building",
+					UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+					s32 result{ 0 };
+					for (auto&&[birthMonth, population] : pop.m_populations)
+					{
+						if (population.m_class == PopulationClass::WORKERS)
+							result += population.m_numMen;
+					}
+					return result;
+				}),
+					UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+					s32 result{ 0 };
+					for (auto&&[birthMonth, population] : pop.m_populations)
+					{
+						if (population.m_class == PopulationClass::WORKERS)
+							result += population.m_numWomen;
+					}
+					return result;
+				}),
+					UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+					s32 result{ 0 };
+					for (auto&&[birthMonth, population] : pop.m_populations)
+					{
+						if (population.m_class == PopulationClass::CHILDREN)
+							result += population.m_numMen + population.m_numWomen;
+					}
+					return result;
+				}),
+					UIDataReader<C_Population, s32>([](const C_Population& pop) -> s32 {
+					s32 result{ 0 };
+					for (auto&&[birthMonth, population] : pop.m_populations)
+					{
+						if (population.m_class == PopulationClass::ELDERS)
+							result += population.m_numMen + population.m_numWomen;
+					}
+					return result;
+				}),
+					UIDataReader<C_Population, f64>([](const C_Population& pop) -> f64 {
+					f64 totalHealth{ 0 };
+					s32 totalPopulation{ 0 };
+					for (auto&&[birthMonth, population] : pop.m_populations)
+					{
+						totalHealth += (population.m_mensHealth * population.m_numMen)
+							+ (population.m_womensHealth * population.m_numWomen);
+						totalPopulation += population.m_numMen + population.m_numWomen;
+					}
+					return totalHealth / max<s32>(1, totalPopulation);
+				}),
+					DataBinding(ECS_Core::Components::C_ResourceInventory, m_collectedYields));
+				uiFrame.m_dataStrings[{0}] = { { 20,0 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{1}] = { { 20,30 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{2}] = { { 20,60 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{3}] = { { 20,90 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{4}] = { { 20, 140 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 0}] = { { 100,0 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 1}] = { { 100,30 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 2}] = { { 100,60 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 3}] = { { 100,90 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 4}] = { { 100,120 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 5}] = { { 100,150 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 6}] = { { 100,180 }, std::make_shared<sf::Text>() };
+				uiFrame.m_dataStrings[{5, 7}] = { { 100,210 }, std::make_shared<sf::Text>() };
+				uiFrame.m_size = { 200, 240 };
+				uiFrame.m_topLeftCorner = { 0, 300 };
 
-			ECS_Core::Components::Button newBuildingButton;
-			newBuildingButton.m_size = { 30,30 };
-			newBuildingButton.m_topLeftCorner = uiFrame.m_size - newBuildingButton.m_size;
-			newBuildingButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
-			{
-				Action::CreateBuildingUnit create;
-				create.m_movementSpeed = 5;
-				create.m_popSource = clickedEntity;
-				create.m_buildingTypeId = 0;
-				if (manager.hasComponent<ECS_Core::Components::C_TilePosition>(clickedEntity))
+				ECS_Core::Components::Button closeButton;
+				closeButton.m_topLeftCorner.m_x = uiFrame.m_size.m_x - 30;
+				closeButton.m_size = { 30, 30 };
+				closeButton.m_onClick = [](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
 				{
-					create.m_spawningPosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(clickedEntity).m_position;
+					return Action::LocalPlayer::CloseUIFrame(clickedEntity);
+				};
+				uiFrame.m_buttons.push_back(closeButton);
+
+				ECS_Core::Components::Button newBuildingButton;
+				newBuildingButton.m_size = { 30,30 };
+				newBuildingButton.m_topLeftCorner = uiFrame.m_size - newBuildingButton.m_size;
+				newBuildingButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+				{
+					Action::CreateBuildingUnit create;
+					create.m_movementSpeed = 5;
+					create.m_popSource = clickedEntity;
+					create.m_buildingTypeId = 0;
+					if (manager.hasComponent<ECS_Core::Components::C_TilePosition>(clickedEntity))
+					{
+						create.m_spawningPosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(clickedEntity).m_position;
+					}
+					return create;
+				};
+				uiFrame.m_buttons.push_back(newBuildingButton);
+
+				ECS_Core::Components::Button newCaravanButton;
+				newCaravanButton.m_size = { 30, 30 };
+				newCaravanButton.m_topLeftCorner = { 0, uiFrame.m_size.m_y - 30 };
+				newCaravanButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+				{
+					return Action::LocalPlayer::PlanCaravan(manager.getHandle(clickedEntity));
+				};
+				uiFrame.m_buttons.push_back(newCaravanButton);
+
+				if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
+				{
+					m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
 				}
-				return create;
-			};
-			uiFrame.m_buttons.push_back(newBuildingButton);
+				auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
+				auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
+				windowBackground->setFillColor({});
+				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
 
-			ECS_Core::Components::Button newCaravanButton;
-			newCaravanButton.m_size = { 30, 30 };
-			newCaravanButton.m_topLeftCorner = { 0, uiFrame.m_size.m_y - 30 };
-			newCaravanButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
-			{
-				return Action::LocalPlayer::PlanCaravan(manager.getHandle(clickedEntity));
-			};
-			uiFrame.m_buttons.push_back(newCaravanButton);
+				auto closeGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+				closeGraphic->setFillColor({ 200, 30, 30 });
+				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ closeGraphic, closeButton.m_topLeftCorner });
 
-			if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
-			{
-				m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
-			}
-			auto& drawable = m_managerRef.getComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding);
-			auto windowBackground = std::make_shared<sf::RectangleShape>(sf::Vector2f(200, 240));
-			windowBackground->setFillColor({});
-			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][0].push_back({ windowBackground,{} });
+				auto spawnGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+				spawnGraphic->setFillColor({ 30, 200, 30 });
+				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ spawnGraphic, newBuildingButton.m_topLeftCorner });
 
-			auto closeGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
-			closeGraphic->setFillColor({ 200, 30, 30 });
-			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ closeGraphic, closeButton.m_topLeftCorner });
+				auto caravanGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+				caravanGraphic->setFillColor({ 200, 100, 30 });
+				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ caravanGraphic, newCaravanButton.m_topLeftCorner });
 
-			auto spawnGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
-			spawnGraphic->setFillColor({ 30, 200, 30 });
-			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ spawnGraphic, newBuildingButton.m_topLeftCorner });
-
-			auto caravanGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
-			caravanGraphic->setFillColor({ 200, 100, 30 });
-			drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ caravanGraphic, newCaravanButton.m_topLeftCorner });
-
-			for (auto&& [key,dataStr] : uiFrame.m_dataStrings)
-			{
-				dataStr.m_text->setFillColor({ 255,255,255 });
-				dataStr.m_text->setOutlineColor({ 128,128,128 });
-				dataStr.m_text->setFont(s_font);
-				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.m_text, dataStr.m_relativePosition });
+				for (auto&&[key, dataStr] : uiFrame.m_dataStrings)
+				{
+					dataStr.m_text->setFillColor({ 255,255,255 });
+					dataStr.m_text->setOutlineColor({ 128,128,128 });
+					dataStr.m_text->setFont(s_font);
+					drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][255].push_back({ dataStr.m_text, dataStr.m_relativePosition });
+				}
 			}
 		}
 	}
@@ -1641,7 +1671,12 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				else if (std::holds_alternative<Action::CreateCaravan>(action))
 				{
 					auto& createCaravan = std::get<Action::CreateCaravan>(action);
-					auto& deliveryTile = GetTile(createCaravan.m_deliveryPosition);
+					auto deliveryTileOpt = GetTile(createCaravan.m_deliveryPosition);
+					if (!deliveryTileOpt)
+					{
+						continue;
+					}
+					auto&& deliveryTile = **deliveryTileOpt;
 					if (!deliveryTile.m_owningBuilding || !createCaravan.m_popSource)
 					{
 						continue;
@@ -1783,7 +1818,12 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					}
 					auto& position = manager.getComponent<ECS_Core::Components::C_TilePosition>(settle.m_builderIndex).m_position;
 					// Check to make sure this tile is unoccupied
-					if (GetTile(position).m_owningBuilding)
+					auto tileOpt = GetTile(position);
+					if (!tileOpt)
+					{
+						continue;
+					}
+					if ((*tileOpt)->m_owningBuilding)
 					{
 						continue;
 					}

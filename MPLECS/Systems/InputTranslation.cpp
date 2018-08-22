@@ -15,9 +15,9 @@
 InputTranslation::InputTranslation()
 	: SystemBase()
 {
-	m_functions[ECS_Core::Components::InputKeys::BACKSPACE] = [this](auto _1, auto _2) {TogglePause(_1, _2); };
-	m_functions[ECS_Core::Components::InputKeys::EQUAL] = [this](auto _1, auto _2) {IncreaseGameSpeed(_1, _2); };
-	m_functions[ECS_Core::Components::InputKeys::DASH] = [this](auto _1, auto _2) {DecreaseGameSpeed(_1, _2); };
+	m_functions[ECS_Core::Components::InputKeys::BACKSPACE] = [this](auto& _1, auto& _2) {TogglePause(_1, _2); };
+	m_functions[ECS_Core::Components::InputKeys::EQUAL] = [this](auto& _1, auto& _2) {IncreaseGameSpeed(_1, _2); };
+	m_functions[ECS_Core::Components::InputKeys::DASH] = [this](auto& _1, auto& _2) {DecreaseGameSpeed(_1, _2); };
 }
 
 void InputTranslation::ProgramInit() {}
@@ -31,10 +31,10 @@ bool InputTranslation::CheckPlaceBuildingCommand(
 	bool ghostFound{ false };
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>(
 		[&inputs, &actionPlan, &ghostFound](
-		const ecs::EntityIndex& ghostEntity,
-		const Components::C_BuildingDescription&,
-		const Components::C_TilePosition&,
-		const Components::C_BuildingGhost& ghost)
+			const ecs::EntityIndex& ghostEntity,
+			const Components::C_BuildingDescription&,
+			const Components::C_TilePosition&,
+			const Components::C_BuildingGhost& ghost)
 	{
 		if (!ghost.m_currentPlacementValid)
 		{
@@ -57,9 +57,9 @@ bool InputTranslation::CheckStartTargetedMovement(
 	bool movementFound{ false };
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>(
 		[&manager = m_managerRef, &inputs, &actionPlan, &movementFound](
-		const ecs::EntityIndex& targetEntity,
-		const Components::C_MovementTarget& movement,
-		const Components::C_TilePosition& position)
+			const ecs::EntityIndex& targetEntity,
+			const Components::C_MovementTarget& movement,
+			const Components::C_TilePosition& position)
 	{
 		actionPlan.m_plan.push_back(Action::SetTargetedMovement(
 			movement.m_moverHandle,
@@ -71,9 +71,9 @@ bool InputTranslation::CheckStartTargetedMovement(
 	});
 	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>(
 		[&manager = m_managerRef, &inputs, &actionPlan, &movementFound](
-		const ecs::EntityIndex& targetEntity,
-		const Components::C_CaravanPlan& movement,
-		const Components::C_TilePosition& position)
+			const ecs::EntityIndex& targetEntity,
+			const Components::C_CaravanPlan& movement,
+			const Components::C_TilePosition& position)
 	{
 		if (!manager.hasComponent<Components::C_TilePosition>(movement.m_sourceBuildingHandle))
 		{
@@ -153,9 +153,9 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::INPUT:
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
 			[&manager = m_managerRef, this](
-			const ecs::EntityIndex& governorEntity,
-			ECS_Core::Components::C_UserInputs& inputs,
-			ECS_Core::Components::C_ActionPlan& actionPlan)
+				const ecs::EntityIndex& governorEntity,
+				ECS_Core::Components::C_UserInputs& inputs,
+				ECS_Core::Components::C_ActionPlan& actionPlan)
 		{
 			auto governorHandle = manager.getHandle(governorEntity);
 			// UI actions will take place before we get here (see ordering in main.cpp)
