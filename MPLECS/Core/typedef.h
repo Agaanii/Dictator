@@ -138,6 +138,14 @@ struct CartesianVector2
 		return copy;
 	}
 
+	CartesianVector2 operator%(const NUM_TYPE modulo) const
+	{
+		auto copy(*this);
+		copy.m_x %= modulo;
+		copy.m_y %= modulo;
+		return copy;
+	}
+
 	template<typename U>
 	CartesianVector2<U> cast()
 	{

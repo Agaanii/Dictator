@@ -299,6 +299,7 @@ namespace ECS_Core
 			std::vector<MovementTilePosition> m_path;
 			int m_currentPathIndex{ 0 };
 			f64 m_currentMovementProgress{ 0 };
+			s64 m_totalPathCost{ 0 };
 		};
 		using MovementCommand = std::variant<ExplorationPlan, MoveToPoint>;
 

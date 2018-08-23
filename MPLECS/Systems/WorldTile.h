@@ -97,6 +97,8 @@ protected:
 		[TileConstants::QUADRANT_SIDE_LENGTH]
 		[static_cast<int>(PathingDirection::_COUNT) + 1]
 		[static_cast<int>(PathingDirection::_COUNT) + 1];
+		std::map<s64, std::vector<s64>> m_pathingBorderSectorCandidates[static_cast<int>(PathingDirection::_COUNT)];
+		std::optional<s64> m_pathingBorderSectors[static_cast<int>(PathingDirection::_COUNT)];
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 
@@ -169,6 +171,7 @@ protected:
 		Quadrant& quadrant,
 		int sectorI,
 		int sectorJ);
+	void FillQuadrantPathingEdges(Quadrant& quadrant);
 	std::thread SpawnBetween(
 		CoordinateVector2 origin,
 		CoordinateVector2 target);
@@ -177,6 +180,16 @@ protected:
 	void ProcessSelectTile(const Action::LocalPlayer::SelectTile & select, const ecs::EntityIndex & governorEntity);
 
 	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition & sourcePosition, const TilePosition & targetPosition);
+	
+	std::optional<ECS_Core::Components::MoveToPoint> FindSingleQuadrantPath(
+		WorldTile::Quadrant& quadrant,
+		const TilePosition& sourcePosition,
+		const TilePosition& targetPosition);
+	std::optional<ECS_Core::Components::MoveToPoint> FindSingleSectorPath(
+		WorldTile::Sector& sector,
+		const TilePosition& sourcePosition,
+		const TilePosition& targetPosition);
+
 
 	struct SortByOriginDist
 	{
