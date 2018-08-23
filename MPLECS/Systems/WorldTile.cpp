@@ -742,7 +742,6 @@ void WorldTile::FillQuadrantPathingEdges(Quadrant& quadrant)
 		std::vector<std::thread> pathThreads;
 		for (int edgeI = 0; edgeI < QUADRANT_SIDE_LENGTH; ++edgeI)
 		{
-			pathThreads.emplace_back([&]()
 			{
 				auto&& targetSector = quadrant.m_sectors[edgeI][0];
 				if (targetSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::NORTH)])
@@ -756,8 +755,7 @@ void WorldTile::FillQuadrantPathingEdges(Quadrant& quadrant)
 						foundPaths[PathingDirection::NORTH].push_back({ edgeI, path->m_totalPathCost });
 					}
 				}
-			});
-			pathThreads.emplace_back([&]()
+			}
 			{
 				auto&& targetSector = quadrant.m_sectors[edgeI][QUADRANT_SIDE_LENGTH - 1];
 				if (targetSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::SOUTH)])
@@ -771,8 +769,7 @@ void WorldTile::FillQuadrantPathingEdges(Quadrant& quadrant)
 						foundPaths[PathingDirection::SOUTH].push_back({ edgeI, path->m_totalPathCost });
 					}
 				}
-			});
-			pathThreads.emplace_back([&]()
+			}
 			{
 				auto&& targetSector = quadrant.m_sectors[0][edgeI];
 				if (targetSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::WEST)])
@@ -786,8 +783,7 @@ void WorldTile::FillQuadrantPathingEdges(Quadrant& quadrant)
 						foundPaths[PathingDirection::WEST].push_back({ edgeI, path->m_totalPathCost });
 					}
 				}
-			});
-			pathThreads.emplace_back([&]()
+			}
 			{
 				auto&& targetSector = quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][edgeI];
 				if (targetSector.m_pathingBorderTiles[static_cast<int>(PathingDirection::EAST)])
@@ -801,26 +797,22 @@ void WorldTile::FillQuadrantPathingEdges(Quadrant& quadrant)
 						foundPaths[PathingDirection::EAST].push_back({ edgeI, path->m_totalPathCost });
 					}
 				}
-			});
-			for (auto&& thread : pathThreads)
-			{
-				thread.join();
 			}
+		}
 
-			if (foundPaths[PathingDirection::NORTH].size()
-				&& foundPaths[PathingDirection::SOUTH].size()
-				&& foundPaths[PathingDirection::EAST].size()
-				&& foundPaths[PathingDirection::WEST].size())
+		if (foundPaths[PathingDirection::NORTH].size()
+			&& foundPaths[PathingDirection::SOUTH].size()
+			&& foundPaths[PathingDirection::EAST].size()
+			&& foundPaths[PathingDirection::WEST].size())
+		{
+			for (auto&&[direction, paths] : foundPaths)
 			{
-				for (auto&&[direction, paths] : foundPaths)
+				for (auto&& path : paths)
 				{
-					for (auto&& path : paths)
-					{
-						quadrant.m_pathingBorderSectorCandidates[static_cast<s64>(direction)][path.m_pathCost].push_back(path.m_edgeI);
-					}
+					quadrant.m_pathingBorderSectorCandidates[static_cast<s64>(direction)][path.m_pathCost].push_back(path.m_edgeI);
 				}
-				break;
 			}
+			break;
 		}
 
 		if (xOffset == yOffset || (xOffset < 0 && (xOffset == -yOffset)) || (xOffset > 0 && xOffset == 1 - yOffset))
