@@ -260,7 +260,7 @@ std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 								+(0xFF << 24); // A
 						}
 						quadrant.m_texture.update(
-							reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels),
+							reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels._Elems),
 							TILE_SIDE_LENGTH,
 							TILE_SIDE_LENGTH,
 							((secX * SECTOR_SIDE_LENGTH) + tileX) * TILE_SIDE_LENGTH,
@@ -1584,7 +1584,7 @@ void WorldTile::ProcessSelectTile(
 				newBuildingButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
 				{
 					Action::CreateBuildingUnit create;
-					create.m_movementSpeed = 5;
+					create.m_movementSpeed = 20;
 					create.m_popSource = clickedEntity;
 					create.m_buildingTypeId = 0;
 					if (manager.hasComponent<ECS_Core::Components::C_TilePosition>(clickedEntity))
@@ -1671,7 +1671,7 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::GetPath(
 }
 
 std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleSectorPath(
-	WorldTile::Sector& sector,
+	const WorldTile::Sector& sector,
 	const TilePosition& sourcePosition,
 	const TilePosition& targetPosition)
 {
@@ -1694,10 +1694,12 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleSectorPath
 }
 
 std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPath(
-	WorldTile::Quadrant& quadrant,
+	const WorldTile::Quadrant& quadrant,
 	const TilePosition& sourcePosition,
 	const TilePosition& targetPosition)
 {
+	auto sectorPathCostCopy = quadrant.m_sectorCrossingPathCosts;
+	auto sectorPathCopy = quadrant.m_sectorCrossingPaths;
 	// Fill in the cost from current point to each side
 	for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
 	{
@@ -1723,10 +1725,10 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPa
 				startingExitTile);
 			if (startingPath)
 			{
-				quadrant.m_sectorCrossingPathCosts[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
+				sectorPathCostCopy[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
 					[static_cast<int>(PathingDirection::_COUNT)][direction]
 					= startingPath->m_totalPathCost;
-				quadrant.m_sectorCrossingPaths[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
+				sectorPathCopy[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
 					[static_cast<int>(PathingDirection::_COUNT)][direction]
 					= startingPath->m_path;
 			}
@@ -1753,10 +1755,10 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPa
 				targetPosition.m_coords);
 			if (endingPath)
 			{
-				quadrant.m_sectorCrossingPathCosts[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
+				sectorPathCostCopy[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
 					[direction][static_cast<int>(PathingDirection::_COUNT)]
 					= endingPath->m_totalPathCost;
-				quadrant.m_sectorCrossingPaths[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
+				sectorPathCopy[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
 					[direction][static_cast<int>(PathingDirection::_COUNT)]
 					= endingPath->m_path;
 			}
@@ -1764,7 +1766,7 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPa
 	}
 
 	auto sectorPath = Pathing::GetPath(
-		quadrant.m_sectorCrossingPathCosts,
+		sectorPathCostCopy,
 		sourcePosition.m_sectorCoords,
 		targetPosition.m_sectorCoords);
 
@@ -1777,19 +1779,19 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPa
 		const auto& startingMacroPath = sectorPath->m_path.front();
 		const auto& endingMacroPath = sectorPath->m_path.back();
 		ECS_Core::Components::MoveToPoint overallPath;
-		for (auto&& tile : *quadrant.m_sectorCrossingPaths[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
+		for (auto&& tile : *sectorPathCopy[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
 			[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)])
 		{
 			overallPath.m_path.push_back({ { sourcePosition.m_quadrantCoords, sourcePosition.m_sectorCoords, tile },
 				*quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 		}
-		overallPath.m_totalPathCost += *quadrant.m_sectorCrossingPathCosts[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
+		overallPath.m_totalPathCost += *sectorPathCostCopy[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
 			[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)];
 
 		for (int i = 1; i < sectorPath->m_path.size() - 1; ++i)
 		{
 			auto& path = sectorPath->m_path[i];
-			auto& crossingPath = quadrant.m_sectorCrossingPaths
+			auto& crossingPath = sectorPathCopy
 				[path.m_node.m_x]
 			[path.m_node.m_y]
 			[static_cast<int>(path.m_entryDirection)]
@@ -1799,35 +1801,22 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPa
 				overallPath.m_path.push_back({ { sourcePosition.m_quadrantCoords,{ path.m_node.m_x, path.m_node.m_y }, tile },
 					*quadrant.m_sectors[path.m_node.m_x][path.m_node.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 			}
-			overallPath.m_totalPathCost += *quadrant.m_sectorCrossingPathCosts
+			overallPath.m_totalPathCost += *sectorPathCostCopy
 				[path.m_node.m_x]
 			[path.m_node.m_y]
 			[static_cast<int>(path.m_entryDirection)]
 			[static_cast<int>(path.m_exitDirection)];
 		}
 
-		for (auto&& tile : *quadrant.m_sectorCrossingPaths[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
+		for (auto&& tile : *sectorPathCopy[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
 			[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)])
 		{
 			overallPath.m_path.push_back({ { targetPosition.m_quadrantCoords, targetPosition.m_sectorCoords, tile },
 				*quadrant.m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y].m_tileMovementCosts[tile.m_x][tile.m_y] });
 		}
 		overallPath.m_targetPosition = targetPosition;
-		overallPath.m_totalPathCost += *quadrant.m_sectorCrossingPathCosts[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
+		overallPath.m_totalPathCost += *sectorPathCostCopy[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
 			[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)];
-
-		// Clear the temporaries
-		for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
-		{
-			quadrant.m_sectorCrossingPaths[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
-				[static_cast<int>(PathingDirection::_COUNT)][direction].reset();
-			quadrant.m_sectorCrossingPathCosts[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y]
-				[static_cast<int>(PathingDirection::_COUNT)][direction].reset();
-			quadrant.m_sectorCrossingPaths[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
-				[direction][static_cast<int>(PathingDirection::_COUNT)].reset();
-			quadrant.m_sectorCrossingPathCosts[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y]
-				[direction][static_cast<int>(PathingDirection::_COUNT)].reset();
-		}
 		return overallPath;
 	}
 	return std::nullopt;
@@ -1890,7 +1879,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						Action::CreateBuildingUnit buildingUnit;
 						buildingUnit.m_spawningPosition = { 0,0, sectorX, sectorY, tileX, tileY };
-						buildingUnit.m_movementSpeed = 1;
+						buildingUnit.m_movementSpeed = 20;
 						plan.m_plan.push_back(buildingUnit);
 						plan.m_plan.push_back(Action::LocalPlayer::CenterCamera(CoordinatesToWorldPosition(buildingUnit.m_spawningPosition)));
 						return ecs::IterationBehavior::CONTINUE;

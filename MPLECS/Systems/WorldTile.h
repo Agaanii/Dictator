@@ -27,6 +27,7 @@
 
 #include "../ECS/System.h"
 
+#include <array>
 #include <thread>
 
 namespace TileConstants
@@ -62,43 +63,60 @@ protected:
 		ECS_Core::Components::TileType m_tileType;
 		std::optional<int> m_movementCost; // If notset, unpathable
 										   // Each 1 pixel is 4 components: RGBA
-		sf::Uint32 m_tilePixels[TileConstants::TILE_SIDE_LENGTH * TileConstants::TILE_SIDE_LENGTH];
+		std::array<sf::Uint32, TileConstants::TILE_SIDE_LENGTH * TileConstants::TILE_SIDE_LENGTH> m_tilePixels;
 		std::optional<ecs::Impl::Handle> m_owningBuilding; // If notset, no building owns this tile
 	};
 
 	struct Sector
 	{
-		Tile m_tiles
-			[TileConstants::SECTOR_SIDE_LENGTH]
-		[TileConstants::SECTOR_SIDE_LENGTH];
-		std::optional<int> m_tileMovementCosts
-			[TileConstants::SECTOR_SIDE_LENGTH]
-		[TileConstants::SECTOR_SIDE_LENGTH];
+		std::array<
+			std::array<Tile, TileConstants::SECTOR_SIDE_LENGTH>,
+			TileConstants::SECTOR_SIDE_LENGTH> m_tiles;
+
+		std::array<
+			std::array<std::optional<int>, TileConstants::SECTOR_SIDE_LENGTH>,
+			TileConstants::SECTOR_SIDE_LENGTH> m_tileMovementCosts;
 
 		// Relevant index of the tile on each border being used for 
 		// pathing between sectors
-		std::map<s64, std::vector<s64>> m_pathingBorderTileCandidates[static_cast<int>(PathingDirection::_COUNT)];
-		std::optional<s64> m_pathingBorderTiles[static_cast<int>(PathingDirection::_COUNT)];
+		std::array<
+			std::map<s64, std::vector<s64>>,
+			static_cast<int>(PathingDirection::_COUNT)>
+			m_pathingBorderTileCandidates;
+
+		std::array<
+			std::optional<s64>,
+			static_cast<int>(PathingDirection::_COUNT)>
+			m_pathingBorderTiles;
 	};
 	struct Quadrant
 	{
-		Sector m_sectors
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH];
+		std::array<
+			std::array<Sector, TileConstants::QUADRANT_SIDE_LENGTH>,
+			TileConstants::QUADRANT_SIDE_LENGTH>
+			m_sectors;
 
 		sf::Texture m_texture;
-		std::optional<int> m_sectorCrossingPathCosts
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH]
-		[static_cast<int>(PathingDirection::_COUNT) + 1]
-		[static_cast<int>(PathingDirection::_COUNT) + 1];
-		std::optional<std::deque<CoordinateVector2>> m_sectorCrossingPaths
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH]
-		[static_cast<int>(PathingDirection::_COUNT) + 1]
-		[static_cast<int>(PathingDirection::_COUNT) + 1];
-		std::map<s64, std::vector<s64>> m_pathingBorderSectorCandidates[static_cast<int>(PathingDirection::_COUNT)];
-		std::optional<s64> m_pathingBorderSectors[static_cast<int>(PathingDirection::_COUNT)];
+
+		std::array<
+			std::array<
+				std::array<
+					std::array<std::optional<int>, static_cast<int>(PathingDirection::_COUNT) + 1>,
+					static_cast<int>(PathingDirection::_COUNT) + 1>,
+				TileConstants::QUADRANT_SIDE_LENGTH>,
+			TileConstants::QUADRANT_SIDE_LENGTH>
+			m_sectorCrossingPathCosts;
+
+		std::array<
+			std::array<
+				std::array<
+					std::array<std::optional<std::deque<CoordinateVector2>>, static_cast<int>(PathingDirection::_COUNT) + 1>,
+					static_cast<int>(PathingDirection::_COUNT) + 1>,
+				TileConstants::QUADRANT_SIDE_LENGTH>,
+			TileConstants::QUADRANT_SIDE_LENGTH>
+			m_sectorCrossingPaths;
+		std::array<std::map<s64, std::vector<s64>>, static_cast<int>(PathingDirection::_COUNT)> m_pathingBorderSectorCandidates;
+		std::array<std::optional<s64>, static_cast<int>(PathingDirection::_COUNT)> m_pathingBorderSectors;
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 
@@ -118,9 +136,10 @@ protected:
 	};
 	struct QuadrantSeed
 	{
-		SectorSeed m_sectors
-			[TileConstants::QUADRANT_SIDE_LENGTH]
-		[TileConstants::QUADRANT_SIDE_LENGTH];
+		std::array<
+			std::array<SectorSeed, TileConstants::QUADRANT_SIDE_LENGTH>,
+			TileConstants::QUADRANT_SIDE_LENGTH>
+			m_sectors;
 	};
 	using SeededQuadrantMap = std::map<QuadrantId, QuadrantSeed>;
 	using WorldCoordinates = TilePosition;
@@ -182,11 +201,11 @@ protected:
 	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition & sourcePosition, const TilePosition & targetPosition);
 	
 	std::optional<ECS_Core::Components::MoveToPoint> FindSingleQuadrantPath(
-		WorldTile::Quadrant& quadrant,
+		const WorldTile::Quadrant& quadrant,
 		const TilePosition& sourcePosition,
 		const TilePosition& targetPosition);
 	std::optional<ECS_Core::Components::MoveToPoint> FindSingleSectorPath(
-		WorldTile::Sector& sector,
+		const WorldTile::Sector& sector,
 		const TilePosition& sourcePosition,
 		const TilePosition& targetPosition);
 

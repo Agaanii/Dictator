@@ -33,11 +33,17 @@ namespace Pathing
 	using namespace ECS_Core::Components;
 
 	template<int X, int Y>
-	using MovementCostArray2 = std::optional<int>[X][Y];
+	using MovementCostArray2 = std::array<std::array<std::optional<int>, Y>, X>;
 
 	// Used for items where movement cost varies depending on direction entered and exited
 	template <int X, int Y>
-	using DirectionMovementCostArray = std::optional<int>[X][Y][static_cast<int>(PathingDirection::_COUNT) + 1][static_cast<int>(PathingDirection::_COUNT) + 1];
+	using DirectionMovementCostArray = std::array<
+		std::array<
+			std::array<
+				std::array<std::optional<int>, static_cast<int>(PathingDirection::_COUNT) + 1>,
+				static_cast<int>(PathingDirection::_COUNT) + 1>,
+			Y>,
+		X>;
 
 	struct SortedCoordinate
 	{
