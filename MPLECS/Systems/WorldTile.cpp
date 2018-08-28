@@ -18,6 +18,7 @@
 
 #include <chrono>
 #include <limits>
+#include <mutex>
 #include <random>
 
 extern sf::Font s_font;
@@ -614,6 +615,79 @@ std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 		}
 
 		FillQuadrantPathingEdges(quadrant);
+
+		static std::mutex sectorSelectionMutex;
+		{
+			std::lock_guard<std::mutex> lock(sectorSelectionMutex);
+			//Select border sectors for this quadrant, update border sectors for existing border sectors
+			if (northQuadrantIter == m_spawnedQuadrants.end())
+			{
+				quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::NORTH)] =
+					quadrant.m_pathingBorderSectorCandidates[static_cast<int>(PathingDirection::NORTH)].begin()->second.front();
+			}
+			else
+			{
+				auto borderSector = FindCommonBorderSector(
+					quadrant, static_cast<int>(PathingDirection::NORTH),
+					northQuadrantIter->second, static_cast<int>(PathingDirection::SOUTH));
+				if (borderSector)
+				{
+					quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::NORTH)] = *borderSector;
+					northQuadrantIter->second.m_pathingBorderSectors[static_cast<int>(PathingDirection::SOUTH)] = *borderSector;
+				}
+			}
+
+			if (southQuadrantIter == m_spawnedQuadrants.end())
+			{
+				quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::SOUTH)] =
+					quadrant.m_pathingBorderSectorCandidates[static_cast<int>(PathingDirection::SOUTH)].begin()->second.front();
+			}
+			else
+			{
+				auto borderSector = FindCommonBorderSector(
+					quadrant, static_cast<int>(PathingDirection::SOUTH),
+					southQuadrantIter->second, static_cast<int>(PathingDirection::NORTH));
+				if (borderSector)
+				{
+					quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::SOUTH)] = *borderSector;
+					southQuadrantIter->second.m_pathingBorderSectors[static_cast<int>(PathingDirection::NORTH)] = *borderSector;
+				}
+			}
+
+			if (westQuadrantIter == m_spawnedQuadrants.end())
+			{
+				quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::WEST)] =
+					quadrant.m_pathingBorderSectorCandidates[static_cast<int>(PathingDirection::WEST)].begin()->second.front();
+			}
+			else
+			{
+				auto borderSector = FindCommonBorderSector(
+					quadrant, static_cast<int>(PathingDirection::WEST),
+					westQuadrantIter->second, static_cast<int>(PathingDirection::EAST));
+				if (borderSector)
+				{
+					quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::WEST)] = *borderSector;
+					westQuadrantIter->second.m_pathingBorderSectors[static_cast<int>(PathingDirection::EAST)] = *borderSector;
+				}
+			}
+
+			if (eastQuadrantIter == m_spawnedQuadrants.end())
+			{
+				quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::EAST)] =
+					quadrant.m_pathingBorderSectorCandidates[static_cast<int>(PathingDirection::WEST)].begin()->second.front();
+			}
+			else
+			{
+				auto borderSector = FindCommonBorderSector(
+					quadrant, static_cast<int>(PathingDirection::EAST),
+					eastQuadrantIter->second, static_cast<int>(PathingDirection::WEST));
+				if (borderSector)
+				{
+					quadrant.m_pathingBorderSectors[static_cast<int>(PathingDirection::EAST)] = *borderSector;
+					eastQuadrantIter->second.m_pathingBorderSectors[static_cast<int>(PathingDirection::WEST)] = *borderSector;
+				}
+			}
+		}
 	});
 }
 
@@ -691,6 +765,43 @@ std::optional<s64> WorldTile::FindCommonBorderTile(
 		if (sharedTiles.size())
 		{
 			return sharedTiles.begin()->second.begin()->second.front();
+		}
+	}
+	return std::nullopt;
+}
+
+
+std::optional<s64> WorldTile::FindCommonBorderSector(
+	const Quadrant& quadrant1,
+	int quadrant1Side,
+	const Quadrant& quadrant2,
+	int quadrant2Side)
+{
+	if (quadrant1.m_pathingBorderSectorCandidates[quadrant1Side].size() > 0
+		&& quadrant2.m_pathingBorderSectorCandidates[quadrant2Side].size() > 0)
+	{
+		auto& q1Candidates = quadrant1.m_pathingBorderSectorCandidates[quadrant1Side];
+		auto& q2Candidates = quadrant2.m_pathingBorderSectorCandidates[quadrant2Side];
+		std::map<s64, std::map<int, std::vector<s64>>> sharedSectors; // outer key = total cost, inner key = total index
+		for (auto&[q1Cost, q1Sectors] : q1Candidates)
+		{
+			for (auto&[q2Cost, q2Sectors] : q2Candidates)
+			{
+				for (int s1I = 0; s1I < q1Sectors.size(); ++s1I)
+				{
+					for (int s2I = 0; s2I < q2Sectors.size(); ++s2I)
+					{
+						if (q1Sectors[s1I] == q2Sectors[s2I])
+						{
+							sharedSectors[q1Cost + q2Cost][s1I + s2I].push_back(q1Sectors[s1I]);
+						}
+					}
+				}
+			}
+		}
+		if (sharedSectors.size())
+		{
+			return sharedSectors.begin()->second.begin()->second.front();
 		}
 	}
 	return std::nullopt;

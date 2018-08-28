@@ -33,8 +33,8 @@
 namespace TileConstants
 {
 	constexpr int TILE_SIDE_LENGTH = 5;
-	constexpr int SECTOR_SIDE_LENGTH = 60;
-	constexpr int QUADRANT_SIDE_LENGTH = 4;
+	constexpr int SECTOR_SIDE_LENGTH = 50;
+	constexpr int QUADRANT_SIDE_LENGTH = 8;
 
 	constexpr int BASE_QUADRANT_ORIGIN_COORDINATE =
 		-TILE_SIDE_LENGTH *
@@ -172,6 +172,11 @@ protected:
 		int sector1Side,
 		const Sector& sector2,
 		int sector2Side);
+	std::optional<s64> FindCommonBorderSector(
+		const Quadrant& quadrant1,
+		int quadrant1Side,
+		const Quadrant& quadrant2,
+		int quadrant2Side);
 	WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2 & worldPos);
 	CoordinateVector2 CoordinatesToWorldPosition(const WorldCoordinates & worldCoords);
 	CoordinateVector2 CoordinatesToWorldOffset(const WorldCoordinates & worldOffset);
