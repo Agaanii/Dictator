@@ -687,6 +687,13 @@ std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 					eastQuadrantIter->second.m_pathingBorderSectors[static_cast<int>(PathingDirection::WEST)] = *borderSector;
 				}
 			}
+
+			// Now fill in pathing for each quadrant which was touched
+			FillCrossQuadrantPaths(quadrant, coordinates);
+			if (northQuadrantIter != m_spawnedQuadrants.end()) { FillCrossQuadrantPaths(northQuadrantIter->second, northQuadrantIter->first); }
+			if (eastQuadrantIter != m_spawnedQuadrants.end()) { FillCrossQuadrantPaths(eastQuadrantIter->second, eastQuadrantIter->first); }
+			if (southQuadrantIter != m_spawnedQuadrants.end()) { FillCrossQuadrantPaths(southQuadrantIter->second, southQuadrantIter->first); }
+			if (westQuadrantIter != m_spawnedQuadrants.end()) { FillCrossQuadrantPaths(westQuadrantIter->second, westQuadrantIter->first); }
 		}
 	});
 }
@@ -732,6 +739,71 @@ void WorldTile::FillSectorPathing(
 			});
 		}
 	}
+}
+
+void WorldTile::FillCrossQuadrantPaths(Quadrant& quadrant, const CoordinateVector2& coordinates)
+{
+	static std::mutex movementCostAccessMutex;
+	std::lock_guard<std::mutex> lock(movementCostAccessMutex);
+
+	auto& crossQuadrantPathCosts = m_quadrantMovementCosts[coordinates];
+	auto& crossQuadrantPaths = m_quadrantPaths[coordinates];
+	for (int sourceDirection = 0; sourceDirection < static_cast<int>(PathingDirection::_COUNT); ++sourceDirection)
+	{
+		auto sourceTile = GetQuadrantSideTile(quadrant, sourceDirection);
+		if (!sourceTile) continue;
+		for (int targetDirection = 0; targetDirection < static_cast<int>(PathingDirection::_COUNT); ++targetDirection)
+		{
+			auto targetTile = GetQuadrantSideTile(quadrant, targetDirection);
+			if (!targetTile) continue;
+			auto path = FindSingleQuadrantPath(
+				quadrant,
+				*sourceTile,
+				*targetTile);
+			if (path)
+			{
+				crossQuadrantPathCosts[sourceDirection][targetDirection] = path->m_totalPathCost;
+				crossQuadrantPaths[sourceDirection][targetDirection] = path->m_path;
+			}
+			else
+			{
+				crossQuadrantPathCosts[sourceDirection][targetDirection].reset();
+				crossQuadrantPaths[sourceDirection][targetDirection].reset();
+			}
+		}
+	}
+}
+
+std::optional<TilePosition> WorldTile::GetQuadrantSideTile(Quadrant& quadrant, int direction)
+{
+	using namespace TileConstants;
+	if (!quadrant.m_pathingBorderSectors[direction]) return std::nullopt;
+	switch (static_cast<PathingDirection>(direction))
+	{
+	case PathingDirection::NORTH:
+		return TilePosition{
+			{},
+			{*quadrant.m_pathingBorderSectors[direction], 0},
+			{*quadrant.m_sectors[*quadrant.m_pathingBorderSectors[direction]][0].m_pathingBorderTiles[direction], 0} };
+	case PathingDirection::SOUTH:
+		return TilePosition{
+			{},
+		{ *quadrant.m_pathingBorderSectors[direction], QUADRANT_SIDE_LENGTH - 1 },
+		{ *quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][*quadrant.m_pathingBorderSectors[direction]].m_pathingBorderTiles[direction],
+			SECTOR_SIDE_LENGTH - 1 } };
+	case PathingDirection::EAST:
+		return TilePosition{
+			{},
+		{ QUADRANT_SIDE_LENGTH - 1, *quadrant.m_pathingBorderSectors[direction] },
+		{ SECTOR_SIDE_LENGTH - 1,
+			*quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][*quadrant.m_pathingBorderSectors[direction]].m_pathingBorderTiles[direction] } };
+	case PathingDirection::WEST:
+		return TilePosition{
+			{},
+		{ 0, *quadrant.m_pathingBorderSectors[direction] },
+		{ 0, *quadrant.m_sectors[0][*quadrant.m_pathingBorderSectors[direction]].m_pathingBorderTiles[direction]} };
+	}
+	return {};
 }
 
 std::optional<s64> WorldTile::FindCommonBorderTile(
@@ -1767,11 +1839,13 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::GetPath(
 		// For each sector in path, find shortest tile path entry to exit 
 		// (if in same sector, shortest tile path source to target)
 	}
+	// Sweet, are they in the same sector?
 	else if (sourcePosition.m_sectorCoords != targetPosition.m_sectorCoords)
 	{
 		auto& quadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
 		return FindSingleQuadrantPath(quadrant, sourcePosition, targetPosition);
 	}
+	// Excellent. Cheap pathing
 	else
 	{
 		auto& quadrant = FetchQuadrant(targetPosition.m_quadrantCoords);

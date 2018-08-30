@@ -34,6 +34,7 @@ namespace Pathing
 
 	template<int X, int Y>
 	using MovementCostArray2 = std::array<std::array<std::optional<int>, Y>, X>;
+	using MovementCostVector2 = std::vector<std::vector<std::optional<int>>>;
 
 	// Used for items where movement cost varies depending on direction entered and exited
 	template <int X, int Y>
@@ -44,6 +45,10 @@ namespace Pathing
 				static_cast<int>(PathingDirection::_COUNT) + 1>,
 			Y>,
 		X>;
+	using DirectionMovementCostMap = std::map<CoordinateVector2,
+		std::array<
+			std::array<std::optional<s64>, static_cast<int>(PathingDirection::_COUNT) + 1>,
+			static_cast<int>(PathingDirection::_COUNT) + 1>>;
 
 	struct SortedCoordinate
 	{

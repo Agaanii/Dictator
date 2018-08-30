@@ -27,6 +27,8 @@
 
 #include "../ECS/System.h"
 
+#include "../Util/Pathing.h"
+
 #include <array>
 #include <thread>
 
@@ -196,6 +198,8 @@ protected:
 		int sectorI,
 		int sectorJ);
 	void FillQuadrantPathingEdges(Quadrant& quadrant);
+	void FillCrossQuadrantPaths(Quadrant& quadrant, const CoordinateVector2& coordinates);
+	std::optional<TilePosition> GetQuadrantSideTile(Quadrant & quadrant, int direction);
 	std::thread SpawnBetween(
 		CoordinateVector2 origin,
 		CoordinateVector2 target);
@@ -234,6 +238,12 @@ protected:
 	CoordinateVector2 FindNearestQuadrant(const CoordinateFromOriginSet & searchedQuadrants, const CoordinateVector2 & quadrantCoords);
 
 	SpawnedQuadrantMap m_spawnedQuadrants;
+	Pathing::DirectionMovementCostMap m_quadrantMovementCosts;
+	std::map<CoordinateVector2,
+		std::array<
+			std::array<std::optional<std::vector<ECS_Core::Components::MovementTilePosition>>, static_cast<int>(PathingDirection::_COUNT)>
+			, static_cast<int>(PathingDirection::_COUNT)>>
+		m_quadrantPaths;
 	bool m_baseQuadrantSpawned{ false };
 	bool m_startingBuilderSpawned{ false };
 	SeededQuadrantMap m_quadrantSeeds;
