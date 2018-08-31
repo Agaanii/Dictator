@@ -198,8 +198,13 @@ protected:
 		int sectorI,
 		int sectorJ);
 	void FillQuadrantPathingEdges(Quadrant& quadrant);
-	void FillCrossQuadrantPaths(Quadrant& quadrant, const CoordinateVector2& coordinates);
-	std::optional<TilePosition> GetQuadrantSideTile(Quadrant & quadrant, int direction);
+	void FillCrossQuadrantPaths(
+		Quadrant& quadrant,
+		const CoordinateVector2& coordinates);
+	std::optional<TilePosition> GetQuadrantSideTile(
+		Quadrant & quadrant,
+		const CoordinateVector2& quadrantCoords,
+		int direction);
 	std::thread SpawnBetween(
 		CoordinateVector2 origin,
 		CoordinateVector2 target);
@@ -241,8 +246,8 @@ protected:
 	Pathing::DirectionMovementCostMap m_quadrantMovementCosts;
 	std::map<CoordinateVector2,
 		std::array<
-			std::array<std::optional<std::vector<ECS_Core::Components::MovementTilePosition>>, static_cast<int>(PathingDirection::_COUNT)>
-			, static_cast<int>(PathingDirection::_COUNT)>>
+			std::array<std::optional<std::vector<ECS_Core::Components::MovementTilePosition>>, static_cast<int>(PathingDirection::_COUNT) + 1>
+			, static_cast<int>(PathingDirection::_COUNT) + 1>>
 		m_quadrantPaths;
 	bool m_baseQuadrantSpawned{ false };
 	bool m_startingBuilderSpawned{ false };

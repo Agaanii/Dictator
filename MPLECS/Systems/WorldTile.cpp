@@ -750,11 +750,11 @@ void WorldTile::FillCrossQuadrantPaths(Quadrant& quadrant, const CoordinateVecto
 	auto& crossQuadrantPaths = m_quadrantPaths[coordinates];
 	for (int sourceDirection = 0; sourceDirection < static_cast<int>(PathingDirection::_COUNT); ++sourceDirection)
 	{
-		auto sourceTile = GetQuadrantSideTile(quadrant, sourceDirection);
+		auto sourceTile = GetQuadrantSideTile(quadrant, coordinates, sourceDirection);
 		if (!sourceTile) continue;
 		for (int targetDirection = 0; targetDirection < static_cast<int>(PathingDirection::_COUNT); ++targetDirection)
 		{
-			auto targetTile = GetQuadrantSideTile(quadrant, targetDirection);
+			auto targetTile = GetQuadrantSideTile(quadrant, coordinates, targetDirection);
 			if (!targetTile) continue;
 			auto path = FindSingleQuadrantPath(
 				quadrant,
@@ -774,7 +774,10 @@ void WorldTile::FillCrossQuadrantPaths(Quadrant& quadrant, const CoordinateVecto
 	}
 }
 
-std::optional<TilePosition> WorldTile::GetQuadrantSideTile(Quadrant& quadrant, int direction)
+std::optional<TilePosition> WorldTile::GetQuadrantSideTile(
+	Quadrant& quadrant,
+	const CoordinateVector2& quadrantCoords,
+	int direction)
 {
 	using namespace TileConstants;
 	if (!quadrant.m_pathingBorderSectors[direction]) return std::nullopt;
@@ -782,24 +785,24 @@ std::optional<TilePosition> WorldTile::GetQuadrantSideTile(Quadrant& quadrant, i
 	{
 	case PathingDirection::NORTH:
 		return TilePosition{
-			{},
+			quadrantCoords,
 			{*quadrant.m_pathingBorderSectors[direction], 0},
 			{*quadrant.m_sectors[*quadrant.m_pathingBorderSectors[direction]][0].m_pathingBorderTiles[direction], 0} };
 	case PathingDirection::SOUTH:
 		return TilePosition{
-			{},
+			quadrantCoords,
 		{ *quadrant.m_pathingBorderSectors[direction], QUADRANT_SIDE_LENGTH - 1 },
 		{ *quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][*quadrant.m_pathingBorderSectors[direction]].m_pathingBorderTiles[direction],
 			SECTOR_SIDE_LENGTH - 1 } };
 	case PathingDirection::EAST:
 		return TilePosition{
-			{},
+			quadrantCoords,
 		{ QUADRANT_SIDE_LENGTH - 1, *quadrant.m_pathingBorderSectors[direction] },
 		{ SECTOR_SIDE_LENGTH - 1,
 			*quadrant.m_sectors[QUADRANT_SIDE_LENGTH - 1][*quadrant.m_pathingBorderSectors[direction]].m_pathingBorderTiles[direction] } };
 	case PathingDirection::WEST:
 		return TilePosition{
-			{},
+			quadrantCoords,
 		{ 0, *quadrant.m_pathingBorderSectors[direction] },
 		{ 0, *quadrant.m_sectors[0][*quadrant.m_pathingBorderSectors[direction]].m_pathingBorderTiles[direction]} };
 	}
@@ -1833,11 +1836,93 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::GetPath(
 
 		// Get shortest path between quadrants
 
-		// Then in each quadrant in path, find shortest sector path from entry to exit 
-		// (if in the same quadrant, find shortest sector path from source to target)
+		auto quadrantPathCostCopy = m_quadrantMovementCosts;
+		auto quadrantPathCopy = m_quadrantPaths;
+		// Fill in the cost from current point to each side
+		for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
+		{
+			auto startingExitTile = GetQuadrantSideTile(sourceQuadrant, sourcePosition.m_quadrantCoords, direction);
+			if (startingExitTile)
+			{
+				auto startingPath =
+					FindSingleQuadrantPath(sourceQuadrant, sourcePosition, *startingExitTile);
+				if (startingPath)
+				{
+					quadrantPathCostCopy[sourcePosition.m_quadrantCoords]
+						[static_cast<int>(PathingDirection::_COUNT)][direction]
+						= startingPath->m_totalPathCost;
+					quadrantPathCopy[sourcePosition.m_quadrantCoords]
+						[static_cast<int>(PathingDirection::_COUNT)][direction]
+						= startingPath->m_path;
+				}
+			}
+			auto endingEntranceTile = GetQuadrantSideTile(targetQuadrant, targetPosition.m_quadrantCoords, direction);
+			if (endingEntranceTile)
+			{
+				auto endingPath = 
+					FindSingleQuadrantPath(targetQuadrant, *endingEntranceTile, targetPosition);
+				if (endingPath)
+				{
+					quadrantPathCostCopy[targetPosition.m_quadrantCoords]
+						[direction][static_cast<int>(PathingDirection::_COUNT)]
+						= endingPath->m_totalPathCost;
+					quadrantPathCopy[targetPosition.m_quadrantCoords]
+						[direction][static_cast<int>(PathingDirection::_COUNT)]
+						= endingPath->m_path;
+				}
+			}
+		}
 
-		// For each sector in path, find shortest tile path entry to exit 
-		// (if in same sector, shortest tile path source to target)
+		auto quadrantPath = Pathing::GetPath(
+			quadrantPathCostCopy,
+			sourcePosition.m_quadrantCoords,
+			targetPosition.m_quadrantCoords);
+
+		if (quadrantPath && quadrantPath->m_path.size() >= 2)
+		{
+			// Glue together: starting tile to exit tile of first sector
+			// Rest of the sectors
+			// Final sector entry tile to target tile.
+
+			const auto& startingMacroPath = quadrantPath->m_path.front();
+			const auto& endingMacroPath = quadrantPath->m_path.back();
+			ECS_Core::Components::MoveToPoint overallPath;
+			for (auto&& tile : *quadrantPathCopy[sourcePosition.m_quadrantCoords]
+				[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)])
+			{
+				overallPath.m_path.push_back(tile);
+			}
+			overallPath.m_totalPathCost += *quadrantPathCostCopy[sourcePosition.m_quadrantCoords]
+				[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)];
+
+			for (int i = 1; i < quadrantPath->m_path.size() - 1; ++i)
+			{
+				auto& path = quadrantPath->m_path[i];
+				auto& crossingPath = quadrantPathCopy
+					[path.m_node]
+					[static_cast<int>(path.m_entryDirection)]
+					[static_cast<int>(path.m_exitDirection)];
+				for (auto&& tile : *crossingPath)
+				{
+					overallPath.m_path.push_back(tile);
+				}
+				overallPath.m_totalPathCost += *quadrantPathCostCopy
+					[path.m_node]
+				[static_cast<int>(path.m_entryDirection)]
+				[static_cast<int>(path.m_exitDirection)];
+			}
+
+			for (auto&& tile : *quadrantPathCopy[targetPosition.m_quadrantCoords]
+				[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)])
+			{
+				overallPath.m_path.push_back(tile);
+			}
+			overallPath.m_targetPosition = targetPosition;
+			overallPath.m_totalPathCost += *quadrantPathCostCopy[targetPosition.m_quadrantCoords]
+				[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)];
+			return overallPath;
+		}
+		return std::nullopt;
 	}
 	// Sweet, are they in the same sector?
 	else if (sourcePosition.m_sectorCoords != targetPosition.m_sectorCoords)

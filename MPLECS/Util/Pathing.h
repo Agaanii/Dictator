@@ -14,7 +14,9 @@
 #include "../Core/typedef.h"
 #include "../ECS/ECS.h"
 
+#include <array>
 #include <deque>
+#include <optional>
 
 namespace Pathing
 {
@@ -343,4 +345,11 @@ namespace Pathing
 		}
 		return std::nullopt;
 	}
+
+	// Movement cost is cost to move through the previous node from a certain side to
+	// the side adjacent to the current node
+	std::optional<MacroPath> GetPath(
+		const DirectionMovementCostMap& movementCosts,
+		const CoordinateVector2& origin,
+		const CoordinateVector2& goal);
 }
