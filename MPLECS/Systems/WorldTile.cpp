@@ -1340,21 +1340,7 @@ void WorldTile::GrowTerritories()
 				territory.m_ownedTiles.insert(territory.m_nextGrowthTile->m_tile);
 				territory.m_nextGrowthTile.reset();
 
-				// Update yield potential
-				yieldPotential.m_availableYields.clear();
-				for (auto&& tilePos : territory.m_ownedTiles)
-				{
-					auto ownedTileOpt = GetTile(tilePos);
-					if (ownedTileOpt)
-					{
-						auto&& ownedTile = **ownedTileOpt;
-						auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
-						++yield.m_workableTiles;
-						yield.m_productionYield = {
-							{ ECS_Core::Components::Yields::FOOD, 1 } };
-						yield.m_productionYield[ownedTile.m_tileType] += 2;
-					}
-				}
+				UpdateTerritoryProductionPotential(yieldPotential, territory);
 
 				if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(territoryEntity))
 				{
@@ -1443,6 +1429,25 @@ void WorldTile::GrowTerritories()
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
+}
+
+void WorldTile::UpdateTerritoryProductionPotential(ECS_Core::Components::C_TileProductionPotential & yieldPotential, const ECS_Core::Components::C_Territory & territory)
+{
+	// Update yield potential
+	yieldPotential.m_availableYields.clear();
+	for (auto&& tilePos : territory.m_ownedTiles)
+	{
+		auto ownedTileOpt = GetTile(tilePos);
+		if (ownedTileOpt)
+		{
+			auto&& ownedTile = **ownedTileOpt;
+			auto&& yield = yieldPotential.m_availableYields[static_cast<ECS_Core::Components::YieldType>(ownedTile.m_tileType)];
+			++yield.m_workableTiles;
+			yield.m_productionYield = {
+				{ ECS_Core::Components::Yields::FOOD, 1 } };
+			yield.m_productionYield[ownedTile.m_tileType] += 2;
+		}
+	}
 }
 
 std::optional<WorldTile::Tile*> WorldTile::GetTile(const TilePosition& buildingTilePos)
@@ -2489,6 +2494,24 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
 				}
 			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
+
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CompleteBuilding>(
+			[this](
+			const ecs::EntityIndex&,
+			const ECS_Core::Components::C_BuildingDescription&,
+			const ECS_Core::Components::C_TilePosition&,
+			const ECS_Core::Components::C_Territory& territory,
+			ECS_Core::Components::C_TileProductionPotential& potential,
+			const ECS_Core::Components::C_ResourceInventory&)
+		{
+			if (potential.m_availableYields.size())
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			UpdateTerritoryProductionPotential(potential, territory);
 			return ecs::IterationBehavior::CONTINUE;
 		});
 		break;

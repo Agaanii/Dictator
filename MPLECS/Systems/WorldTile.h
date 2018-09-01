@@ -189,6 +189,9 @@ protected:
 		int secY) const;
 
 	void GrowTerritories();
+	void UpdateTerritoryProductionPotential(
+		ECS_Core::Components::C_TileProductionPotential & yieldPotential,
+		const ECS_Core::Components::C_Territory & territory);
 	std::optional<Tile*> GetTile(const TilePosition& buildingTilePos);
 	Quadrant& FetchQuadrant(const CoordinateVector2 & quadrantCoords);
 	std::thread SpawnQuadrant(const CoordinateVector2& coordinates);
