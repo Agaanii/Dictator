@@ -99,13 +99,23 @@ TilePosition& TilePosition::operator-=(const TilePosition& other)
 	return *this;
 }
 
+void WorldTile::SeedForQuadrant(const CoordinateVector2& coordinates)
+{
+	for (int x = -1; x < 2; ++x)
+	{
+		for (int y = -1; y < 2; ++y)
+		{
+			m_quadrantSeeds[{x + coordinates.m_x, y + coordinates.m_y}];
+		}
+	}
+}
+
 std::vector<WorldTile::SectorSeedPosition> WorldTile::GetRelevantSeeds(
 	const CoordinateVector2 & coordinates,
 	int secX,
-	int secY)
+	int secY) const
 {
 	std::vector<SectorSeedPosition> relevantSeeds;
-	srand(static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 	CoordinateVector2 quadPosition;
 	CoordinateVector2 secPosition;
 	for (int x = -1; x < 2; ++x)
@@ -147,7 +157,7 @@ std::vector<WorldTile::SectorSeedPosition> WorldTile::GetRelevantSeeds(
 				quadPosition.m_y = coordinates.m_y;
 			}
 
-			auto quad = m_quadrantSeeds[quadPosition];
+			auto quad = m_quadrantSeeds.at(quadPosition);
 			auto& seedingSector = quad.m_sectors[secPosition.m_x][secPosition.m_y];
 
 			relevantSeeds.push_back({
@@ -176,6 +186,7 @@ bool WithinSquare(const CoordinateVector2& coords)
 
 std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 {
+	srand(static_cast<unsigned int>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 	using namespace TileConstants;
 	if (m_spawnedQuadrants.find(coordinates)
 		!= m_spawnedQuadrants.end())
@@ -202,11 +213,16 @@ std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 			static_cast<float>(quadrantSideLength),
 			static_cast<float>(quadrantSideLength)));
 		auto& quadrant = m_spawnedQuadrants[coordinates];
+		SeedForQuadrant(coordinates);
 		quadrant.m_texture.create(quadrantSideLength, quadrantSideLength);
+		std::mutex textureUpdateMutex, randomMutex;
+		std::vector<std::thread> tileCreationThreads;
 		for (auto secX = 0; secX < TileConstants::QUADRANT_SIDE_LENGTH; ++secX)
 		{
 			for (auto secY = 0; secY < TileConstants::QUADRANT_SIDE_LENGTH; ++secY)
 			{
+				tileCreationThreads.emplace_back(
+					[secY, secX, &coordinates, &textureUpdateMutex, &randomMutex, &quadrant, this]() {
 				auto& sector = quadrant.m_sectors[secX][secY];
 
 				auto relevantSeeds = GetRelevantSeeds(coordinates, secX, secY);
@@ -216,59 +232,67 @@ std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 				{
 					for (auto tileY = 0; tileY < TileConstants::SECTOR_SIDE_LENGTH; ++tileY)
 					{
-						auto& tile = sector.m_tiles[tileX][tileY];
+							auto& tile = sector.m_tiles[tileX][tileY];
+							// Pick a seed
+							// Will be chosen by weighted random, based on distance from nearest 9 seeds
+							// Seeds are from local sector, and the 8 adjacent and corner-adj sectors
+							auto locationForSeeding = CoordinateVector2(
+								tileX + TileConstants::SECTOR_SIDE_LENGTH,
+								tileY + TileConstants::SECTOR_SIDE_LENGTH);
 
-						// Pick a seed
-						// Will be chosen by weighted random, based on distance from nearest 9 seeds
-						// Seeds are from local sector, and the 8 adjacent and corner-adj sectors
-						auto locationForSeeding = CoordinateVector2(
-							tileX + TileConstants::SECTOR_SIDE_LENGTH,
-							tileY + TileConstants::SECTOR_SIDE_LENGTH);
-
-						std::vector<f64> weightBorders;
-						f64 totalWeight = 0;
-						for (auto&& seed : relevantSeeds)
-						{
-							f64 distance = static_cast<f64>(
-								(locationForSeeding - seed.m_position).MagnitudeSq());
-							weightBorders.push_back(totalWeight += 100. / pow(distance, 10));
-						}
-
-						auto weightedValue = RandDouble() * totalWeight;
-						size_t weightedPosition = 0;
-						for (; weightedPosition < weightBorders.size(); ++weightedPosition)
-						{
-							if (weightedValue < weightBorders[weightedPosition])
+							std::vector<f64> weightBorders;
+							f64 totalWeight = 0;
+							for (auto&& seed : relevantSeeds)
 							{
-								break;
+								f64 distance = static_cast<f64>(
+									(locationForSeeding - seed.m_position).MagnitudeSq());
+								weightBorders.push_back(totalWeight += 100. / pow(distance, 10));
+							}
+
+							auto weightedValue = RandDouble() * totalWeight;
+							size_t weightedPosition = 0;
+							for (; weightedPosition < weightBorders.size(); ++weightedPosition)
+							{
+								if (weightedValue < weightBorders[weightedPosition])
+								{
+									break;
+								}
+							}
+							// If we get 1.0, it won't be less (probably) so just use that edge
+							// No huge effect
+							if (weightedPosition >= relevantSeeds.size()) weightedPosition = relevantSeeds.size() - 1;
+							tile.m_tileType = relevantSeeds[weightedPosition].m_type;
+							if (tile.m_tileType) // Make type 0 unpathable for testing
+							{
+								std::lock_guard randomLock(randomMutex);
+								tile.m_movementCost = (rand() % 6) + 1;
+								movementCosts[tileX][tileY] = tile.m_movementCost;
+							}
+							for (auto& pixel : tile.m_tilePixels)
+							{
+								pixel =
+									(((tile.m_tileType & 1) ? 255 : 0) << 0) + // R
+									(((tile.m_tileType & 2) ? 255 : 0) << 8) + // G
+									(((tile.m_tileType & 4) ? 255 : 0) << 16) + // B
+									+(0xFF << 24); // A
+							}
+							{
+								std::lock_guard textureLock(textureUpdateMutex);
+								quadrant.m_texture.update(
+									reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels._Elems),
+									TILE_SIDE_LENGTH,
+									TILE_SIDE_LENGTH,
+									((secX * SECTOR_SIDE_LENGTH) + tileX) * TILE_SIDE_LENGTH,
+									((secY * SECTOR_SIDE_LENGTH) + tileY) * TILE_SIDE_LENGTH);
 							}
 						}
-						// If we get 1.0, it won't be less (probably) so just use that edge
-						// No huge effect
-						if (weightedPosition >= relevantSeeds.size()) weightedPosition = relevantSeeds.size() - 1;
-						tile.m_tileType = relevantSeeds[weightedPosition].m_type;
-						if (tile.m_tileType) // Make type 0 unpathable for testing
-						{
-							tile.m_movementCost = (rand() % 6) + 1;
-							movementCosts[tileX][tileY] = tile.m_movementCost;
-						}
-						for (auto& pixel : tile.m_tilePixels)
-						{
-							pixel =
-								(((tile.m_tileType & 1) ? 255 : 0) << 0) + // R
-								(((tile.m_tileType & 2) ? 255 : 0) << 8) + // G
-								(((tile.m_tileType & 4) ? 255 : 0) << 16) + // B
-								+(0xFF << 24); // A
-						}
-						quadrant.m_texture.update(
-							reinterpret_cast<const sf::Uint8*>(tile.m_tilePixels._Elems),
-							TILE_SIDE_LENGTH,
-							TILE_SIDE_LENGTH,
-							((secX * SECTOR_SIDE_LENGTH) + tileX) * TILE_SIDE_LENGTH,
-							((secY * SECTOR_SIDE_LENGTH) + tileY) * TILE_SIDE_LENGTH);
 					}
-				}
+				});
 			}
+		}
+		for (auto&& thread : tileCreationThreads)
+		{
+			thread.join();
 		}
 		rect->setTexture(&quadrant.m_texture);
 		auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(index);

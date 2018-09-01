@@ -182,10 +182,11 @@ protected:
 	WorldCoordinates WorldPositionToCoordinates(const CoordinateVector2 & worldPos);
 	CoordinateVector2 CoordinatesToWorldPosition(const WorldCoordinates & worldCoords);
 	CoordinateVector2 CoordinatesToWorldOffset(const WorldCoordinates & worldOffset);
+	void SeedForQuadrant(const CoordinateVector2& coordinates);
 	std::vector<WorldTile::SectorSeedPosition> GetRelevantSeeds(
 		const CoordinateVector2 & coordinates,
 		int secX,
-		int secY);
+		int secY) const;
 
 	void GrowTerritories();
 	std::optional<Tile*> GetTile(const TilePosition& buildingTilePos);
