@@ -44,6 +44,9 @@ protected:
 	void DecreaseGameSpeed(
 		ECS_Core::Components::C_UserInputs& inputs,
 		ECS_Core::Components::C_ActionPlan& actionPlan);
+	void CancelMovementPlan(
+		ECS_Core::Components::C_UserInputs& inputs,
+		ECS_Core::Components::C_ActionPlan& actionPlan);
 
 	std::map<ECS_Core::Components::InputKeys, std::function<void(
 		ECS_Core::Components::C_UserInputs&,

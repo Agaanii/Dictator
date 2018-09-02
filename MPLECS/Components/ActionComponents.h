@@ -97,16 +97,27 @@ namespace Action
 			TilePosition m_position;
 		};
 
-		struct PlanMotion
+		struct PlanTargetedMotion
 		{
-			PlanMotion(const ecs::Impl::Handle& mover) : m_moverHandle(mover) {}
+			PlanTargetedMotion(const ecs::Impl::Handle& mover) : m_moverHandle(mover) {}
 			ecs::Impl::Handle m_moverHandle;
+		};
+
+		struct PlanDirectionScout
+		{
+			PlanDirectionScout(const ecs::Impl::Handle& scoutSource) : m_scoutSource(scoutSource) {}
+			ecs::Impl::Handle m_scoutSource;
 		};
 
 		struct PlanCaravan
 		{
 			PlanCaravan(const ecs::Impl::Handle& caravanSource) : m_sourceHandle(caravanSource) {}
 			ecs::Impl::Handle m_sourceHandle;
+		};
+
+		struct CancelMovementPlan
+		{
+
 		};
 
 		struct CenterCamera
@@ -196,9 +207,11 @@ namespace Action
 		LocalPlayer::TimeManipulation,
 		LocalPlayer::CloseUIFrame,
 		LocalPlayer::SelectTile,
-		LocalPlayer::PlanMotion,
+		LocalPlayer::PlanTargetedMotion,
 		LocalPlayer::PlanCaravan,
+		LocalPlayer::PlanDirectionScout,
 		LocalPlayer::CenterCamera,
+		LocalPlayer::CancelMovementPlan,
 		PlaceBuilding, 
 		CreateBuildingUnit,
 		CreateCaravan,

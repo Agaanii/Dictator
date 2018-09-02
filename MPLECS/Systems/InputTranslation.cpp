@@ -106,6 +106,10 @@ void InputTranslation::TranslateDownClicks(
 			actionPlan.m_plan.push_back(Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition));
 		}
 	}
+	if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::RIGHT)
+	{
+		actionPlan.m_plan.push_back(Action::LocalPlayer::CancelMovementPlan());
+	}
 }
 
 void InputTranslation::CreateBuildingGhost(
@@ -143,6 +147,13 @@ void InputTranslation::DecreaseGameSpeed(
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SLOW_DOWN;
 	actionPlan.m_plan.push_back(action);
+}
+
+void InputTranslation::CancelMovementPlan(
+	ECS_Core::Components::C_UserInputs& inputs,
+	ECS_Core::Components::C_ActionPlan& actionPlan)
+{
+	actionPlan.m_plan.push_back(Action::LocalPlayer::CancelMovementPlan());
 }
 
 void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)

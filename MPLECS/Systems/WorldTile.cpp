@@ -1667,7 +1667,7 @@ void WorldTile::ProcessSelectTile(
 						moveButton.m_topLeftCorner = { 90,0 };
 						moveButton.m_size = { 30,30 };
 						moveButton.m_onClick = [&manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
-							return Action::LocalPlayer::PlanMotion(manager.getHandle(clickedEntity));
+							return Action::LocalPlayer::PlanTargetedMotion(manager.getHandle(clickedEntity));
 						};
 
 						buildButton.m_size = { 30,30 };
@@ -2444,9 +2444,9 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						governorEntity);
 					continue;
 				}
-				else if (std::holds_alternative<Action::LocalPlayer::PlanMotion>(action))
+				else if (std::holds_alternative<Action::LocalPlayer::PlanTargetedMotion>(action))
 				{
-					auto& planMotion = std::get<Action::LocalPlayer::PlanMotion>(action);
+					auto& planMotion = std::get<Action::LocalPlayer::PlanTargetedMotion>(action);
 					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(planMotion.m_moverHandle)
 						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle))
 					{
@@ -2492,6 +2492,27 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					targetGraphic->setOutlineColor({ 128, 128,64 });
 					targetGraphic->setOutlineThickness(-0.75f);
 					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
+				}
+				else if (std::holds_alternative<Action::LocalPlayer::CancelMovementPlan>(action))
+				{
+					m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>(
+						[&manager](
+							const ecs::EntityIndex& entity,
+							const ECS_Core::Components::C_CaravanPlan&,
+							const ECS_Core::Components::C_TilePosition&)
+					{
+						manager.addTag<ECS_Core::Tags::T_Dead>(entity);
+						return ecs::IterationBehavior::CONTINUE;
+					});
+					m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>(
+						[&manager](
+							const ecs::EntityIndex& entity,
+							const ECS_Core::Components::C_MovementTarget&,
+							const ECS_Core::Components::C_TilePosition&)
+					{
+						manager.addTag<ECS_Core::Tags::T_Dead>(entity);
+						return ecs::IterationBehavior::CONTINUE;
+					});
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
