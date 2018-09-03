@@ -151,12 +151,15 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			{
 				str.m_text->setString("");
 			}
-			for (auto&& [key, str] : uiEntity.m_frame->ReadData(entityIndex, manager))
+			if (uiEntity.m_frame != nullptr)
 			{
-				auto displayIter = uiEntity.m_dataStrings.find(key);
-				if (displayIter != uiEntity.m_dataStrings.end())
+				for (auto&&[key, str] : uiEntity.m_frame->ReadData(entityIndex, manager))
 				{
-					displayIter->second.m_text->setString(str);
+					auto displayIter = uiEntity.m_dataStrings.find(key);
+					if (displayIter != uiEntity.m_dataStrings.end())
+					{
+						displayIter->second.m_text->setString(str);
+					}
 				}
 			}
 			if (uiEntity.m_currentDragPosition && inputEntities.size())

@@ -10,6 +10,7 @@
 #pragma once
 
 #include <chrono>
+#include <set>
 
 using u8 = unsigned char;
 using s8 = char;
@@ -38,6 +39,8 @@ enum class Direction
 	_COUNT
 };
 Direction Opposite(Direction d);
+
+extern const std::set<Direction> c_directions;
 
 enum class PathingDirection
 {

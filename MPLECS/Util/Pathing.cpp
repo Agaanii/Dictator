@@ -206,3 +206,15 @@ auto Pathing::GetPath(
 	}
 	return std::nullopt;
 }
+
+const std::set<Direction> c_directions
+{
+	Direction::NORTH,
+	Direction::NORTHWEST,
+	Direction::WEST,
+	Direction::SOUTHWEST,
+	Direction::SOUTH,
+	Direction::SOUTHEAST,
+	Direction::EAST,
+	Direction::NORTHEAST
+};

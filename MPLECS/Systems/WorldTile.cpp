@@ -1817,7 +1817,16 @@ void WorldTile::ProcessSelectTile(
 				{
 					return Action::LocalPlayer::PlanCaravan(manager.getHandle(clickedEntity));
 				};
-				uiFrame.m_buttons.push_back(newCaravanButton);
+				uiFrame.m_buttons.push_back(newCaravanButton);;
+
+				ECS_Core::Components::Button newScoutButton;
+				newScoutButton.m_size = { 30, 30 };
+				newScoutButton.m_topLeftCorner = { 30, uiFrame.m_size.m_y - 30 };
+				newScoutButton.m_onClick = [&manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity)
+				{
+					return Action::LocalPlayer::PlanDirectionScout(manager.getHandle(clickedEntity));
+				};
+				uiFrame.m_buttons.push_back(newScoutButton);
 
 				if (!m_managerRef.hasComponent<ECS_Core::Components::C_SFMLDrawable>(*tile.m_owningBuilding))
 				{
@@ -1839,6 +1848,10 @@ void WorldTile::ProcessSelectTile(
 				auto caravanGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
 				caravanGraphic->setFillColor({ 200, 100, 30 });
 				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ caravanGraphic, newCaravanButton.m_topLeftCorner });
+
+				auto scoutGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f(30, 30));
+				scoutGraphic->setFillColor({ 100, 200, 90 });
+				drawable.m_drawables[ECS_Core::Components::DrawLayer::MENU][1].push_back({ scoutGraphic, newScoutButton.m_topLeftCorner });
 
 				for (auto&&[key, dataStr] : uiFrame.m_dataStrings)
 				{
@@ -2446,73 +2459,75 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				}
 				else if (std::holds_alternative<Action::LocalPlayer::PlanTargetedMotion>(action))
 				{
-					auto& planMotion = std::get<Action::LocalPlayer::PlanTargetedMotion>(action);
-					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(planMotion.m_moverHandle)
-						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle))
-					{
-						// Only try to move if we have a mover unit with a tile position
-						continue;
-					}
-					auto targetingEntity = manager.createHandle();
-					auto& targetScreenPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
-					auto& targetTilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
-					targetTilePosition.m_position = manager.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle).m_position;
-
-					auto& moverInfo = manager.addComponent<ECS_Core::Components::C_MovementTarget>(targetingEntity);
-					moverInfo.m_moverHandle = planMotion.m_moverHandle;
-					moverInfo.m_governorHandle = manager.getHandle(governorEntity);
-
-					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
-					auto targetGraphic = std::make_shared<sf::CircleShape>(2.5f, 6);
-					targetGraphic->setFillColor({ 128, 128, 0, 128 });
-					targetGraphic->setOutlineColor({ 128, 128, 0 });
-					targetGraphic->setOutlineThickness(-0.75f);
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
+					ProcessPlanTargetedMotion(
+						std::get<Action::LocalPlayer::PlanTargetedMotion>(action),
+						governorEntity);
 				}
 				else if (std::holds_alternative<Action::LocalPlayer::PlanCaravan>(action))
 				{
-					auto& planMotion = std::get<Action::LocalPlayer::PlanCaravan>(action);
-					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_sourceHandle))
+					ProcessPlanCaravan(
+						std::get<Action::LocalPlayer::PlanCaravan>(action),
+						governorEntity);
+				}
+				else if (std::holds_alternative<Action::LocalPlayer::PlanDirectionScout>(action))
+				{
+					auto& planDirectionScout = std::get<Action::LocalPlayer::PlanDirectionScout>(action);
+					// spawn menu with 8 direction buttons
+					// TODO: Also select mission duration
+					// Entity will also hold:
+					// * Spawning building
+					// * Owning governor
+					auto directionMenuHandle = m_managerRef.createHandle();
+					auto& scoutPlan = m_managerRef.addComponent<ECS_Core::Components::C_ScoutingPlan>(directionMenuHandle);
+					scoutPlan.m_sourceBuildingHandle = planDirectionScout.m_scoutSource;
+					scoutPlan.m_governorHandle = m_managerRef.getHandle(governorEntity);
+
+					auto& uiFrame = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(directionMenuHandle);
+					uiFrame.m_size = { 150,150 };
+					uiFrame.m_topLeftCorner = { 50, 300 };
+					auto& graphics = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(directionMenuHandle);
+					static const std::map<Direction, CartesianVector2<f64>> directionOffsets
 					{
-						// Only try to move if we have a mover unit with a tile position
-						continue;
+						{ Direction::NORTH,{ 60, 0 } },
+						{ Direction::NORTHWEST,{ 0, 0 } },
+						{ Direction::WEST,{ 0, 60 } },
+						{ Direction::SOUTHWEST,{ 0, 120 } },
+						{ Direction::SOUTH,{ 60, 120 } },
+						{ Direction::SOUTHEAST,{ 120, 120 } },
+						{ Direction::EAST,{ 120, 60 } },
+						{ Direction::NORTHEAST,{ 120, 0 } },
+					};
+
+					auto background = std::make_shared<sf::RectangleShape>(sf::Vector2f{ 150.f, 150.f });
+					background->setFillColor({ 6,6,6 });
+
+					graphics.m_drawables[ECS_Core::Components::DrawLayer::MENU][5].push_back({ background, {} });
+
+					for (auto&& direction : c_directions)
+					{
+						ECS_Core::Components::Button directionButton;
+						directionButton.m_topLeftCorner = directionOffsets.at(direction);
+						directionButton.m_size = { 30,30 };
+						directionButton.m_onClick = [direction, &manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+							auto& scoutPlan = manager.getComponent<ECS_Core::Components::C_ScoutingPlan>(clickedEntity);
+							auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(scoutPlan.m_sourceBuildingHandle);
+							manager.addTag<ECS_Core::Tags::T_Dead>(clickedEntity);
+							return Action::CreateExplorationUnit(sourcePosition.m_position,
+								manager.getEntityIndex(scoutPlan.m_sourceBuildingHandle),
+								5,
+								500,
+								direction);
+						};
+						uiFrame.m_buttons.push_back(directionButton);
+
+						auto buttonGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f{ 30.f,30.f });
+						buttonGraphic->setFillColor({ 130,130,130 });
+						graphics.m_drawables[ECS_Core::Components::DrawLayer::MENU][6].push_back({ buttonGraphic, directionOffsets.at(direction) });
 					}
-					auto targetingEntity = manager.createHandle();
-					auto& targetScreenPosition = manager.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
-					auto& targetTilePosition = manager.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
-					targetTilePosition.m_position = manager.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_sourceHandle).m_position;
-
-					auto& caravanInfo = manager.addComponent<ECS_Core::Components::C_CaravanPlan>(targetingEntity);
-					caravanInfo.m_sourceBuildingHandle = planMotion.m_sourceHandle;
-					caravanInfo.m_governorHandle = manager.getHandle(governorEntity);
-
-					auto& drawable = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
-					auto targetGraphic = std::make_shared<sf::CircleShape>(2.5f, 8);
-					targetGraphic->setFillColor({ 128, 128, 64, 128 });
-					targetGraphic->setOutlineColor({ 128, 128,64 });
-					targetGraphic->setOutlineThickness(-0.75f);
-					drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
 				}
 				else if (std::holds_alternative<Action::LocalPlayer::CancelMovementPlan>(action))
 				{
-					m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>(
-						[&manager](
-							const ecs::EntityIndex& entity,
-							const ECS_Core::Components::C_CaravanPlan&,
-							const ECS_Core::Components::C_TilePosition&)
-					{
-						manager.addTag<ECS_Core::Tags::T_Dead>(entity);
-						return ecs::IterationBehavior::CONTINUE;
-					});
-					m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>(
-						[&manager](
-							const ecs::EntityIndex& entity,
-							const ECS_Core::Components::C_MovementTarget&,
-							const ECS_Core::Components::C_TilePosition&)
-					{
-						manager.addTag<ECS_Core::Tags::T_Dead>(entity);
-						return ecs::IterationBehavior::CONTINUE;
-					});
+					CancelMovementPlans();
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;
@@ -2543,6 +2558,76 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		ReturnDeadBuildingTiles();
 		return;
 	}
+}
+
+void WorldTile::ProcessPlanCaravan(Action::LocalPlayer::PlanCaravan & planCaravan, const ecs::EntityIndex & governorEntity)
+{
+	if (!m_managerRef.hasComponent<ECS_Core::Components::C_TilePosition>(planCaravan.m_sourceHandle))
+	{
+		// Only try to move if we have a mover unit with a tile position
+		return;
+	}
+	auto targetingEntity = m_managerRef.createHandle();
+	auto& targetScreenPosition = m_managerRef.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
+	auto& targetTilePosition = m_managerRef.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
+	targetTilePosition.m_position = m_managerRef.getComponent<ECS_Core::Components::C_TilePosition>(planCaravan.m_sourceHandle).m_position;
+
+	auto& caravanInfo = m_managerRef.addComponent<ECS_Core::Components::C_CaravanPlan>(targetingEntity);
+	caravanInfo.m_sourceBuildingHandle = planCaravan.m_sourceHandle;
+	caravanInfo.m_governorHandle = m_managerRef.getHandle(governorEntity);
+
+	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
+	auto targetGraphic = std::make_shared<sf::CircleShape>(2.5f, 8);
+	targetGraphic->setFillColor({ 128, 128, 64, 128 });
+	targetGraphic->setOutlineColor({ 128, 128,64 });
+	targetGraphic->setOutlineThickness(-0.75f);
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
+}
+
+void WorldTile::ProcessPlanTargetedMotion(Action::LocalPlayer::PlanTargetedMotion & planMotion, const ecs::EntityIndex & governorEntity)
+{
+	if (!m_managerRef.hasComponent<ECS_Core::Components::C_MovingUnit>(planMotion.m_moverHandle)
+		|| !m_managerRef.hasComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle))
+	{
+		return;
+	}
+	auto targetingEntity = m_managerRef.createHandle();
+	auto& targetScreenPosition = m_managerRef.addComponent<ECS_Core::Components::C_PositionCartesian>(targetingEntity);
+	auto& targetTilePosition = m_managerRef.addComponent<ECS_Core::Components::C_TilePosition>(targetingEntity);
+	targetTilePosition.m_position = m_managerRef.getComponent<ECS_Core::Components::C_TilePosition>(planMotion.m_moverHandle).m_position;
+
+	auto& moverInfo = m_managerRef.addComponent<ECS_Core::Components::C_MovementTarget>(targetingEntity);
+	moverInfo.m_moverHandle = planMotion.m_moverHandle;
+	moverInfo.m_governorHandle = m_managerRef.getHandle(governorEntity);
+
+	auto& drawable = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(targetingEntity);
+	auto targetGraphic = std::make_shared<sf::CircleShape>(2.5f, 6);
+	targetGraphic->setFillColor({ 128, 128, 0, 128 });
+	targetGraphic->setOutlineColor({ 128, 128, 0 });
+	targetGraphic->setOutlineThickness(-0.75f);
+	drawable.m_drawables[ECS_Core::Components::DrawLayer::EFFECT][128].push_back({ targetGraphic,{} });
+}
+
+void WorldTile::CancelMovementPlans()
+{
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CaravanPlanIndicator>(
+		[&manager = m_managerRef](
+			const ecs::EntityIndex& entity,
+			const ECS_Core::Components::C_CaravanPlan&,
+			const ECS_Core::Components::C_TilePosition&)
+	{
+		manager.addTag<ECS_Core::Tags::T_Dead>(entity);
+		return ecs::IterationBehavior::CONTINUE;
+	});
+	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovementPlanIndicator>(
+		[&manager = m_managerRef](
+			const ecs::EntityIndex& entity,
+			const ECS_Core::Components::C_MovementTarget&,
+			const ECS_Core::Components::C_TilePosition&)
+	{
+		manager.addTag<ECS_Core::Tags::T_Dead>(entity);
+		return ecs::IterationBehavior::CONTINUE;
+	});
 }
 
 bool WorldTile::ShouldExit()

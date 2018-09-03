@@ -115,10 +115,7 @@ namespace Action
 			ecs::Impl::Handle m_sourceHandle;
 		};
 
-		struct CancelMovementPlan
-		{
-
-		};
+		struct CancelMovementPlan{};
 
 		struct CenterCamera
 		{
@@ -168,6 +165,18 @@ namespace Action
 
 	struct CreateExplorationUnit : CreateUnit
 	{
+		CreateExplorationUnit(const TilePosition& spawn,
+			const std::optional<ecs::EntityIndex>& popSource,
+			int movementSpeed,
+			int daysToExplore,
+			Direction exploreDirection)
+			: CreateUnit(spawn, popSource, movementSpeed)
+			, m_daysToExplore(daysToExplore)
+			, m_exploreDirection(exploreDirection)
+		{ }
+
+		int m_daysToExplore;
+		Direction m_exploreDirection;
 	};
 
 	struct CreateBuildingUnit : CreateUnit
