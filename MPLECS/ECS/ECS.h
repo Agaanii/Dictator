@@ -301,13 +301,13 @@ namespace ECS_Core
 			f64 m_currentMovementProgress{ 0 };
 			s64 m_totalPathCost{ 0 };
 		};
-		using MovementCommand = std::variant<ExplorationPlan, MoveToPoint>;
 
 		struct C_MovingUnit
 		{
 			// # of tiles of movement cost 1 the unit can move in a day
 			s32 m_movementPerDay{ 1 };
-			std::optional<MovementCommand> m_currentMovement;
+			std::optional<MoveToPoint> m_currentMovement;
+			std::optional<ExplorationPlan> m_explorationPlan;
 		};
 
 		struct C_Selection

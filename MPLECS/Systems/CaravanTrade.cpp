@@ -104,8 +104,7 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				&& path.m_isReturning)
 			{
 				// Trade with home base and turn around
-				if (!mover.m_currentMovement
-					|| !std::holds_alternative<Components::MoveToPoint>(*mover.m_currentMovement))
+				if (!mover.m_currentMovement)
 				{
 					return ecs::IterationBehavior::CONTINUE;
 				}
@@ -116,7 +115,7 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				auto& baseInventory = manager.getComponent<Components::C_ResourceInventory>(path.m_originBuildingHandle);
 				PerformTrade(inventory, baseInventory, TradeType::HIGHEST_AVAILABLE);
 
-				auto& moveToPoint = std::get<Components::MoveToPoint>(*mover.m_currentMovement);
+				auto& moveToPoint = *mover.m_currentMovement;
 				std::reverse(moveToPoint.m_path.begin(), moveToPoint.m_path.end());
 				moveToPoint.m_currentPathIndex = 0;
 				moveToPoint.m_currentMovementProgress = 0;
@@ -127,8 +126,7 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				&& !path.m_isReturning)
 			{
 				// Trade with target and turn around
-				if (!mover.m_currentMovement
-					|| !std::holds_alternative<Components::MoveToPoint>(*mover.m_currentMovement))
+				if (!mover.m_currentMovement)
 				{
 					return ecs::IterationBehavior::CONTINUE;
 				}
@@ -140,7 +138,7 @@ void CaravanTrade::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					manager.getComponent<Components::C_ResourceInventory>(path.m_targetBuildingHandle),
 					TradeType::PREFER_EXCHANGE);
 				
-				auto& moveToPoint = std::get<Components::MoveToPoint>(*mover.m_currentMovement);
+				auto& moveToPoint = *mover.m_currentMovement;
 				std::reverse(moveToPoint.m_path.begin(), moveToPoint.m_path.end());
 				moveToPoint.m_currentPathIndex = 0;
 				moveToPoint.m_currentMovementProgress = 0;

@@ -362,6 +362,41 @@ void Government::SetupGameplay()
 	m_managerRef.addTag<ECS_Core::Tags::T_LocalPlayer>(localPlayer);
 }
 
+void Government::MovePopulations(
+	ECS_Core::Components::C_Population& populationSource,
+	ECS_Core::Components::C_Population& populationTarget,
+	int totalMenToMove,
+	int totalWomenToMove)
+{
+	int menMoved = 0;
+	int womenMoved = 0;
+	for (auto&&[birthMonth, pop] : populationSource.m_populations)
+	{
+		if (menMoved == totalMenToMove && totalWomenToMove == 5)
+		{
+			break;
+		}
+		if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+		{
+			continue;
+		}
+		auto menToMove = min<int>(totalMenToMove - menMoved, pop.m_numMen);
+		auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.m_numWomen);
+
+		auto& popCopy = populationTarget.m_populations[birthMonth];
+		popCopy = pop;
+		popCopy.m_numMen = menToMove;
+		popCopy.m_numWomen = womenToMove;
+
+		pop.m_numMen -= menToMove;
+		pop.m_numWomen -= womenToMove;
+
+
+		menMoved += menToMove;
+		womenMoved += womenToMove;
+	}
+}
+
 void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -410,7 +445,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					}
 
 					// Make sure the population source entity is still around
-					auto newEntityHandle = [&manager, &builder]() -> std::optional<ecs::Impl::Handle>
+					auto newEntityHandle = [&manager, &builder, this]() -> std::optional<ecs::Impl::Handle>
 					{
 						if (builder.m_popSource)
 						{
@@ -420,7 +455,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 								return std::nullopt;
 							}
 							// Take the youngest workers, 10:5 male:female (more men die on the road)
-							auto& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(*builder.m_popSource);
+							ECS_Core::Components::C_Population& populationSource = manager.getComponent<ECS_Core::Components::C_Population>(*builder.m_popSource);
 							int sourceTotalMen{ 0 };
 							int sourceTotalWomen{ 0 };
 							for (auto&&[birthMonth, pop] : populationSource.m_populations)
@@ -444,34 +479,11 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
 							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
 							moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
-							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
-							int menMoved = 0;
-							int womenMoved = 0;
-							for (auto&&[birthMonth, pop] : populationSource.m_populations)
-							{
-								if (menMoved == totalMenToMove && totalWomenToMove == 5)
-								{
-									break;
-								}
-								if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
-								{
-									continue;
-								}
-								auto menToMove = min<int>(totalMenToMove - menMoved, pop.m_numMen);
-								auto womenToMove = min<int>(totalWomenToMove - womenMoved, pop.m_numWomen);
-
-								auto& popCopy = population.m_populations[birthMonth];
-								popCopy = pop;
-								popCopy.m_numMen = menToMove;
-								popCopy.m_numWomen = womenToMove;
-
-								pop.m_numMen -= menToMove;
-								pop.m_numWomen -= womenToMove;
-
-
-								menMoved += menToMove;
-								womenMoved += womenToMove;
-							}
+							MovePopulations(
+								populationSource,
+								manager.addComponent<ECS_Core::Components::C_Population>(newEntity),
+								totalMenToMove,
+								totalWomenToMove);
 							return newEntity;
 						}
 						else
@@ -519,6 +531,80 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							buildingInventory.m_collectedYields[resource] -= cost;
 						}
 					}
+				}
+				else if (std::holds_alternative<Action::CreateExplorationUnit>(action))
+				{
+					auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
+					if (timeEntities.size() == 0)
+					{
+						continue;
+					}
+					const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
+
+					auto& createAction = std::get<Action::CreateExplorationUnit>(action);
+					// Requires population of >5 Men and 1 food per planned day
+					if (!createAction.m_popSource
+						|| !m_managerRef.hasComponent<ECS_Core::Components::C_Population>(*createAction.m_popSource)
+						|| !m_managerRef.hasComponent<ECS_Core::Components::C_ResourceInventory>(*createAction.m_popSource))
+					{
+						continue;
+					}
+
+					auto& popSource = m_managerRef.getComponent<ECS_Core::Components::C_Population>(*createAction.m_popSource);
+					auto& inventorySource = m_managerRef.getComponent<ECS_Core::Components::C_ResourceInventory>(*createAction.m_popSource);
+
+					int numMen = 0;
+					for (auto&&[age, popSegment] : popSource.m_populations)
+					{
+						if (popSegment.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+						{
+							continue;
+						}
+						if ((numMen += popSegment.m_numMen) > 8)
+						{
+							break;
+						}
+					}
+					if (numMen <= 8)
+					{
+						continue;
+					}
+					auto foodNeeded = createAction.m_daysToExplore;
+
+					if (inventorySource.m_collectedYields[ECS_Core::Components::Yields::FOOD] < foodNeeded)
+					{
+						continue;
+					}
+
+					// We have what's needed to make the scout
+					auto unitHandle = m_managerRef.createHandle();
+					auto& unitInventory = m_managerRef.addComponent<ECS_Core::Components::C_ResourceInventory>(unitHandle);
+					m_managerRef.addComponent<ECS_Core::Components::C_TilePosition>(unitHandle).m_position = createAction.m_spawningPosition;
+					m_managerRef.addComponent<ECS_Core::Components::C_PositionCartesian>(unitHandle);
+
+					unitInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = foodNeeded;
+					inventorySource.m_collectedYields[ECS_Core::Components::Yields::FOOD] -= foodNeeded;
+					MovePopulations(
+						popSource,
+						m_managerRef.addComponent<ECS_Core::Components::C_Population>(unitHandle),
+						5,
+						0);
+
+					auto& movementPlan = m_managerRef.addComponent<ECS_Core::Components::C_MovingUnit>(unitHandle);
+					ECS_Core::Components::ExplorationPlan explorePlan;
+					explorePlan.m_daysToExplore = createAction.m_daysToExplore;
+					explorePlan.m_direction = createAction.m_exploreDirection;
+					explorePlan.m_leavingYear = time.m_year;
+					explorePlan.m_leavingMonth = time.m_month;
+					explorePlan.m_leavingDay = time.m_day;
+
+					movementPlan.m_explorationPlan = explorePlan;
+					movementPlan.m_movementPerDay = createAction.m_movementSpeed;
+
+					auto& graphics = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(unitHandle);
+					auto unitGraphic = std::make_shared<sf::CircleShape>(2.5f, 5);
+					unitGraphic->setFillColor({ 240, 30, 0 });
+					graphics.m_drawables[ECS_Core::Components::DrawLayer::UNIT][0].push_back({ unitGraphic, {} });
 				}
 			}
 			return ecs::IterationBehavior::CONTINUE;

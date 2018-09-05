@@ -2134,6 +2134,63 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindSingleQuadrantPa
 	return std::nullopt;
 }
 
+void WorldTile::ProcessPlanDirectionScout(
+	const Action::LocalPlayer::PlanDirectionScout& planDirectionScout,
+	const ecs::EntityIndex & governorEntity)
+{// spawn menu with 8 direction buttons
+					// TODO: Also select mission duration
+					// Entity will also hold:
+					// * Spawning building
+					// * Owning governor
+	auto directionMenuHandle = m_managerRef.createHandle();
+	auto& scoutPlan = m_managerRef.addComponent<ECS_Core::Components::C_ScoutingPlan>(directionMenuHandle);
+	scoutPlan.m_sourceBuildingHandle = planDirectionScout.m_scoutSource;
+	scoutPlan.m_governorHandle = m_managerRef.getHandle(governorEntity);
+
+	auto& uiFrame = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(directionMenuHandle);
+	uiFrame.m_size = { 150,150 };
+	uiFrame.m_topLeftCorner = { 50, 300 };
+	auto& graphics = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(directionMenuHandle);
+	static const std::map<Direction, CartesianVector2<f64>> directionOffsets
+	{
+		{ Direction::NORTH,{ 60, 0 } },
+	{ Direction::NORTHWEST,{ 0, 0 } },
+	{ Direction::WEST,{ 0, 60 } },
+	{ Direction::SOUTHWEST,{ 0, 120 } },
+	{ Direction::SOUTH,{ 60, 120 } },
+	{ Direction::SOUTHEAST,{ 120, 120 } },
+	{ Direction::EAST,{ 120, 60 } },
+	{ Direction::NORTHEAST,{ 120, 0 } },
+	};
+
+	auto background = std::make_shared<sf::RectangleShape>(sf::Vector2f{ 150.f, 150.f });
+	background->setFillColor({ 6,6,6 });
+
+	graphics.m_drawables[ECS_Core::Components::DrawLayer::MENU][5].push_back({ background,{} });
+
+	for (auto&& direction : c_directions)
+	{
+		ECS_Core::Components::Button directionButton;
+		directionButton.m_topLeftCorner = directionOffsets.at(direction);
+		directionButton.m_size = { 30,30 };
+		directionButton.m_onClick = [direction, &manager = m_managerRef](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
+			auto& scoutPlan = manager.getComponent<ECS_Core::Components::C_ScoutingPlan>(clickedEntity);
+			auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(scoutPlan.m_sourceBuildingHandle);
+			manager.addTag<ECS_Core::Tags::T_Dead>(clickedEntity);
+			return Action::CreateExplorationUnit(sourcePosition.m_position,
+				manager.getEntityIndex(scoutPlan.m_sourceBuildingHandle),
+				5,
+				500,
+				direction);
+		};
+		uiFrame.m_buttons.push_back(directionButton);
+
+		auto buttonGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f{ 30.f,30.f });
+		buttonGraphic->setFillColor({ 130,130,130 });
+		graphics.m_drawables[ECS_Core::Components::DrawLayer::MENU][6].push_back({ buttonGraphic, directionOffsets.at(direction) });
+	}
+}
+
 void WorldTile::ProgramInit() {}
 void WorldTile::SetupGameplay() {
 	std::thread([this]() {
@@ -2471,59 +2528,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				}
 				else if (std::holds_alternative<Action::LocalPlayer::PlanDirectionScout>(action))
 				{
-					auto& planDirectionScout = std::get<Action::LocalPlayer::PlanDirectionScout>(action);
-					// spawn menu with 8 direction buttons
-					// TODO: Also select mission duration
-					// Entity will also hold:
-					// * Spawning building
-					// * Owning governor
-					auto directionMenuHandle = m_managerRef.createHandle();
-					auto& scoutPlan = m_managerRef.addComponent<ECS_Core::Components::C_ScoutingPlan>(directionMenuHandle);
-					scoutPlan.m_sourceBuildingHandle = planDirectionScout.m_scoutSource;
-					scoutPlan.m_governorHandle = m_managerRef.getHandle(governorEntity);
-
-					auto& uiFrame = m_managerRef.addComponent<ECS_Core::Components::C_UIFrame>(directionMenuHandle);
-					uiFrame.m_size = { 150,150 };
-					uiFrame.m_topLeftCorner = { 50, 300 };
-					auto& graphics = m_managerRef.addComponent<ECS_Core::Components::C_SFMLDrawable>(directionMenuHandle);
-					static const std::map<Direction, CartesianVector2<f64>> directionOffsets
-					{
-						{ Direction::NORTH,{ 60, 0 } },
-						{ Direction::NORTHWEST,{ 0, 0 } },
-						{ Direction::WEST,{ 0, 60 } },
-						{ Direction::SOUTHWEST,{ 0, 120 } },
-						{ Direction::SOUTH,{ 60, 120 } },
-						{ Direction::SOUTHEAST,{ 120, 120 } },
-						{ Direction::EAST,{ 120, 60 } },
-						{ Direction::NORTHEAST,{ 120, 0 } },
-					};
-
-					auto background = std::make_shared<sf::RectangleShape>(sf::Vector2f{ 150.f, 150.f });
-					background->setFillColor({ 6,6,6 });
-
-					graphics.m_drawables[ECS_Core::Components::DrawLayer::MENU][5].push_back({ background, {} });
-
-					for (auto&& direction : c_directions)
-					{
-						ECS_Core::Components::Button directionButton;
-						directionButton.m_topLeftCorner = directionOffsets.at(direction);
-						directionButton.m_size = { 30,30 };
-						directionButton.m_onClick = [direction, &manager](const ecs::EntityIndex& /*clicker*/, const ecs::EntityIndex& clickedEntity) {
-							auto& scoutPlan = manager.getComponent<ECS_Core::Components::C_ScoutingPlan>(clickedEntity);
-							auto& sourcePosition = manager.getComponent<ECS_Core::Components::C_TilePosition>(scoutPlan.m_sourceBuildingHandle);
-							manager.addTag<ECS_Core::Tags::T_Dead>(clickedEntity);
-							return Action::CreateExplorationUnit(sourcePosition.m_position,
-								manager.getEntityIndex(scoutPlan.m_sourceBuildingHandle),
-								5,
-								500,
-								direction);
-						};
-						uiFrame.m_buttons.push_back(directionButton);
-
-						auto buttonGraphic = std::make_shared<sf::RectangleShape>(sf::Vector2f{ 30.f,30.f });
-						buttonGraphic->setFillColor({ 130,130,130 });
-						graphics.m_drawables[ECS_Core::Components::DrawLayer::MENU][6].push_back({ buttonGraphic, directionOffsets.at(direction) });
-					}
+					ProcessPlanDirectionScout(std::get<Action::LocalPlayer::PlanDirectionScout>(action), governorEntity);
 				}
 				else if (std::holds_alternative<Action::LocalPlayer::CancelMovementPlan>(action))
 				{

@@ -25,6 +25,11 @@ public:
 	virtual ~Government() {}
 	virtual void ProgramInit() override;
 	virtual void SetupGameplay() override;
+	void MovePopulations(
+		ECS_Core::Components::C_Population& populationSource,
+		ECS_Core::Components::C_Population& populationTarget,
+		int totalMenToMove,
+		int totalWomenToMove);
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:

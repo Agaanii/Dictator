@@ -55,9 +55,9 @@ void Movement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			ECS_Core::Components::C_MovingUnit& mover,
 			const ECS_Core::Components::C_Population&)
 	{
-		if (mover.m_currentMovement && std::holds_alternative<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement))
+		if (mover.m_currentMovement)
 		{
-			auto& pointMovement = std::get<ECS_Core::Components::MoveToPoint>(*mover.m_currentMovement);
+			auto& pointMovement = *mover.m_currentMovement;
 			pointMovement.m_currentMovementProgress += time.m_frameDuration * mover.m_movementPerDay;
 			while (pointMovement.m_currentMovementProgress >= pointMovement.m_path[pointMovement.m_currentPathIndex].m_movementCost)
 			{

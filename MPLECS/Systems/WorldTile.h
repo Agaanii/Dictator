@@ -217,6 +217,7 @@ protected:
 	void ProcessSelectTile(const Action::LocalPlayer::SelectTile & select, const ecs::EntityIndex & governorEntity);
 	void ProcessPlanTargetedMotion(Action::LocalPlayer::PlanTargetedMotion & planMotion, const ecs::EntityIndex & governorEntity);
 	void ProcessPlanCaravan(Action::LocalPlayer::PlanCaravan & planMotion, const ecs::EntityIndex & governorEntity);
+	void ProcessPlanDirectionScout(const Action::LocalPlayer::PlanDirectionScout& planDirectionScout, const ecs::EntityIndex & governorEntity);
 	void CancelMovementPlans();
 
 	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition & sourcePosition, const TilePosition & targetPosition);
