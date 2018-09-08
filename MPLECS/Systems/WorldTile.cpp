@@ -719,6 +719,7 @@ std::thread WorldTile::SpawnQuadrant(const CoordinateVector2& coordinates)
 			if (southQuadrantIter != m_spawnedQuadrants.end()) { FillCrossQuadrantPaths(southQuadrantIter->second, southQuadrantIter->first); }
 			if (westQuadrantIter != m_spawnedQuadrants.end()) { FillCrossQuadrantPaths(westQuadrantIter->second, westQuadrantIter->first); }
 		}
+		quadrant.m_spawningComplete = true;
 	});
 }
 
@@ -1051,16 +1052,20 @@ WorldTile::WorldCoordinates WorldTile::WorldPositionToCoordinates(const Coordina
 	auto offsetFromQuadrantOrigin = worldPos - CoordinateVector2(
 		BASE_QUADRANT_ORIGIN_COORDINATE,
 		BASE_QUADRANT_ORIGIN_COORDINATE);
-	return TilePosition{
-		{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
-		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) },
-
-	{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
-	min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH) },
-
-	{ min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
-	min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH }
-	};
+	auto quadrantCoords = CoordinateVector2(
+		min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)),
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) / (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)));
+	auto sectorCoords = CoordinateVector2(
+		min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH),
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (QUADRANT_SIDE_LENGTH * SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH));
+	auto tileCoords = CoordinateVector2(
+		min(0, sign(offsetFromQuadrantOrigin.m_x)) + sign(offsetFromQuadrantOrigin.m_x) * (abs(offsetFromQuadrantOrigin.m_x) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH,
+		min(0, sign(offsetFromQuadrantOrigin.m_y)) + sign(offsetFromQuadrantOrigin.m_y) * (abs(offsetFromQuadrantOrigin.m_y) % (SECTOR_SIDE_LENGTH * TILE_SIDE_LENGTH)) / TILE_SIDE_LENGTH);
+	while (tileCoords.m_x < 0) tileCoords.m_x += SECTOR_SIDE_LENGTH;
+	while (tileCoords.m_y < 0) tileCoords.m_y += SECTOR_SIDE_LENGTH;
+	while (sectorCoords.m_x < 0) sectorCoords.m_x += QUADRANT_SIDE_LENGTH;
+	while (sectorCoords.m_y < 0) sectorCoords.m_y += QUADRANT_SIDE_LENGTH;
+	return { quadrantCoords, sectorCoords, tileCoords };
 }
 
 CoordinateVector2 WorldTile::CoordinatesToWorldPosition(const WorldCoordinates& worldCoords)
@@ -1457,6 +1462,7 @@ std::optional<WorldTile::Tile*> WorldTile::GetTile(const TilePosition& buildingT
 		FetchQuadrant(buildingTilePos.m_quadrantCoords);
 		return std::nullopt;
 	}
+	if (!FetchQuadrant(buildingTilePos.m_quadrantCoords).m_spawningComplete) return std::nullopt;
 	return &FetchQuadrant(buildingTilePos.m_quadrantCoords)
 		.m_sectors[buildingTilePos.m_sectorCoords.m_x][buildingTilePos.m_sectorCoords.m_y]
 		.m_tiles[buildingTilePos.m_coords.m_x][buildingTilePos.m_coords.m_y];
@@ -1548,7 +1554,8 @@ void WorldTile::ProcessSelectTile(
 			const ecs::EntityIndex& entity,
 			const ECS_Core::Components::C_TilePosition& position,
 			const ECS_Core::Components::C_MovingUnit&,
-			const ECS_Core::Components::C_Population&) {
+			const ECS_Core::Components::C_Population&,
+			const ECS_Core::Components::C_Vision&) {
 		if (select.m_position == position.m_position)
 		{
 			if (!manager.hasComponent<ECS_Core::Components::C_Selection>(entity))
@@ -2191,6 +2198,22 @@ void WorldTile::ProcessPlanDirectionScout(
 	}
 }
 
+void WorldTile::CollectTiles(std::set<TilePosition>& possibleTiles, int movesRemaining, const TilePosition& position)
+{
+	auto tile = GetTile(position);
+	if (!tile) return;
+	if (!(*tile)->m_movementCost) return;
+	if (!possibleTiles.insert(position).second) return;
+	if (movesRemaining <= 0)
+	{
+		return;
+	}
+	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ 0, TileConstants::TILE_SIDE_LENGTH }));
+	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ 0, -TileConstants::TILE_SIDE_LENGTH }));
+	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ TileConstants::TILE_SIDE_LENGTH, 0 }));
+	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ -TileConstants::TILE_SIDE_LENGTH, 0 }));
+}
+
 void WorldTile::ProgramInit() {}
 void WorldTile::SetupGameplay() {
 	std::thread([this]() {
@@ -2370,6 +2393,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					manager.addComponent<ECS_Core::Components::C_TilePosition>(newEntity).m_position = path->m_path.front().m_tile;
 					manager.addComponent<ECS_Core::Components::C_PositionCartesian>(newEntity);
 					auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+					manager.addComponent<ECS_Core::Components::C_Vision>(newEntity);
 					auto& caravanPath = manager.addComponent<ECS_Core::Components::C_CaravanPath>(newEntity);
 					movingUnit.m_currentMovement = *path;
 					caravanPath.m_basePath = *path;
@@ -2479,8 +2503,111 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		});
 		break;
 	case GameLoopPhase::ACTION:
+	{
 		// Grow territories that are able to do so before taking any actions
 		GrowTerritories();
+
+		auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(
+			m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front());
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
+			[this, &time](
+				const ecs::EntityIndex&,
+				const ECS_Core::Components::C_TilePosition& tilePosition,
+				ECS_Core::Components::C_MovingUnit& movement,
+				const ECS_Core::Components::C_Population&,
+				const ECS_Core::Components::C_Vision& vision)
+		{
+			if (!movement.m_explorationPlan)
+			{
+				// Only interested in explorers
+				return ecs::IterationBehavior::CONTINUE;
+			}
+			if (movement.m_currentMovement)
+			{
+				// Only interested in the ones that aren't currently on a path
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			auto daysInCurrentDate = ((time.m_year * 12) + time.m_month) * 30 + time.m_day;
+			auto leaveTimeTotalDays =
+				((movement.m_explorationPlan->m_leavingYear * 12)
+					+ movement.m_explorationPlan->m_leavingMonth) * 30
+					+ movement.m_explorationPlan->m_leavingDay;
+			if (daysInCurrentDate - leaveTimeTotalDays > movement.m_explorationPlan->m_daysToExplore)
+			{
+				if (tilePosition.m_position == movement.m_explorationPlan->m_homeBase)
+				{
+					// Re-integrate, give info
+				}
+				else
+				{
+					auto path = GetPath(tilePosition.m_position, movement.m_explorationPlan->m_homeBase);
+					if (path)
+					{
+						movement.m_currentMovement = path;
+					}
+				}
+			}
+			else
+			{
+				// generate set of tiles the dude can see
+				std::set<TilePosition> possibleTiles;
+				CollectTiles(possibleTiles, vision.m_visionRadius, tilePosition.m_position);
+				// order them by angle with exploration direction, secondary by length
+				auto sortFunction = [&movement, &tilePosition, this](
+					const TilePosition& left,
+					const TilePosition& right) -> bool
+				{
+					static const std::map<Direction, CoordinateVector2> c_angles = {
+						{ Direction::NORTH,{ 0, -1 } },
+					{ Direction::NORTHEAST,{ 1, -1 } },
+					{ Direction::EAST,{ 1, 0 } },
+					{ Direction::SOUTHEAST,{ 1, 1 } },
+					{ Direction::SOUTH,{ 0, 1 } },
+					{ Direction::SOUTHWEST,{ -1, 1 } },
+					{ Direction::WEST,{ -1, 0 } },
+					{ Direction::NORTHWEST,{ -1, -1 } },
+					};
+
+					auto leftDifference = CoordinatesToWorldPosition(left) - CoordinatesToWorldPosition(tilePosition.m_position);
+					auto rightDifference = CoordinatesToWorldPosition(right) - CoordinatesToWorldPosition(tilePosition.m_position);
+
+					if (leftDifference.MagnitudeSq() == 0 && rightDifference.MagnitudeSq() == 0) return false;
+					if (leftDifference.MagnitudeSq() == 0) return false;
+					if (rightDifference.MagnitudeSq() == 0) return true;
+
+					auto& directionVector = c_angles.at(movement.m_explorationPlan->m_direction);
+					// Which is closer in angle to the target direction?
+					auto leftDot = directionVector.m_x * leftDifference.m_x + directionVector.m_y * leftDifference.m_y;
+					auto rightDot = directionVector.m_x * rightDifference.m_x + directionVector.m_y * rightDifference.m_y;
+
+					auto leftAngle = acos(1. * leftDot / (sqrt(leftDifference.MagnitudeSq()) * sqrt(directionVector.MagnitudeSq())));
+					auto rightAngle = acos(1. * rightDot / (sqrt(rightDifference.MagnitudeSq()) * sqrt(directionVector.MagnitudeSq())));
+					if (leftAngle < rightAngle) return true;
+					if (rightAngle < leftAngle) return false;
+
+					// Take the farther one
+					return leftDifference.MagnitudeSq() > rightDifference.MagnitudeSq();
+				};
+
+				std::vector<TilePosition> positionVector(possibleTiles.begin(), possibleTiles.end());
+				std::sort(positionVector.begin(), positionVector.end(), sortFunction);
+
+				// Iterate through until we get a valid path
+				for (auto&& position : positionVector)
+				{
+					auto path = GetPath(tilePosition.m_position, position);
+					if (path)
+					{
+						movement.m_currentMovement = path;
+						break;
+					}
+				}
+			}
+
+			return ecs::IterationBehavior::CONTINUE;
+		});
+	}
 		break;
 
 	case GameLoopPhase::ACTION_RESPONSE:

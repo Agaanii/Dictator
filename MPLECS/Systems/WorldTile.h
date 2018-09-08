@@ -119,6 +119,8 @@ protected:
 			m_sectorCrossingPaths;
 		std::array<std::map<s64, std::vector<s64>>, static_cast<int>(PathingDirection::_COUNT)> m_pathingBorderSectorCandidates;
 		std::array<std::optional<s64>, static_cast<int>(PathingDirection::_COUNT)> m_pathingBorderSectors;
+
+		bool m_spawningComplete{ false };
 	};
 	using SpawnedQuadrantMap = std::map<QuadrantId, Quadrant>;
 
@@ -249,6 +251,8 @@ protected:
 	CoordinateVector2 FindNearestQuadrant(const SpawnedQuadrantMap & searchedQuadrants, const CoordinateVector2 & quadrantCoords);
 
 	CoordinateVector2 FindNearestQuadrant(const CoordinateFromOriginSet & searchedQuadrants, const CoordinateVector2 & quadrantCoords);
+
+	void CollectTiles(std::set<TilePosition>& possibleTiles, int movesRemaining, const TilePosition& position);
 
 	SpawnedQuadrantMap m_spawnedQuadrants;
 	Pathing::DirectionMovementCostMap m_quadrantMovementCosts;

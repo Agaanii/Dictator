@@ -283,6 +283,7 @@ namespace ECS_Core
 			int m_leavingDay;
 			// Once time matches days to explore + leaving time, turn around and return home
 			s64 m_daysToExplore;
+			TilePosition m_homeBase;
 		};
 		struct MovementTilePosition
 		{
@@ -340,6 +341,11 @@ namespace ECS_Core
 			ecs::Impl::Handle m_sourceBuildingHandle;
 			ecs::Impl::Handle m_governorHandle;
 		};
+
+		struct C_Vision
+		{
+			int m_visionRadius{ 10 };
+		};
 	}
 
 	namespace Tags
@@ -380,7 +386,7 @@ namespace ECS_Core
 		using S_UserIO = ecs::Signature<Components::C_UserInputs, Components::C_ActionPlan>;
 		using S_Planner = ecs::Signature<Components::C_ActionPlan>;
 		using S_WealthPlanner = ecs::Signature<Components::C_ActionPlan, Components::C_Realm>;
-		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population>;
+		using S_MovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Vision>;
 		using S_SelectedMovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Selection>;
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
 		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population, Components::C_CaravanPath>;
@@ -420,7 +426,8 @@ namespace ECS_Core
 		Components::C_MovementTarget,
 		Components::C_CaravanPlan,
 		Components::C_CaravanPath,
-		Components::C_ScoutingPlan
+		Components::C_ScoutingPlan,
+		Components::C_Vision
 	>;
 
 	using MasterTagList = ecs::TagList<

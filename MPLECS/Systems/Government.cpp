@@ -477,6 +477,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 							// Spawn entity for the unit, then take costs and population
 							auto newEntity = manager.createHandle();
 							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+							manager.addComponent<ECS_Core::Components::C_Vision>(newEntity);
 							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
 							moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
 							MovePopulations(
@@ -490,6 +491,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						{
 							auto newEntity = manager.createHandle();
 							auto& movingUnit = manager.addComponent<ECS_Core::Components::C_MovingUnit>(newEntity);
+							manager.addComponent<ECS_Core::Components::C_Vision>(newEntity);
 
 							auto& population = manager.addComponent<ECS_Core::Components::C_Population>(newEntity);
 							auto& moverInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(newEntity);
@@ -590,6 +592,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						5,
 						0);
 
+					manager.addComponent<ECS_Core::Components::C_Vision>(unitHandle);
 					auto& movementPlan = m_managerRef.addComponent<ECS_Core::Components::C_MovingUnit>(unitHandle);
 					ECS_Core::Components::ExplorationPlan explorePlan;
 					explorePlan.m_daysToExplore = createAction.m_daysToExplore;
@@ -597,6 +600,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					explorePlan.m_leavingYear = time.m_year;
 					explorePlan.m_leavingMonth = time.m_month;
 					explorePlan.m_leavingDay = time.m_day;
+					explorePlan.m_homeBase = createAction.m_spawningPosition;
 
 					movementPlan.m_explorationPlan = explorePlan;
 					movementPlan.m_movementPerDay = createAction.m_movementSpeed;

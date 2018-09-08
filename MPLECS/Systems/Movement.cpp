@@ -53,7 +53,8 @@ void Movement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			ecs::EntityIndex mI,
 			ECS_Core::Components::C_TilePosition& tilePosition,
 			ECS_Core::Components::C_MovingUnit& mover,
-			const ECS_Core::Components::C_Population&)
+			const ECS_Core::Components::C_Population&,
+			const ECS_Core::Components::C_Vision&)
 	{
 		if (mover.m_currentMovement)
 		{
@@ -65,6 +66,10 @@ void Movement::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				pointMovement.m_currentPathIndex = min<int>(++pointMovement.m_currentPathIndex, static_cast<int>(pointMovement.m_path.size()) - 1);
 			}
 			tilePosition.m_position = pointMovement.m_path[pointMovement.m_currentPathIndex].m_tile;
+			if (mover.m_explorationPlan && pointMovement.m_currentPathIndex == pointMovement.m_path.size() - 1)
+			{
+				mover.m_currentMovement.reset();
+			}
 		}
 		return ecs::IterationBehavior::CONTINUE;
 	});
