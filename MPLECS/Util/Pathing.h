@@ -130,10 +130,14 @@ namespace Pathing
 		{
 			return std::nullopt;
 		}
-		bool visited[X][Y];
-		int costToPoint[X][Y];
-		int pointHeuristic[X][Y];
-		PathingDirection fastestDirectionIntoNode[X][Y];
+		auto visitedPtr = std::make_unique<std::array<std::array<bool, Y>, X>>();
+		auto& visited = *visitedPtr;
+		auto costToPointPtr = std::make_unique<std::array<std::array<int, Y>, X>>();
+		auto& costToPoint = *costToPointPtr;
+		auto pointHeuristicPtr = std::make_unique<std::array<std::array<int, Y>, X>>();
+		auto& pointHeuristic = *pointHeuristicPtr;
+		auto fastestDirectionIntoNodePtr = std::make_unique<std::array<std::array<PathingDirection, Y>, X>>();
+		auto& fastestDirectionIntoNode = *fastestDirectionIntoNodePtr;
 		for (auto i = 0; i < X; ++i)
 		{
 			for (auto j = 0; j < Y; ++j)
@@ -252,10 +256,15 @@ namespace Pathing
 		{
 			return std::nullopt;
 		}
-		bool visited[X][Y][static_cast<int>(PathingDirection::_COUNT) + 1][static_cast<int>(PathingDirection::_COUNT) + 1];
-		int costToPoint[X][Y][static_cast<int>(PathingDirection::_COUNT) + 1][static_cast<int>(PathingDirection::_COUNT) + 1];
-		int pointHeuristic[X][Y];
-		PathingDirection fastestDirectionIntoNode[X][Y];
+
+		auto visitedPtr = std::make_unique<std::array<std::array<std::array<std::array<bool, static_cast<int>(PathingDirection::_COUNT) + 1>, static_cast<int>(PathingDirection::_COUNT) + 1>, Y>, X>>();
+		auto& visited = *visitedPtr;
+		auto costToPointPtr = std::make_unique<std::array<std::array<std::array<std::array<int, static_cast<int>(PathingDirection::_COUNT) + 1>, static_cast<int>(PathingDirection::_COUNT) + 1>, Y>, X>>();
+		auto& costToPoint = *costToPointPtr;
+		auto pointHeuristicPtr = std::make_unique<std::array<std::array<int, Y>, X>>();
+		auto& pointHeuristic = *pointHeuristicPtr;
+		auto fastestDirectionIntoNodePtr = std::make_unique<std::array<std::array<PathingDirection, Y>, X>>();
+		auto& fastestDirectionIntoNode = *fastestDirectionIntoNodePtr;
 		for (auto i = 0; i < X; ++i)
 		{
 			for (auto j = 0; j < Y; ++j)

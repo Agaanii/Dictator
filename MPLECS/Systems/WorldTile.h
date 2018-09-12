@@ -100,23 +100,32 @@ protected:
 
 		sf::Texture m_texture;
 
-		std::array<
+		template<int X, int Y>
+		using PathCostArray =
 			std::array<
 				std::array<
-					std::array<std::optional<int>, static_cast<int>(PathingDirection::_COUNT) + 1>,
-					static_cast<int>(PathingDirection::_COUNT) + 1>,
-				TileConstants::QUADRANT_SIDE_LENGTH>,
-			TileConstants::QUADRANT_SIDE_LENGTH>
+					std::array<
+						std::array<std::optional<int>, static_cast<int>(PathingDirection::_COUNT) + 1>, // Exit
+						static_cast<int>(PathingDirection::_COUNT) + 1>, // Entry
+					Y>,
+				X>;
+
+		template<int X, int Y>
+		using PathArray = 
+			std::array<
+				std::array<
+					std::array<
+						std::array<std::optional<std::deque<CoordinateVector2>>, static_cast<int>(PathingDirection::_COUNT) + 1>, // Exit
+						static_cast<int>(PathingDirection::_COUNT) + 1>, // Entry
+					Y>,
+				X>;
+
+		PathCostArray <TileConstants::QUADRANT_SIDE_LENGTH, TileConstants::QUADRANT_SIDE_LENGTH>
 			m_sectorCrossingPathCosts;
 
-		std::array<
-			std::array<
-				std::array<
-					std::array<std::optional<std::deque<CoordinateVector2>>, static_cast<int>(PathingDirection::_COUNT) + 1>,
-					static_cast<int>(PathingDirection::_COUNT) + 1>,
-				TileConstants::QUADRANT_SIDE_LENGTH>,
-			TileConstants::QUADRANT_SIDE_LENGTH>
+		PathArray <TileConstants::QUADRANT_SIDE_LENGTH, TileConstants::QUADRANT_SIDE_LENGTH>
 			m_sectorCrossingPaths;
+
 		std::array<std::map<s64, std::vector<s64>>, static_cast<int>(PathingDirection::_COUNT)> m_pathingBorderSectorCandidates;
 		std::array<std::optional<s64>, static_cast<int>(PathingDirection::_COUNT)> m_pathingBorderSectors;
 
@@ -224,6 +233,22 @@ protected:
 
 	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition & sourcePosition, const TilePosition & targetPosition);
 	
+	template<int X, int Y>
+	std::optional<std::deque<TilePosition>> FindSingleQuadrantPath(
+		Quadrant::PathCostArray<X,Y>& pathCosts,
+		Quadrant::PathArray<X,Y>& paths,
+		const TilePosition& sourcePosition,
+		const TilePosition& targetPosition);
+	template <int X, int Y>
+	void PrepareStartAndEndSectorPaths(
+		const WorldTile::Sector& startingSector,
+		const CoordinateVector2& sourceTilePosition,
+		const CoordinateVector2& sourceSectorCoords,
+		Quadrant::PathCostArray<X, Y>& pathCosts,
+		Quadrant::PathArray<X, Y>& paths,
+		const WorldTile::Sector& endingSector,
+		const CoordinateVector2& targetTilePosition,
+		const CoordinateVector2& targetSectorCoords);
 	std::optional<ECS_Core::Components::MoveToPoint> FindSingleQuadrantPath(
 		const WorldTile::Quadrant& quadrant,
 		const TilePosition& sourcePosition,
@@ -233,6 +258,7 @@ protected:
 		const TilePosition& sourcePosition,
 		const TilePosition& targetPosition);
 
+	std::optional<CoordinateVector2> GetSectorBorderTile(const Sector& sector, PathingDirection direction) const;
 
 	struct SortByOriginDist
 	{
