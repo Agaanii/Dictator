@@ -74,10 +74,14 @@ protected:
 		std::array<
 			std::array<Tile, TileConstants::SECTOR_SIDE_LENGTH>,
 			TileConstants::SECTOR_SIDE_LENGTH> m_tiles;
+		template <int X, int Y>
+		using MovementCostArray = std::array<
+			std::array<std::optional<int>, Y>, X>;
+		
+		MovementCostArray<TileConstants::SECTOR_SIDE_LENGTH, TileConstants::SECTOR_SIDE_LENGTH> m_tileMovementCosts;
 
-		std::array<
-			std::array<std::optional<int>, TileConstants::SECTOR_SIDE_LENGTH>,
-			TileConstants::SECTOR_SIDE_LENGTH> m_tileMovementCosts;
+		template <int SX, int SY, int X, int Y>
+		using MultiSectorMovementArray = std::array<std::array<std::array<std::array<std::optional<int>, Y>, X>, SY>, SX>;
 
 		// Relevant index of the tile on each border being used for 
 		// pathing between sectors
@@ -233,10 +237,11 @@ protected:
 
 	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition & sourcePosition, const TilePosition & targetPosition);
 	
-	template<int X, int Y>
+	template<int SX, int SY, int X, int Y>
 	std::optional<std::deque<TilePosition>> FindSingleQuadrantPath(
-		Quadrant::PathCostArray<X,Y>& pathCosts,
-		Quadrant::PathArray<X,Y>& paths,
+		Quadrant::PathCostArray<SX, SY>& pathCosts,
+		Quadrant::PathArray<SX, SY>& paths,
+		const Sector::MultiSectorMovementArray<SX, SY, X, Y>& sectorMovementCosts,
 		const TilePosition& sourcePosition,
 		const TilePosition& targetPosition);
 	template <int X, int Y>
@@ -253,8 +258,9 @@ protected:
 		const WorldTile::Quadrant& quadrant,
 		const TilePosition& sourcePosition,
 		const TilePosition& targetPosition);
+	template <int X, int Y>
 	std::optional<ECS_Core::Components::MoveToPoint> FindSingleSectorPath(
-		const WorldTile::Sector& sector,
+		const Sector::MovementCostArray<X, Y>& movementCosts,
 		const TilePosition& sourcePosition,
 		const TilePosition& targetPosition);
 
