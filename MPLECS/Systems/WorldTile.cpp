@@ -800,7 +800,7 @@ void WorldTile::FillCrossQuadrantPaths(Quadrant& quadrant, const CoordinateVecto
 }
 
 std::optional<TilePosition> WorldTile::GetQuadrantSideTile(
-	Quadrant& quadrant,
+	const Quadrant& quadrant,
 	const CoordinateVector2& quadrantCoords,
 	int direction)
 {
@@ -1889,350 +1889,357 @@ std::optional<ECS_Core::Components::MoveToPoint> WorldTile::GetPath(
 		auto& targetQuadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
 		auto& sourceQuadrant = FetchQuadrant(sourcePosition.m_quadrantCoords);
 
-		// Get shortest path between quadrants
-
-		auto quadrantPathCostCopyPtr = std::make_unique<decltype(m_quadrantMovementCosts)>(m_quadrantMovementCosts);
-		auto& quadrantPathCostCopy = *quadrantPathCostCopyPtr;
-		auto quadrantPathCopyPtr = std::make_unique<decltype(m_quadrantPaths)>(m_quadrantPaths);
-		auto& quadrantPathCopy = *quadrantPathCopyPtr;
-		// Fill in the cost from current point to each side
-		for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
-		{
-			auto startingExitTile = GetQuadrantSideTile(sourceQuadrant, sourcePosition.m_quadrantCoords, direction);
-			if (startingExitTile)
-			{
-				auto startingPath =
-					FindSingleQuadrantPath(sourceQuadrant, sourcePosition, *startingExitTile);
-				if (startingPath)
-				{
-					quadrantPathCostCopy[sourcePosition.m_quadrantCoords]
-						[static_cast<int>(PathingDirection::_COUNT)][direction]
-						= startingPath->m_totalPathCost;
-					quadrantPathCopy[sourcePosition.m_quadrantCoords]
-						[static_cast<int>(PathingDirection::_COUNT)][direction]
-						= startingPath->m_path;
-				}
-			}
-			auto endingEntranceTile = GetQuadrantSideTile(targetQuadrant, targetPosition.m_quadrantCoords, direction);
-			if (endingEntranceTile)
-			{
-				auto endingPath = 
-					FindSingleQuadrantPath(targetQuadrant, *endingEntranceTile, targetPosition);
-				if (endingPath)
-				{
-					quadrantPathCostCopy[targetPosition.m_quadrantCoords]
-						[direction][static_cast<int>(PathingDirection::_COUNT)]
-						= endingPath->m_totalPathCost;
-					quadrantPathCopy[targetPosition.m_quadrantCoords]
-						[direction][static_cast<int>(PathingDirection::_COUNT)]
-						= endingPath->m_path;
-				}
-			}
-		}
-
-		auto quadrantPath = Pathing::GetPath(
-			quadrantPathCostCopy,
-			sourcePosition.m_quadrantCoords,
-			targetPosition.m_quadrantCoords);
-
-		if (quadrantPath)
-		{
-			if (quadrantPath->m_path.size() <= 3)
-			{
-				// We run a risk of the path being obviously inefficient because of our
-				// multi-level pathing
-				// Glue all the quadrants in the path together and get a path with the same algorithm as we
-				// use for single-quadrant paths.
-				// This avoids the inefficient appearance for local pathing which may cross a border.
-
-				auto& firstQuadrant = quadrantPath->m_path.front();
-				auto& lastQuadrant = quadrantPath->m_path.back();
-				std::vector<CoordinateVector2> involvedQuadrants;
-
-				if (firstQuadrant.m_node.m_x == lastQuadrant.m_node.m_x)
-				{
-					// A bit of a waste of space if there are only 2
-					// Shame
-					auto sectorCrossingPathCostsPtr = std::make_unique<
-						Quadrant::PathCostArray<TileConstants::QUADRANT_SIDE_LENGTH, TileConstants::QUADRANT_SIDE_LENGTH * 3>>();
-					auto& sectorCrossingPathCosts = *sectorCrossingPathCostsPtr;
-
-					auto sectorCrossingPathsPtr = std::make_unique<
-						Quadrant::PathArray<TileConstants::QUADRANT_SIDE_LENGTH, TileConstants::QUADRANT_SIDE_LENGTH * 3>>();
-					auto& sectorCrossingPaths = *sectorCrossingPathsPtr;
-
-					auto tileMovementsPtr = std::make_unique<Sector::MultiSectorMovementArray<
-						TileConstants::QUADRANT_SIDE_LENGTH,
-						TileConstants::QUADRANT_SIDE_LENGTH * 3,
-						TileConstants::SECTOR_SIDE_LENGTH,
-						TileConstants::SECTOR_SIDE_LENGTH>>();
-					auto& tileMovements = *tileMovementsPtr;
-
-					auto leastY = min(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
-					auto greatestY = max(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
-					for (auto y = leastY; y <= greatestY; ++y)
-					{
-						auto& quadrant = FetchQuadrant({ firstQuadrant.m_node.m_x, y });
-						for (int sectorX = 0; sectorX < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorX)
-						{
-							for (int sectorY = 0; sectorY < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorY)
-							{
-								auto yIndex = sectorY + TileConstants::QUADRANT_SIDE_LENGTH * (y - leastY);
-								sectorCrossingPathCosts[sectorX][yIndex] = quadrant.m_sectorCrossingPathCosts[sectorX][sectorY];
-								sectorCrossingPaths[sectorX][yIndex] = quadrant.m_sectorCrossingPaths[sectorX][sectorY];
-								tileMovements[sectorX][yIndex] = quadrant.m_sectors[sectorX][sectorY].m_tileMovementCosts;
-							}
-						}
-					}
-					auto localOffset = TilePosition({ sourcePosition.m_quadrantCoords.m_x, leastY }, {}, {});
-					auto localSourcePosition = sourcePosition - localOffset;
-					auto localTargetPosition = targetPosition - localOffset;
-					for (; localSourcePosition.m_quadrantCoords.m_y > 0;
-						--localSourcePosition.m_quadrantCoords.m_y, localSourcePosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
-					for (; localTargetPosition.m_quadrantCoords.m_y > 0;
-						--localTargetPosition.m_quadrantCoords.m_y, localTargetPosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
-
-					auto& startingSector = FetchQuadrant(sourcePosition.m_quadrantCoords).m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
-					auto& endingSector = FetchQuadrant(targetPosition.m_quadrantCoords).m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y];
-					PrepareStartAndEndSectorPaths(
-						startingSector, sourcePosition.m_coords, localSourcePosition.m_sectorCoords,
-						sectorCrossingPathCosts, sectorCrossingPaths,
-						endingSector, targetPosition.m_coords, localTargetPosition.m_sectorCoords);
-
-					auto localPath = FindSingleQuadrantPath(sectorCrossingPathCosts, sectorCrossingPaths, tileMovements, localSourcePosition, localTargetPosition);
-					if (localPath)
-					{
-						ECS_Core::Components::MoveToPoint overallPath;
-						// Translate back from local to global
-						for (auto&& coordinate : *localPath)
-						{
-							// operator+ handles conversion back into standard size quadrants
-							auto globalCoordinate = coordinate + localOffset;
-							auto movementCost =
-								*FetchQuadrant(globalCoordinate.m_quadrantCoords).
-								m_sectors[globalCoordinate.m_sectorCoords.m_x][globalCoordinate.m_sectorCoords.m_y].
-								m_tileMovementCosts[globalCoordinate.m_coords.m_x][globalCoordinate.m_coords.m_y];
-							overallPath.m_path.push_back({
-								globalCoordinate, 
-								movementCost});
-							overallPath.m_totalPathCost += movementCost;
-						}
-						overallPath.m_targetPosition = targetPosition;
-						return overallPath;
-					}
-				}
-				else if (firstQuadrant.m_node.m_y == lastQuadrant.m_node.m_y)
-				{
-					auto sectorCrossingPathCostsPtr = std::make_unique<
-						Quadrant::PathCostArray<TileConstants::QUADRANT_SIDE_LENGTH * 3, TileConstants::QUADRANT_SIDE_LENGTH>>();
-					auto& sectorCrossingPathCosts = *sectorCrossingPathCostsPtr;
-					
-					auto sectorCrossingPathsPtr = std::make_unique<
-						Quadrant::PathArray<TileConstants::QUADRANT_SIDE_LENGTH * 3, TileConstants::QUADRANT_SIDE_LENGTH>>();
-					auto& sectorCrossingPaths = *sectorCrossingPathsPtr;
-
-					auto tileMovementsPtr = std::make_unique<Sector::MultiSectorMovementArray<
-						TileConstants::QUADRANT_SIDE_LENGTH * 3,
-						TileConstants::QUADRANT_SIDE_LENGTH,
-						TileConstants::SECTOR_SIDE_LENGTH,
-						TileConstants::SECTOR_SIDE_LENGTH>>();
-					auto& tileMovements = *tileMovementsPtr;
-
-					auto leastX = min(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
-					auto greatestX = max(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
-					for (auto x = leastX; x <= greatestX; ++x)
-					{
-						auto& quadrant = FetchQuadrant({ x, firstQuadrant.m_node.m_y});
-						for (int sectorX = 0; sectorX < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorX)
-						{
-							for (int sectorY = 0; sectorY < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorY)
-							{
-								auto xIndex = sectorX + TileConstants::QUADRANT_SIDE_LENGTH * (x - leastX);
-								sectorCrossingPathCosts[xIndex][sectorY] = quadrant.m_sectorCrossingPathCosts[sectorX][sectorY];
-								sectorCrossingPaths[xIndex][sectorY] = quadrant.m_sectorCrossingPaths[sectorX][sectorY];
-								tileMovements[xIndex][sectorY] = quadrant.m_sectors[sectorX][sectorY].m_tileMovementCosts;
-							}
-						}
-					}
-					auto localOffset = TilePosition({ leastX, sourcePosition.m_quadrantCoords.m_y }, {}, {});
-					auto localSourcePosition = sourcePosition - localOffset;
-					auto localTargetPosition = targetPosition - localOffset;
-					for (; localSourcePosition.m_quadrantCoords.m_x > 0;
-						--localSourcePosition.m_quadrantCoords.m_x, localSourcePosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
-					for (; localTargetPosition.m_quadrantCoords.m_x > 0;
-						--localTargetPosition.m_quadrantCoords.m_x, localTargetPosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
-
-					auto& startingSector = FetchQuadrant(sourcePosition.m_quadrantCoords).m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
-					auto& endingSector = FetchQuadrant(targetPosition.m_quadrantCoords).m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y];
-					PrepareStartAndEndSectorPaths(
-						startingSector, sourcePosition.m_coords, localSourcePosition.m_sectorCoords,
-						sectorCrossingPathCosts, sectorCrossingPaths,
-						endingSector, targetPosition.m_coords, localTargetPosition.m_sectorCoords);
-
-					auto localPath = FindSingleQuadrantPath(sectorCrossingPathCosts, sectorCrossingPaths, tileMovements, localSourcePosition, localTargetPosition);
-					if (localPath)
-					{
-						ECS_Core::Components::MoveToPoint overallPath;
-						// Translate back from local to global
-						for (auto&& coordinate : *localPath)
-						{
-							// operator+ handles conversion back into standard size quadrants
-							auto globalCoordinate = coordinate + localOffset;
-							auto movementCost =
-								*FetchQuadrant(globalCoordinate.m_quadrantCoords).
-								m_sectors[globalCoordinate.m_sectorCoords.m_x][globalCoordinate.m_sectorCoords.m_y].
-								m_tileMovementCosts[globalCoordinate.m_coords.m_x][globalCoordinate.m_coords.m_y];
-							overallPath.m_path.push_back({
-								globalCoordinate,
-								movementCost });
-							overallPath.m_totalPathCost += movementCost;
-						}
-						overallPath.m_targetPosition = targetPosition;
-						return overallPath;
-					}
-				}
-				else
-				{
-					auto sectorCrossingPathCostsPtr = std::make_unique<
-						Quadrant::PathCostArray<TileConstants::QUADRANT_SIDE_LENGTH * 2, TileConstants::QUADRANT_SIDE_LENGTH * 2>>();
-					auto& sectorCrossingPathCosts = *sectorCrossingPathCostsPtr;
-
-					auto sectorCrossingPathsPtr = std::make_unique<
-						Quadrant::PathArray<TileConstants::QUADRANT_SIDE_LENGTH * 2, TileConstants::QUADRANT_SIDE_LENGTH * 2>>();
-					auto& sectorCrossingPaths = *sectorCrossingPathsPtr;
-
-					auto tileMovementsPtr = std::make_unique<Sector::MultiSectorMovementArray<
-						TileConstants::QUADRANT_SIDE_LENGTH * 2,
-						TileConstants::QUADRANT_SIDE_LENGTH * 2,
-						TileConstants::SECTOR_SIDE_LENGTH,
-						TileConstants::SECTOR_SIDE_LENGTH>>();
-					auto& tileMovements = *tileMovementsPtr;
-
-					// They're diagonally adjacent. Include the cross-adjacent quadrants
-					auto lessX = min(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
-					auto lessY = min(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
-					auto greaterX = max(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
-					auto greaterY = max(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
-
-					for (auto x = lessX; x <= greaterX; ++x)
-					{
-						auto xIndex = (x - lessX) * TileConstants::QUADRANT_SIDE_LENGTH;
-						for (auto y = lessY; y <= greaterY; ++y)
-						{
-							auto yIndex = (y - lessY) * TileConstants::QUADRANT_SIDE_LENGTH;
-							auto& quadrant = FetchQuadrant({ x, y });
-							for (int sectorX = 0; sectorX < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorX)
-							{
-								for (int sectorY = 0; sectorY < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorY)
-								{
-									sectorCrossingPathCosts[xIndex + sectorX][yIndex + sectorY] = quadrant.m_sectorCrossingPathCosts[sectorX][sectorY];
-									sectorCrossingPaths[xIndex + sectorX][yIndex + sectorY] = quadrant.m_sectorCrossingPaths[sectorX][sectorY];
-									tileMovements[xIndex + sectorX][yIndex + sectorY] = quadrant.m_sectors[sectorX][sectorY].m_tileMovementCosts;
-								}
-							}
-						}
-					}
-					auto localOffset = TilePosition({ lessX, lessY }, {}, {});
-					auto localSourcePosition = sourcePosition - localOffset;
-					auto localTargetPosition = targetPosition - localOffset;
-					for (; localSourcePosition.m_quadrantCoords.m_x > 0;
-						--localSourcePosition.m_quadrantCoords.m_x, localSourcePosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
-					for (; localTargetPosition.m_quadrantCoords.m_x > 0;
-						--localTargetPosition.m_quadrantCoords.m_x, localTargetPosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
-					for (; localSourcePosition.m_quadrantCoords.m_y > 0;
-						--localSourcePosition.m_quadrantCoords.m_y, localSourcePosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
-					for (; localTargetPosition.m_quadrantCoords.m_y > 0;
-						--localTargetPosition.m_quadrantCoords.m_y, localTargetPosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
-
-					auto& startingSector = FetchQuadrant(sourcePosition.m_quadrantCoords).m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
-					auto& endingSector = FetchQuadrant(targetPosition.m_quadrantCoords).m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y];
-					PrepareStartAndEndSectorPaths(
-						startingSector, sourcePosition.m_coords, localSourcePosition.m_sectorCoords,
-						sectorCrossingPathCosts, sectorCrossingPaths,
-						endingSector, targetPosition.m_coords, localTargetPosition.m_sectorCoords);
-
-					auto localPath = FindSingleQuadrantPath(sectorCrossingPathCosts, sectorCrossingPaths, tileMovements, localSourcePosition, localTargetPosition);
-					if (localPath)
-					{
-						ECS_Core::Components::MoveToPoint overallPath;
-						// Translate back from local to global
-						for (auto&& coordinate : *localPath)
-						{
-							// operator+ handles conversion back into standard size quadrants
-							auto globalCoordinate = coordinate + localOffset;
-							auto movementCost =
-								*FetchQuadrant(globalCoordinate.m_quadrantCoords).
-								m_sectors[globalCoordinate.m_sectorCoords.m_x][globalCoordinate.m_sectorCoords.m_y].
-								m_tileMovementCosts[globalCoordinate.m_coords.m_x][globalCoordinate.m_coords.m_y];
-							overallPath.m_path.push_back({
-								globalCoordinate,
-								movementCost });
-							overallPath.m_totalPathCost += movementCost;
-						}
-						overallPath.m_targetPosition = targetPosition;
-						return overallPath;
-					}
-				}
-			}
-			else
-			{
-				// Glue together: starting tile to exit tile of first sector
-				// Rest of the sectors
-				// Final sector entry tile to target tile.
-
-				const auto& startingMacroPath = quadrantPath->m_path.front();
-				const auto& endingMacroPath = quadrantPath->m_path.back();
-				ECS_Core::Components::MoveToPoint overallPath;
-				for (auto&& tile : *quadrantPathCopy[sourcePosition.m_quadrantCoords]
-					[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)])
-				{
-					overallPath.m_path.push_back(tile);
-				}
-				overallPath.m_totalPathCost += *quadrantPathCostCopy[sourcePosition.m_quadrantCoords]
-					[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)];
-
-				for (int i = 1; i < quadrantPath->m_path.size() - 1; ++i)
-				{
-					auto& path = quadrantPath->m_path[i];
-					auto& crossingPath = quadrantPathCopy
-						[path.m_node]
-					[static_cast<int>(path.m_entryDirection)]
-					[static_cast<int>(path.m_exitDirection)];
-					for (auto&& tile : *crossingPath)
-					{
-						overallPath.m_path.push_back(tile);
-					}
-					overallPath.m_totalPathCost += *quadrantPathCostCopy
-						[path.m_node]
-					[static_cast<int>(path.m_entryDirection)]
-					[static_cast<int>(path.m_exitDirection)];
-				}
-
-				for (auto&& tile : *quadrantPathCopy[targetPosition.m_quadrantCoords]
-					[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)])
-				{
-					overallPath.m_path.push_back(tile);
-				}
-				overallPath.m_targetPosition = targetPosition;
-				overallPath.m_totalPathCost += *quadrantPathCostCopy[targetPosition.m_quadrantCoords]
-					[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)];
-				return overallPath;
-			}
-		}
-		return std::nullopt;
+		return FindMultiQuadrantPath(sourceQuadrant, sourcePosition, targetQuadrant, targetPosition);
 	}
 	// Sweet, are they in the same sector?
 	else if (sourcePosition.m_sectorCoords != targetPosition.m_sectorCoords)
 	{
-		auto& quadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
-		return FindSingleQuadrantPath(quadrant, sourcePosition, targetPosition);
+		return FindSingleQuadrantPath(FetchQuadrant(targetPosition.m_quadrantCoords), sourcePosition, targetPosition);
 	}
 	// Excellent. Cheap pathing
 	else
 	{
-		auto& quadrant = FetchQuadrant(targetPosition.m_quadrantCoords);
-		auto& sector = quadrant.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+		auto& sector = FetchQuadrant(targetPosition.m_quadrantCoords)
+			.m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
 		return FindSingleSectorPath(sector.m_tileMovementCosts, sourcePosition, targetPosition);
+	}
+	return std::nullopt;
+}
+
+const std::optional<ECS_Core::Components::MoveToPoint> WorldTile::FindMultiQuadrantPath(
+	const WorldTile::Quadrant& sourceQuadrant,
+	const TilePosition& sourcePosition,
+	const WorldTile::Quadrant& targetQuadrant,
+	const TilePosition& targetPosition)
+{
+	// Get shortest path between quadrants
+	auto quadrantPathCostCopyPtr = std::make_unique<decltype(m_quadrantMovementCosts)>(m_quadrantMovementCosts);
+	auto& quadrantPathCostCopy = *quadrantPathCostCopyPtr;
+	auto quadrantPathCopyPtr = std::make_unique<decltype(m_quadrantPaths)>(m_quadrantPaths);
+	auto& quadrantPathCopy = *quadrantPathCopyPtr;
+	// Fill in the cost from current point to each side
+	for (int direction = static_cast<int>(PathingDirection::NORTH); direction < static_cast<int>(PathingDirection::_COUNT); ++direction)
+	{
+		auto startingExitTile = GetQuadrantSideTile(sourceQuadrant, sourcePosition.m_quadrantCoords, direction);
+		if (startingExitTile)
+		{
+			auto startingPath =
+				FindSingleQuadrantPath(sourceQuadrant, sourcePosition, *startingExitTile);
+			if (startingPath)
+			{
+				quadrantPathCostCopy[sourcePosition.m_quadrantCoords]
+					[static_cast<int>(PathingDirection::_COUNT)][direction]
+					= startingPath->m_totalPathCost;
+				quadrantPathCopy[sourcePosition.m_quadrantCoords]
+					[static_cast<int>(PathingDirection::_COUNT)][direction]
+					= startingPath->m_path;
+			}
+		}
+		auto endingEntranceTile = GetQuadrantSideTile(targetQuadrant, targetPosition.m_quadrantCoords, direction);
+		if (endingEntranceTile)
+		{
+			auto endingPath =
+				FindSingleQuadrantPath(targetQuadrant, *endingEntranceTile, targetPosition);
+			if (endingPath)
+			{
+				quadrantPathCostCopy[targetPosition.m_quadrantCoords]
+					[direction][static_cast<int>(PathingDirection::_COUNT)]
+					= endingPath->m_totalPathCost;
+				quadrantPathCopy[targetPosition.m_quadrantCoords]
+					[direction][static_cast<int>(PathingDirection::_COUNT)]
+					= endingPath->m_path;
+			}
+		}
+	}
+
+	auto quadrantPath = Pathing::GetPath(
+		quadrantPathCostCopy,
+		sourcePosition.m_quadrantCoords,
+		targetPosition.m_quadrantCoords);
+
+	if (quadrantPath)
+	{
+		if (quadrantPath->m_path.size() <= 3)
+		{
+			// We run a risk of the path being obviously inefficient because of our
+			// multi-level pathing
+			// Glue all the quadrants in the path together and get a path with the same algorithm as we
+			// use for single-quadrant paths.
+			// This avoids the inefficient appearance for local pathing which may cross a border.
+
+			auto& firstQuadrant = quadrantPath->m_path.front();
+			auto& lastQuadrant = quadrantPath->m_path.back();
+			std::vector<CoordinateVector2> involvedQuadrants;
+
+			if (firstQuadrant.m_node.m_x == lastQuadrant.m_node.m_x)
+			{
+				// A bit of a waste of space if there are only 2
+				// Shame
+				auto sectorCrossingPathCostsPtr = std::make_unique<
+					Quadrant::PathCostArray<TileConstants::QUADRANT_SIDE_LENGTH, TileConstants::QUADRANT_SIDE_LENGTH * 3>>();
+				auto& sectorCrossingPathCosts = *sectorCrossingPathCostsPtr;
+
+				auto sectorCrossingPathsPtr = std::make_unique<
+					Quadrant::PathArray<TileConstants::QUADRANT_SIDE_LENGTH, TileConstants::QUADRANT_SIDE_LENGTH * 3>>();
+				auto& sectorCrossingPaths = *sectorCrossingPathsPtr;
+
+				auto tileMovementsPtr = std::make_unique<Sector::MultiSectorMovementArray<
+					TileConstants::QUADRANT_SIDE_LENGTH,
+					TileConstants::QUADRANT_SIDE_LENGTH * 3,
+					TileConstants::SECTOR_SIDE_LENGTH,
+					TileConstants::SECTOR_SIDE_LENGTH>>();
+				auto& tileMovements = *tileMovementsPtr;
+
+				auto leastY = min(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
+				auto greatestY = max(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
+				for (auto y = leastY; y <= greatestY; ++y)
+				{
+					auto& quadrant = FetchQuadrant({ firstQuadrant.m_node.m_x, y });
+					for (int sectorX = 0; sectorX < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorX)
+					{
+						for (int sectorY = 0; sectorY < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorY)
+						{
+							auto yIndex = sectorY + TileConstants::QUADRANT_SIDE_LENGTH * (y - leastY);
+							sectorCrossingPathCosts[sectorX][yIndex] = quadrant.m_sectorCrossingPathCosts[sectorX][sectorY];
+							sectorCrossingPaths[sectorX][yIndex] = quadrant.m_sectorCrossingPaths[sectorX][sectorY];
+							tileMovements[sectorX][yIndex] = quadrant.m_sectors[sectorX][sectorY].m_tileMovementCosts;
+						}
+					}
+				}
+				auto localOffset = TilePosition({ sourcePosition.m_quadrantCoords.m_x, leastY }, {}, {});
+				auto localSourcePosition = sourcePosition - localOffset;
+				auto localTargetPosition = targetPosition - localOffset;
+				for (; localSourcePosition.m_quadrantCoords.m_y > 0;
+					--localSourcePosition.m_quadrantCoords.m_y, localSourcePosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
+				for (; localTargetPosition.m_quadrantCoords.m_y > 0;
+					--localTargetPosition.m_quadrantCoords.m_y, localTargetPosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
+
+				auto& startingSector = FetchQuadrant(sourcePosition.m_quadrantCoords).m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+				auto& endingSector = FetchQuadrant(targetPosition.m_quadrantCoords).m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y];
+				PrepareStartAndEndSectorPaths(
+					startingSector, sourcePosition.m_coords, localSourcePosition.m_sectorCoords,
+					sectorCrossingPathCosts, sectorCrossingPaths,
+					endingSector, targetPosition.m_coords, localTargetPosition.m_sectorCoords);
+
+				auto localPath = FindSingleQuadrantPath(sectorCrossingPathCosts, sectorCrossingPaths, tileMovements, localSourcePosition, localTargetPosition);
+				if (localPath)
+				{
+					ECS_Core::Components::MoveToPoint overallPath;
+					// Translate back from local to global
+					for (auto&& coordinate : *localPath)
+					{
+						// operator+ handles conversion back into standard size quadrants
+						auto globalCoordinate = coordinate + localOffset;
+						auto movementCost =
+							*FetchQuadrant(globalCoordinate.m_quadrantCoords).
+							m_sectors[globalCoordinate.m_sectorCoords.m_x][globalCoordinate.m_sectorCoords.m_y].
+							m_tileMovementCosts[globalCoordinate.m_coords.m_x][globalCoordinate.m_coords.m_y];
+						overallPath.m_path.push_back({
+							globalCoordinate,
+							movementCost });
+						overallPath.m_totalPathCost += movementCost;
+					}
+					overallPath.m_targetPosition = targetPosition;
+					return overallPath;
+				}
+			}
+			else if (firstQuadrant.m_node.m_y == lastQuadrant.m_node.m_y)
+			{
+				auto sectorCrossingPathCostsPtr = std::make_unique<
+					Quadrant::PathCostArray<TileConstants::QUADRANT_SIDE_LENGTH * 3, TileConstants::QUADRANT_SIDE_LENGTH>>();
+				auto& sectorCrossingPathCosts = *sectorCrossingPathCostsPtr;
+
+				auto sectorCrossingPathsPtr = std::make_unique<
+					Quadrant::PathArray<TileConstants::QUADRANT_SIDE_LENGTH * 3, TileConstants::QUADRANT_SIDE_LENGTH>>();
+				auto& sectorCrossingPaths = *sectorCrossingPathsPtr;
+
+				auto tileMovementsPtr = std::make_unique<Sector::MultiSectorMovementArray<
+					TileConstants::QUADRANT_SIDE_LENGTH * 3,
+					TileConstants::QUADRANT_SIDE_LENGTH,
+					TileConstants::SECTOR_SIDE_LENGTH,
+					TileConstants::SECTOR_SIDE_LENGTH>>();
+				auto& tileMovements = *tileMovementsPtr;
+
+				auto leastX = min(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
+				auto greatestX = max(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
+				for (auto x = leastX; x <= greatestX; ++x)
+				{
+					auto& quadrant = FetchQuadrant({ x, firstQuadrant.m_node.m_y });
+					for (int sectorX = 0; sectorX < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorX)
+					{
+						for (int sectorY = 0; sectorY < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorY)
+						{
+							auto xIndex = sectorX + TileConstants::QUADRANT_SIDE_LENGTH * (x - leastX);
+							sectorCrossingPathCosts[xIndex][sectorY] = quadrant.m_sectorCrossingPathCosts[sectorX][sectorY];
+							sectorCrossingPaths[xIndex][sectorY] = quadrant.m_sectorCrossingPaths[sectorX][sectorY];
+							tileMovements[xIndex][sectorY] = quadrant.m_sectors[sectorX][sectorY].m_tileMovementCosts;
+						}
+					}
+				}
+				auto localOffset = TilePosition({ leastX, sourcePosition.m_quadrantCoords.m_y }, {}, {});
+				auto localSourcePosition = sourcePosition - localOffset;
+				auto localTargetPosition = targetPosition - localOffset;
+				for (; localSourcePosition.m_quadrantCoords.m_x > 0;
+					--localSourcePosition.m_quadrantCoords.m_x, localSourcePosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
+				for (; localTargetPosition.m_quadrantCoords.m_x > 0;
+					--localTargetPosition.m_quadrantCoords.m_x, localTargetPosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
+
+				auto& startingSector = FetchQuadrant(sourcePosition.m_quadrantCoords).m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+				auto& endingSector = FetchQuadrant(targetPosition.m_quadrantCoords).m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y];
+				PrepareStartAndEndSectorPaths(
+					startingSector, sourcePosition.m_coords, localSourcePosition.m_sectorCoords,
+					sectorCrossingPathCosts, sectorCrossingPaths,
+					endingSector, targetPosition.m_coords, localTargetPosition.m_sectorCoords);
+
+				auto localPath = FindSingleQuadrantPath(sectorCrossingPathCosts, sectorCrossingPaths, tileMovements, localSourcePosition, localTargetPosition);
+				if (localPath)
+				{
+					ECS_Core::Components::MoveToPoint overallPath;
+					// Translate back from local to global
+					for (auto&& coordinate : *localPath)
+					{
+						// operator+ handles conversion back into standard size quadrants
+						auto globalCoordinate = coordinate + localOffset;
+						auto movementCost =
+							*FetchQuadrant(globalCoordinate.m_quadrantCoords).
+							m_sectors[globalCoordinate.m_sectorCoords.m_x][globalCoordinate.m_sectorCoords.m_y].
+							m_tileMovementCosts[globalCoordinate.m_coords.m_x][globalCoordinate.m_coords.m_y];
+						overallPath.m_path.push_back({
+							globalCoordinate,
+							movementCost });
+						overallPath.m_totalPathCost += movementCost;
+					}
+					overallPath.m_targetPosition = targetPosition;
+					return overallPath;
+				}
+			}
+			else
+			{
+				auto sectorCrossingPathCostsPtr = std::make_unique<
+					Quadrant::PathCostArray<TileConstants::QUADRANT_SIDE_LENGTH * 2, TileConstants::QUADRANT_SIDE_LENGTH * 2>>();
+				auto& sectorCrossingPathCosts = *sectorCrossingPathCostsPtr;
+
+				auto sectorCrossingPathsPtr = std::make_unique<
+					Quadrant::PathArray<TileConstants::QUADRANT_SIDE_LENGTH * 2, TileConstants::QUADRANT_SIDE_LENGTH * 2>>();
+				auto& sectorCrossingPaths = *sectorCrossingPathsPtr;
+
+				auto tileMovementsPtr = std::make_unique<Sector::MultiSectorMovementArray<
+					TileConstants::QUADRANT_SIDE_LENGTH * 2,
+					TileConstants::QUADRANT_SIDE_LENGTH * 2,
+					TileConstants::SECTOR_SIDE_LENGTH,
+					TileConstants::SECTOR_SIDE_LENGTH>>();
+				auto& tileMovements = *tileMovementsPtr;
+
+				// They're diagonally adjacent. Include the cross-adjacent quadrants
+				auto lessX = min(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
+				auto lessY = min(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
+				auto greaterX = max(firstQuadrant.m_node.m_x, lastQuadrant.m_node.m_x);
+				auto greaterY = max(firstQuadrant.m_node.m_y, lastQuadrant.m_node.m_y);
+
+				for (auto x = lessX; x <= greaterX; ++x)
+				{
+					auto xIndex = (x - lessX) * TileConstants::QUADRANT_SIDE_LENGTH;
+					for (auto y = lessY; y <= greaterY; ++y)
+					{
+						auto yIndex = (y - lessY) * TileConstants::QUADRANT_SIDE_LENGTH;
+						auto& quadrant = FetchQuadrant({ x, y });
+						for (int sectorX = 0; sectorX < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorX)
+						{
+							for (int sectorY = 0; sectorY < TileConstants::QUADRANT_SIDE_LENGTH; ++sectorY)
+							{
+								sectorCrossingPathCosts[xIndex + sectorX][yIndex + sectorY] = quadrant.m_sectorCrossingPathCosts[sectorX][sectorY];
+								sectorCrossingPaths[xIndex + sectorX][yIndex + sectorY] = quadrant.m_sectorCrossingPaths[sectorX][sectorY];
+								tileMovements[xIndex + sectorX][yIndex + sectorY] = quadrant.m_sectors[sectorX][sectorY].m_tileMovementCosts;
+							}
+						}
+					}
+				}
+				auto localOffset = TilePosition({ lessX, lessY }, {}, {});
+				auto localSourcePosition = sourcePosition - localOffset;
+				auto localTargetPosition = targetPosition - localOffset;
+				for (; localSourcePosition.m_quadrantCoords.m_x > 0;
+					--localSourcePosition.m_quadrantCoords.m_x, localSourcePosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
+				for (; localTargetPosition.m_quadrantCoords.m_x > 0;
+					--localTargetPosition.m_quadrantCoords.m_x, localTargetPosition.m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH);
+				for (; localSourcePosition.m_quadrantCoords.m_y > 0;
+					--localSourcePosition.m_quadrantCoords.m_y, localSourcePosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
+				for (; localTargetPosition.m_quadrantCoords.m_y > 0;
+					--localTargetPosition.m_quadrantCoords.m_y, localTargetPosition.m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH);
+
+				auto& startingSector = FetchQuadrant(sourcePosition.m_quadrantCoords).m_sectors[sourcePosition.m_sectorCoords.m_x][sourcePosition.m_sectorCoords.m_y];
+				auto& endingSector = FetchQuadrant(targetPosition.m_quadrantCoords).m_sectors[targetPosition.m_sectorCoords.m_x][targetPosition.m_sectorCoords.m_y];
+				PrepareStartAndEndSectorPaths(
+					startingSector, sourcePosition.m_coords, localSourcePosition.m_sectorCoords,
+					sectorCrossingPathCosts, sectorCrossingPaths,
+					endingSector, targetPosition.m_coords, localTargetPosition.m_sectorCoords);
+
+				auto localPath = FindSingleQuadrantPath(sectorCrossingPathCosts, sectorCrossingPaths, tileMovements, localSourcePosition, localTargetPosition);
+				if (localPath)
+				{
+					ECS_Core::Components::MoveToPoint overallPath;
+					// Translate back from local to global
+					for (auto&& coordinate : *localPath)
+					{
+						// operator+ handles conversion back into standard size quadrants
+						auto globalCoordinate = coordinate + localOffset;
+						auto movementCost =
+							*FetchQuadrant(globalCoordinate.m_quadrantCoords).
+							m_sectors[globalCoordinate.m_sectorCoords.m_x][globalCoordinate.m_sectorCoords.m_y].
+							m_tileMovementCosts[globalCoordinate.m_coords.m_x][globalCoordinate.m_coords.m_y];
+						overallPath.m_path.push_back({
+							globalCoordinate,
+							movementCost });
+						overallPath.m_totalPathCost += movementCost;
+					}
+					overallPath.m_targetPosition = targetPosition;
+					return overallPath;
+				}
+			}
+		}
+		else
+		{
+			// Glue together: starting tile to exit tile of first sector
+			// Rest of the sectors
+			// Final sector entry tile to target tile.
+
+			const auto& startingMacroPath = quadrantPath->m_path.front();
+			const auto& endingMacroPath = quadrantPath->m_path.back();
+			ECS_Core::Components::MoveToPoint overallPath;
+			for (auto&& tile : *quadrantPathCopy[sourcePosition.m_quadrantCoords]
+				[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)])
+			{
+				overallPath.m_path.push_back(tile);
+			}
+			overallPath.m_totalPathCost += *quadrantPathCostCopy[sourcePosition.m_quadrantCoords]
+				[static_cast<int>(PathingDirection::_COUNT)][static_cast<int>(startingMacroPath.m_exitDirection)];
+
+			for (int i = 1; i < quadrantPath->m_path.size() - 1; ++i)
+			{
+				auto& path = quadrantPath->m_path[i];
+				auto& crossingPath = quadrantPathCopy
+					[path.m_node]
+				[static_cast<int>(path.m_entryDirection)]
+				[static_cast<int>(path.m_exitDirection)];
+				for (auto&& tile : *crossingPath)
+				{
+					overallPath.m_path.push_back(tile);
+				}
+				overallPath.m_totalPathCost += *quadrantPathCostCopy
+					[path.m_node]
+				[static_cast<int>(path.m_entryDirection)]
+				[static_cast<int>(path.m_exitDirection)];
+			}
+
+			for (auto&& tile : *quadrantPathCopy[targetPosition.m_quadrantCoords]
+				[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)])
+			{
+				overallPath.m_path.push_back(tile);
+			}
+			overallPath.m_targetPosition = targetPosition;
+			overallPath.m_totalPathCost += *quadrantPathCostCopy[targetPosition.m_quadrantCoords]
+				[static_cast<int>(endingMacroPath.m_entryDirection)][static_cast<int>(PathingDirection::_COUNT)];
+			return overallPath;
+		}
 	}
 	return std::nullopt;
 }

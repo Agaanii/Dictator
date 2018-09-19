@@ -221,7 +221,7 @@ protected:
 		Quadrant& quadrant,
 		const CoordinateVector2& coordinates);
 	std::optional<TilePosition> GetQuadrantSideTile(
-		Quadrant & quadrant,
+		const Quadrant& quadrant,
 		const CoordinateVector2& quadrantCoords,
 		int direction);
 	std::thread SpawnBetween(
@@ -235,7 +235,13 @@ protected:
 	void ProcessPlanDirectionScout(const Action::LocalPlayer::PlanDirectionScout& planDirectionScout, const ecs::EntityIndex & governorEntity);
 	void CancelMovementPlans();
 
-	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition & sourcePosition, const TilePosition & targetPosition);
+	std::optional<ECS_Core::Components::MoveToPoint> GetPath(const TilePosition& sourcePosition, const TilePosition& targetPosition);
+
+	const std::optional<ECS_Core::Components::MoveToPoint> FindMultiQuadrantPath(
+		const WorldTile::Quadrant& sourceQuadrant,
+		const TilePosition& sourcePosition,
+		const WorldTile::Quadrant& targetQuadrant,
+		const TilePosition& targetPosition);
 	
 	template<int SX, int SY, int X, int Y>
 	std::optional<std::deque<TilePosition>> FindSingleQuadrantPath(
