@@ -571,7 +571,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						continue;
 					}
-					auto foodNeeded = createAction.m_daysToExplore;
+					auto foodNeeded = createAction.m_daysToExplore / 10;
 
 					if (inventorySource.m_collectedYields[ECS_Core::Components::Yields::FOOD] < foodNeeded)
 					{

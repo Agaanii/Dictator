@@ -3085,6 +3085,30 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			return ecs::IterationBehavior::CONTINUE;
 		});
 
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
+			[&manager = m_managerRef, this](
+				ecs::EntityIndex mI,
+				ECS_Core::Components::C_TilePosition& tilePosition,
+				ECS_Core::Components::C_MovingUnit& mover,
+				const ECS_Core::Components::C_Population&,
+				const ECS_Core::Components::C_Vision&)
+		{
+			static const std::map<Direction, CoordinateVector2> c_angles = {
+				{ Direction::NORTH,{ 0, -1 } },
+			{ Direction::NORTHEAST,{ 1, -1 } },
+			{ Direction::EAST,{ 1, 0 } },
+			{ Direction::SOUTHEAST,{ 1, 1 } },
+			{ Direction::SOUTH,{ 0, 1 } },
+			{ Direction::SOUTHWEST,{ -1, 1 } },
+			{ Direction::WEST,{ -1, 0 } },
+			{ Direction::NORTHWEST,{ -1, -1 } },
+			};
+			if (mover.m_explorationPlan)
+			{
+				FetchQuadrant(tilePosition.m_position.m_quadrantCoords + c_angles.at(mover.m_explorationPlan->m_direction));
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		CheckBuildingPlacements();
 
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
