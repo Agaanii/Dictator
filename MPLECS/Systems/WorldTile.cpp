@@ -52,10 +52,10 @@ TilePosition& TilePosition::operator+=(const TilePosition& other)
 	m_quadrantCoords += other.m_quadrantCoords;
 	m_sectorCoords += other.m_sectorCoords;
 	m_coords += other.m_coords;
-	assert(m_coords.m_x >= 0);
-	assert(m_coords.m_y >= 0);
-	assert(m_sectorCoords.m_x >= 0);
-	assert(m_sectorCoords.m_y >= 0);
+	for (; m_coords.m_x < 0; m_coords.m_x += TileConstants::SECTOR_SIDE_LENGTH, --m_sectorCoords.m_x);
+	for (; m_coords.m_y < 0; m_coords.m_y += TileConstants::SECTOR_SIDE_LENGTH, --m_sectorCoords.m_y);
+	for (; m_sectorCoords.m_x < 0; m_sectorCoords.m_x += TileConstants::QUADRANT_SIDE_LENGTH, --m_quadrantCoords.m_x);
+	for (; m_sectorCoords.m_y < 0; m_sectorCoords.m_y += TileConstants::QUADRANT_SIDE_LENGTH, --m_quadrantCoords.m_y);
 
 	m_sectorCoords.m_x += m_coords.m_x / TileConstants::SECTOR_SIDE_LENGTH;
 	m_sectorCoords.m_y += m_coords.m_y / TileConstants::SECTOR_SIDE_LENGTH;
@@ -2637,7 +2637,7 @@ void WorldTile::ProcessPlanDirectionScout(
 			return Action::CreateExplorationUnit(sourcePosition.m_position,
 				manager.getEntityIndex(scoutPlan.m_sourceBuildingHandle),
 				5,
-				90,
+				500,
 				direction);
 		};
 		uiFrame.m_buttons.push_back(directionButton);
@@ -2658,10 +2658,10 @@ void WorldTile::CollectTiles(std::set<TilePosition>& possibleTiles, int movesRem
 	{
 		return;
 	}
-	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ 0, TileConstants::TILE_SIDE_LENGTH }));
-	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ 0, -TileConstants::TILE_SIDE_LENGTH }));
-	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ TileConstants::TILE_SIDE_LENGTH, 0 }));
-	CollectTiles(possibleTiles, movesRemaining - 1, WorldPositionToCoordinates(CoordinatesToWorldPosition(position) + CoordinateVector2{ -TileConstants::TILE_SIDE_LENGTH, 0 }));
+	CollectTiles(possibleTiles, movesRemaining - 1, position + TilePosition{ {}, {}, {0, 1 }});
+	CollectTiles(possibleTiles, movesRemaining - 1, position + TilePosition{ {}, {}, {0, -1 }});
+	CollectTiles(possibleTiles, movesRemaining - 1, position + TilePosition{ {}, {}, {1, 0 }});
+	CollectTiles(possibleTiles, movesRemaining - 1, position + TilePosition{ {}, {}, {-1, 0 }});
 }
 
 void WorldTile::ProgramInit() {}
@@ -3030,6 +3030,11 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						{ Direction::NORTHWEST,{ -1, -1 } },
 					};
 
+					bool visitedLeft = movement.m_explorationPlan->m_visitedPathNodes.count(left) > 0;
+					bool visitedRight = movement.m_explorationPlan->m_visitedPathNodes.count(right) > 0;
+					if (visitedLeft && !visitedRight) return false;
+					if (visitedRight && !visitedLeft) return true;
+
 					auto leftDifference = CoordinatesToWorldPosition(left) - CoordinatesToWorldPosition(tilePosition.m_position);
 					auto rightDifference = CoordinatesToWorldPosition(right) - CoordinatesToWorldPosition(tilePosition.m_position);
 
@@ -3060,6 +3065,7 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					auto path = GetPath(tilePosition.m_position, position);
 					if (path)
 					{
+						movement.m_explorationPlan->m_visitedPathNodes.insert(position);
 						movement.m_currentMovement = path;
 						break;
 					}

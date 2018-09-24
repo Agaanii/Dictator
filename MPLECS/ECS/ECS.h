@@ -284,6 +284,8 @@ namespace ECS_Core
 			// Once time matches days to explore + leaving time, turn around and return home
 			s64 m_daysToExplore;
 			TilePosition m_homeBase;
+
+			std::set<TilePosition> m_visitedPathNodes;
 		};
 		struct MovementTilePosition
 		{
