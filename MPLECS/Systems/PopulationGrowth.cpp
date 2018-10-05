@@ -53,7 +53,7 @@ void PopulationGrowth::AgePopulations()
 	{
 		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
-			auto yearsOld = ((12 * time.m_year + time.m_month) + birthMonth) / 12;
+			auto yearsOld = ((12 * time.m_year + time.m_month) + birthMonth.m_birthMonthIndex) / 12;
 			if (popSegment.m_class == ECS_Core::Components::PopulationClass::CHILDREN
 				&& yearsOld >= 15)
 			{
@@ -87,7 +87,7 @@ void PopulationGrowth::BirthChildren()
 		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
 			// Age keys are in months
-			auto popAge = ((12 * time.m_year + time.m_month) + birthMonth) / 12;
+			auto popAge = ((12 * time.m_year + time.m_month) + birthMonth.m_birthMonthIndex) / 12;
 			if (popAge >= 15 && popAge <= 45)
 			{
 				// Women are of birthing age
@@ -245,7 +245,7 @@ void PopulationGrowth::CauseNaturalDeaths()
 		for (auto&& [birthMonth,popSegment] : population.m_populations)
 		{
 			// Age keys are in months
-			auto popAge = ((12 * time.m_year + time.m_month) + birthMonth) / 12;
+			auto popAge = ((12 * time.m_year + time.m_month) + birthMonth.m_birthMonthIndex) / 12;
 
 			// Healthiest people are ~25
 			auto distanceFromHealth = max<int>(1, abs(popAge - 25));

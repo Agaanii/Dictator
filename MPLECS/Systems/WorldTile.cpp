@@ -2637,7 +2637,7 @@ void WorldTile::ProcessPlanDirectionScout(
 			return Action::CreateExplorationUnit(sourcePosition.m_position,
 				manager.getEntityIndex(scoutPlan.m_sourceBuildingHandle),
 				5,
-				500,
+				100,
 				direction);
 		};
 		uiFrame.m_buttons.push_back(directionButton);
@@ -2996,13 +2996,14 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					+ movement.m_explorationPlan->m_leavingDay;
 			if (daysInCurrentDate - leaveTimeTotalDays > movement.m_explorationPlan->m_daysToExplore)
 			{
-				if (tilePosition.m_position == movement.m_explorationPlan->m_homeBase)
+				if (tilePosition.m_position == movement.m_explorationPlan->m_homeBasePosition)
 				{
-					// Re-integrate, give info
+					// Re-integrate, give info (government module will transition remaining people)
+					movement.m_explorationPlan->m_explorationComplete = true;
 				}
 				else
 				{
-					auto path = GetPath(tilePosition.m_position, movement.m_explorationPlan->m_homeBase);
+					auto path = GetPath(tilePosition.m_position, movement.m_explorationPlan->m_homeBasePosition);
 					if (path)
 					{
 						movement.m_currentMovement = path;

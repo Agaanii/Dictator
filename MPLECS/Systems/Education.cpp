@@ -62,7 +62,7 @@ void Education::TeachChildren()
 			{
 				continue;
 			}
-			elders.emplace_back(birthMonth, &elderPop);
+			elders.emplace_back(birthMonth.m_birthMonthIndex, &elderPop);
 		}
 
 		std::sort(elders.begin(), elders.end(),

@@ -12,11 +12,11 @@
 struct WorkerProductionValue
 {
 	WorkerProductionValue() = default;
-	WorkerProductionValue(const s32& workerKey, const f64& productionValue)
+	WorkerProductionValue(const ECS_Core::Components::PopulationKey& workerKey, const f64& productionValue)
 		: m_workerKey(workerKey)
 		, m_productiveValue(productionValue)
 	{ }
-	s32 m_workerKey{ 0 };
+	ECS_Core::Components::PopulationKey m_workerKey;
 	f64 m_productiveValue{ 0 };
 };
 
@@ -26,7 +26,7 @@ struct WorkerAssignment
 	AssignmentMap m_assignments;
 };
 
-using WorkerAssignmentMap = std::map<s32, WorkerAssignment>;
+using WorkerAssignmentMap = std::map<ECS_Core::Components::PopulationKey, WorkerAssignment>;
 
 struct WorkerSkillKey
 {

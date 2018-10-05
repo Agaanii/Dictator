@@ -142,6 +142,7 @@ Copy /Y "$(SolutionDir)Assets\*" "$(OutDir)Assets\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ECS\ECS.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Systems\BuildingCreation.cpp" />
     <ClCompile Include="Systems\CaravanTrade.cpp" />

@@ -99,6 +99,9 @@
     <ClCompile Include="Util\WorkerStruct.cpp">
       <Filter>Source Files\Util</Filter>
     </ClCompile>
+    <ClCompile Include="ECS\ECS.cpp">
+      <Filter>Source Files\Core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\typedef.h">

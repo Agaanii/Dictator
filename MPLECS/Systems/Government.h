@@ -30,6 +30,9 @@ public:
 		ECS_Core::Components::C_Population& populationTarget,
 		int totalMenToMove,
 		int totalWomenToMove);
+	void MoveFullPopulation(
+		ECS_Core::Components::C_Population& populationSource,
+		ECS_Core::Components::C_Population& populationTarget);
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:

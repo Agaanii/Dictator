@@ -397,6 +397,21 @@ void Government::MovePopulations(
 	}
 }
 
+void Government::MoveFullPopulation(
+	ECS_Core::Components::C_Population& populationSource,
+	ECS_Core::Components::C_Population& populationTarget)
+{
+	for (auto&&[popKey, pop] : populationSource.m_populations)
+	{
+		if (pop.m_class != ECS_Core::Components::PopulationClass::WORKERS)
+		{
+			continue;
+		}
+		populationTarget.m_populations[popKey] = pop;
+	}
+	populationSource.m_populations.clear();
+}
+
 void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 {
 	switch (phase)
@@ -571,7 +586,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					{
 						continue;
 					}
-					auto foodNeeded = createAction.m_daysToExplore / 10;
+					auto foodNeeded = createAction.m_daysToExplore / 30;
 
 					if (inventorySource.m_collectedYields[ECS_Core::Components::Yields::FOOD] < foodNeeded)
 					{
@@ -600,7 +615,8 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					explorePlan.m_leavingYear = time.m_year;
 					explorePlan.m_leavingMonth = time.m_month;
 					explorePlan.m_leavingDay = time.m_day;
-					explorePlan.m_homeBase = createAction.m_spawningPosition;
+					explorePlan.m_homeBasePosition = createAction.m_spawningPosition;
+					explorePlan.m_homeBase = manager.getHandle(*createAction.m_popSource);
 
 					movementPlan.m_explorationPlan = explorePlan;
 					movementPlan.m_movementPerDay = createAction.m_movementSpeed;
@@ -617,6 +633,29 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::ACTION_RESPONSE:
 		UpdateAgendas();
 		GainIncomes();
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_MovingUnit>(
+			[&manager = m_managerRef, this](
+				const ecs::EntityIndex& e,
+				const ECS_Core::Components::C_TilePosition&,
+				const ECS_Core::Components::C_MovingUnit& mover,
+				ECS_Core::Components::C_Population& population,
+				const ECS_Core::Components::C_Vision&)
+		{
+			if (mover.m_explorationPlan)
+			{
+				if (!mover.m_currentMovement && mover.m_explorationPlan->m_explorationComplete)
+				{
+					// Scout has returned, their population can return to the fold
+					if (manager.isHandleValid(mover.m_explorationPlan->m_homeBase) &&
+						manager.hasComponent<ECS_Core::Components::C_Population>(mover.m_explorationPlan->m_homeBase))
+					{
+						MoveFullPopulation(population, manager.getComponent<ECS_Core::Components::C_Population>(mover.m_explorationPlan->m_homeBase));
+						manager.addTag<ECS_Core::Tags::T_Dead>(e);
+					}
+				}
+			}
+			return ecs::IterationBehavior::CONTINUE;
+		});
 		break;
 	case GameLoopPhase::RENDER:
 		break;

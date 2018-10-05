@@ -148,7 +148,17 @@ namespace ECS_Core
 		};
 
 		// Age (months)
-		using PopulationKey = s32;
+		struct PopulationKey
+		{
+			PopulationKey() {}
+			PopulationKey(s32 birthMonth, int segmentIndex = 0)
+				: m_birthMonthIndex(birthMonth)
+				, m_segmentIndex(segmentIndex)
+			{ }
+			s32 m_birthMonthIndex{ 0 };
+			int m_segmentIndex{ 0 };
+			bool operator<(const PopulationKey& other) const;
+		};
 		struct C_Population
 		{
 			std::map<PopulationKey, PopulationSegment> m_populations;
@@ -283,9 +293,11 @@ namespace ECS_Core
 			int m_leavingDay;
 			// Once time matches days to explore + leaving time, turn around and return home
 			s64 m_daysToExplore;
-			TilePosition m_homeBase;
+			TilePosition m_homeBasePosition;
+			ecs::Impl::Handle m_homeBase;
 
 			std::set<TilePosition> m_visitedPathNodes;
+			bool m_explorationComplete{ false };
 		};
 		struct MovementTilePosition
 		{
