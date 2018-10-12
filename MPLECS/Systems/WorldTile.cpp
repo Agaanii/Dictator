@@ -2588,7 +2588,7 @@ void WorldTile::ProcessPlanDirectionScout(
 			return Action::CreateExplorationUnit(sourcePosition.m_position,
 				manager.getEntityIndex(scoutPlan.m_sourceBuildingHandle),
 				5,
-				100,
+				30,
 				direction);
 		};
 		uiFrame.m_buttons.push_back(directionButton);

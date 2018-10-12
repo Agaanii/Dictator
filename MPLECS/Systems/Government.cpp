@@ -267,7 +267,12 @@ void Government::MoveFullPopulation(
 		{
 			continue;
 		}
-		populationTarget.m_populations[popKey] = pop;
+		auto popKeyCopy = popKey;
+		while (populationTarget.m_populations.find(popKeyCopy) != populationTarget.m_populations.end())
+		{
+			++popKeyCopy.m_segmentIndex;
+		}
+		populationTarget.m_populations[popKeyCopy] = pop;
 	}
 	populationSource.m_populations.clear();
 }
