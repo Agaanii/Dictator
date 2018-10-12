@@ -58,8 +58,6 @@ public:
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:
-	void CheckBuildingPlacements();
-
 	struct Tile
 	{
 		ECS_Core::Components::TileType m_tileType;

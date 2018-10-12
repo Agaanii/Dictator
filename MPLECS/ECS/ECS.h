@@ -200,13 +200,6 @@ namespace ECS_Core
 			YieldBuckets m_collectedYields;
 		};
 
-		struct C_BuildingGhost
-		{
-			bool m_currentPlacementValid{ false };
-			ecs::Impl::Handle m_placingGovernor;
-			YieldBuckets m_paidYield;
-		};
-
 		struct C_Realm
 		{
 			std::set<ecs::Impl::Handle> m_subordinates;
@@ -360,6 +353,12 @@ namespace ECS_Core
 		{
 			int m_visionRadius{ 10 };
 		};
+
+		struct C_CommandMessage
+		{
+			Action::Plan m_commands;
+			ecs::Impl::Handle m_commandee;
+		};
 	}
 
 	namespace Tags
@@ -386,7 +385,6 @@ namespace ECS_Core
 		using S_Input = ecs::Signature<Components::C_UserInputs>;
 		using S_TilePositionable = ecs::Signature<Components::C_PositionCartesian, Components::C_TilePosition>;
 		using S_DrawableBuilding = ecs::Signature <Components::C_BuildingDescription, Components::C_SFMLDrawable>;
-		using S_PlannedBuildingPlacement = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingGhost>;
 		using S_DrawableConstructingBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_SFMLDrawable, Components::C_BuildingConstruction>;
 		using S_InProgressBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_BuildingConstruction>;
 		using S_CompleteBuilding = ecs::Signature<Components::C_BuildingDescription, Components::C_TilePosition, Components::C_Territory, Components::C_TileProductionPotential, Components::C_ResourceInventory>;
@@ -404,6 +402,7 @@ namespace ECS_Core
 		using S_SelectedMovingUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_Population, Components::C_Selection>;
 		using S_BuilderUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_BuildingDescription, Components::C_Population>;
 		using S_CaravanUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population, Components::C_CaravanPath>;
+		using S_CommandUnit = ecs::Signature<Components::C_TilePosition, Components::C_MovingUnit, Components::C_ResourceInventory, Components::C_Population, Components::C_CommandMessage>;
 		using S_MovementPlanIndicator = ecs::Signature<Components::C_MovementTarget, Components::C_TilePosition>;
 		using S_CaravanPlanIndicator = ecs::Signature<Components::C_CaravanPlan, Components::C_TilePosition>;
 		using S_ScoutPlanner = ecs::Signature<Components::C_ScoutingPlan>;
@@ -422,7 +421,6 @@ namespace ECS_Core
 		Components::C_QuadrantPosition,
 		Components::C_SectorPosition,
 		Components::C_TilePosition,
-		Components::C_BuildingGhost,
 		Components::C_BuildingDescription,
 		Components::C_Territory,
 		Components::C_Population,
@@ -441,7 +439,8 @@ namespace ECS_Core
 		Components::C_CaravanPlan,
 		Components::C_CaravanPath,
 		Components::C_ScoutingPlan,
-		Components::C_Vision
+		Components::C_Vision,
+		Components::C_CommandMessage
 	>;
 
 	using MasterTagList = ecs::TagList<
@@ -463,7 +462,6 @@ namespace ECS_Core
 		Signatures::S_InProgressBuilding,
 		Signatures::S_CompleteBuilding,
 		Signatures::S_Population,
-		Signatures::S_PlannedBuildingPlacement,
 		Signatures::S_DestroyedBuilding,
 		Signatures::S_Governor,
 		Signatures::S_PlayerGovernor,
@@ -476,6 +474,7 @@ namespace ECS_Core
 		Signatures::S_WealthPlanner,
 		Signatures::S_BuilderUnit,
 		Signatures::S_CaravanUnit,
+		Signatures::S_CommandUnit,
 		Signatures::S_MovingUnit,
 		Signatures::S_SelectedMovingUnit,
 		Signatures::S_MovementPlanIndicator,

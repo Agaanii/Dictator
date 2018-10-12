@@ -36,9 +36,6 @@ public:
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:
-	void BeginBuildingConstruction(const ecs::EntityIndex& ghostEntity);
-	bool CreateBuildingGhost(ecs::Impl::Handle &governor, TilePosition & position, int buildingType);
-	void ConstructRequestedBuildings();
 	void UpdateAgendas();
 
 	void GainIncomes();

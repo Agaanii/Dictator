@@ -23,16 +23,10 @@ public:
 	virtual void Operate(GameLoopPhase phase, const timeuS& frameDuration) override;
 	virtual bool ShouldExit() override;
 protected:
-	bool CheckPlaceBuildingCommand(
-		ECS_Core::Components::C_UserInputs& inputs,
-		ECS_Core::Components::C_ActionPlan& actionPlan);
 	bool CheckStartTargetedMovement(
 		ECS_Core::Components::C_UserInputs& inputs,
 		ECS_Core::Components::C_ActionPlan& actionPlan);
 	void TranslateDownClicks(
-		ECS_Core::Components::C_UserInputs& inputs,
-		ECS_Core::Components::C_ActionPlan& actionPlan);
-	void CreateBuildingGhost(
 		ECS_Core::Components::C_UserInputs& inputs,
 		ECS_Core::Components::C_ActionPlan& actionPlan);
 	void TogglePause(

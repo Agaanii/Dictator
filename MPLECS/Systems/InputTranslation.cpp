@@ -23,32 +23,6 @@ InputTranslation::InputTranslation()
 void InputTranslation::ProgramInit() {}
 void InputTranslation::SetupGameplay() {}
 
-bool InputTranslation::CheckPlaceBuildingCommand(
-	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan)
-{
-	using namespace ECS_Core;
-	bool ghostFound{ false };
-	m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_PlannedBuildingPlacement>(
-		[&inputs, &actionPlan, &ghostFound](
-			const ecs::EntityIndex& ghostEntity,
-			const Components::C_BuildingDescription&,
-			const Components::C_TilePosition&,
-			const Components::C_BuildingGhost& ghost)
-	{
-		if (!ghost.m_currentPlacementValid)
-		{
-			// TODO: Surface error
-			return ecs::IterationBehavior::CONTINUE;
-		}
-		actionPlan.m_plan.push_back(Action::LocalPlayer::CreateBuildingFromGhost());
-		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
-		ghostFound = true;
-		return ecs::IterationBehavior::BREAK;
-	});
-	return ghostFound;
-}
-
 bool InputTranslation::CheckStartTargetedMovement(
 	ECS_Core::Components::C_UserInputs& inputs,
 	ECS_Core::Components::C_ActionPlan& actionPlan)
@@ -100,8 +74,7 @@ void InputTranslation::TranslateDownClicks(
 	using namespace ECS_Core;
 	if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::LEFT)
 	{	
-		if (!CheckPlaceBuildingCommand(inputs, actionPlan)
-			&& !CheckStartTargetedMovement(inputs, actionPlan))
+		if (!CheckStartTargetedMovement(inputs, actionPlan))
 		{
 			actionPlan.m_plan.push_back(Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition));
 		}
@@ -110,16 +83,6 @@ void InputTranslation::TranslateDownClicks(
 	{
 		actionPlan.m_plan.push_back(Action::LocalPlayer::CancelMovementPlan());
 	}
-}
-
-void InputTranslation::CreateBuildingGhost(
-	ECS_Core::Components::C_UserInputs& inputs,
-	ECS_Core::Components::C_ActionPlan& actionPlan)
-{
-	Action::LocalPlayer::CreateBuildingGhost ghost;
-	ghost.m_buildingClassId = 0;
-	ghost.m_position = *inputs.m_currentMousePosition.m_tilePosition;
-	actionPlan.m_plan.push_back(ghost);
 }
 
 void InputTranslation::TogglePause(
@@ -187,21 +150,6 @@ void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					inputs.ProcessKey(button);
 				}
 			}
-
-			// If this governor owns a building ghost, update its position
-			manager.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
-				[&inputs, &governorHandle](
-					const ecs::EntityIndex& entity,
-					const Components::C_BuildingDescription&,
-					Components::C_TilePosition& position,
-					const Components::C_BuildingGhost& ghost)
-			{
-				if (ghost.m_placingGovernor == governorHandle)
-				{
-					position.m_position = *inputs.m_currentMousePosition.m_tilePosition;
-				}
-				return ecs::IterationBehavior::CONTINUE;
-			});
 
 			// Same for any planned motions
 			manager.forEntitiesMatching<Signatures::S_MovementPlanIndicator>(

@@ -1194,55 +1194,6 @@ CoordinateVector2 WorldTile::FindNearestQuadrant(const CoordinateFromOriginSet& 
 	return closest;
 }
 
-void WorldTile::CheckBuildingPlacements()
-{
-	using namespace ECS_Core;
-	m_managerRef.forEntitiesMatching<Signatures::S_PlannedBuildingPlacement>(
-		[&manager = m_managerRef, this](
-			const ecs::EntityIndex&,
-			const Components::C_BuildingDescription&,
-			const Components::C_TilePosition& ghostTilePosition,
-			Components::C_BuildingGhost& ghost)
-	{
-		auto tileOpt = GetTile(ghostTilePosition.m_position);
-		if (tileOpt)
-		{
-			auto& tile = **tileOpt;
-			bool collisionFound{ tile.m_owningBuilding || !tile.m_movementCost };
-			manager.forEntitiesMatching<Signatures::S_CompleteBuilding>([&collisionFound, &ghostTilePosition](
-				const ecs::EntityIndex&,
-				const Components::C_BuildingDescription&,
-				const Components::C_TilePosition& buildingTilePosition,
-				const Components::C_Territory&,
-				const Components::C_TileProductionPotential&,
-				const Components::C_ResourceInventory&) -> ecs::IterationBehavior
-			{
-				if (ghostTilePosition.m_position == buildingTilePosition.m_position)
-				{
-					collisionFound = true;
-					return ecs::IterationBehavior::BREAK;
-				}
-				return ecs::IterationBehavior::CONTINUE;
-			});
-			manager.forEntitiesMatching<Signatures::S_InProgressBuilding>([&collisionFound, &ghostTilePosition](
-				const ecs::EntityIndex&,
-				const Components::C_BuildingDescription&,
-				const Components::C_TilePosition& constructingTilePosition,
-				const Components::C_BuildingConstruction&) -> ecs::IterationBehavior
-			{
-				if (ghostTilePosition.m_position == constructingTilePosition.m_position)
-				{
-					collisionFound = true;
-					return ecs::IterationBehavior::BREAK;
-				}
-				return ecs::IterationBehavior::CONTINUE;
-			});
-			ghost.m_currentPlacementValid = !collisionFound;
-		}
-		return ecs::IterationBehavior::CONTINUE;
-	});
-}
-
 std::set<WorldTile::TileSide> WorldTile::GetAdjacents(const WorldCoordinates& coords)
 {
 	return {
@@ -3116,7 +3067,6 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
-		CheckBuildingPlacements();
 
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_UserIO>(
 			[&manager = m_managerRef, this](

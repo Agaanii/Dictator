@@ -56,18 +56,6 @@ namespace Action
 
 	namespace LocalPlayer
 	{
-		// only local player will use Ghost-related buildings
-		// When they click, will take info from this to create a PlaceBuilding
-		struct CreateBuildingGhost
-		{
-			TilePosition m_position;
-			int m_buildingClassId{ 0 };
-		};
-
-		struct CreateBuildingFromGhost
-		{};
-
-
 		enum class PauseAction
 		{
 			PAUSE,
@@ -211,8 +199,6 @@ namespace Action
 	// This'll do for now
 	// @Herb - Metaclasses when
 	using Variant = std::variant<
-		LocalPlayer::CreateBuildingGhost,
-		LocalPlayer::CreateBuildingFromGhost,
 		LocalPlayer::TimeManipulation,
 		LocalPlayer::CloseUIFrame,
 		LocalPlayer::SelectTile,
