@@ -2684,8 +2684,8 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						Action::CreateBuildingUnit buildingUnit;
 						buildingUnit.m_spawningPosition = { 0,0, sectorX, sectorY, tileX, tileY };
 						buildingUnit.m_movementSpeed = 20;
-						plan.m_plan.push_back(buildingUnit);
-						plan.m_plan.push_back(Action::LocalPlayer::CenterCamera(CoordinatesToWorldPosition(buildingUnit.m_spawningPosition)));
+						plan.m_plan.push_back({ buildingUnit });
+						plan.m_plan.push_back({ Action::LocalPlayer::CenterCamera(CoordinatesToWorldPosition(buildingUnit.m_spawningPosition)) });
 						return ecs::IterationBehavior::CONTINUE;
 					});
 				}
@@ -2712,15 +2712,52 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			return ecs::IterationBehavior::CONTINUE;
 		});
 
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CommandUnit>([this](
+			const ecs::EntityIndex& mI,
+			const ECS_Core::Components::C_TilePosition& tilePosition,
+			ECS_Core::Components::C_MovingUnit& mover,
+			const ECS_Core::Components::C_ResourceInventory&,
+			const ECS_Core::Components::C_Population&,
+			ECS_Core::Components::C_CommandMessage& command)
+		{
+			if (!m_managerRef.isHandleValid(command.m_commandee)
+				|| !m_managerRef.isHandleValid(command.m_governor))
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			if (!m_managerRef.matchesSignature<ECS_Core::Signatures::S_CompleteBuilding>(m_managerRef.getEntityIndex(command.m_commandee))
+				|| !m_managerRef.matchesSignature<ECS_Core::Signatures::S_Planner>(m_managerRef.getEntityIndex(command.m_governor)))
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			if (tilePosition.m_position == m_managerRef.getComponent<ECS_Core::Components::C_TilePosition>(command.m_commandee).m_position)
+			{
+				for (auto&& c : command.m_commands)
+				{
+					m_managerRef.getComponent<ECS_Core::Components::C_ActionPlan>(command.m_governor).m_plan.push_back({ c.m_command, true });
+				}
+				command.m_commands.clear();
+			}
+
+			return ecs::IterationBehavior::CONTINUE;
+		});
+		break;
+	case GameLoopPhase::ACTION:
+	{
+		// Grow territories that are able to do so before taking any actions
+		GrowTerritories();
+
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_Planner>([&manager = m_managerRef, this](
 			const ecs::EntityIndex& governorEntity,
 			ECS_Core::Components::C_ActionPlan& actionPlan)
 		{
 			for (auto&& action : actionPlan.m_plan)
 			{
-				if (std::holds_alternative<Action::SetTargetedMovement>(action))
+				if (std::holds_alternative<Action::SetTargetedMovement>(action.m_command))
 				{
-					auto& setMovement = std::get<Action::SetTargetedMovement>(action);
+					auto& setMovement = std::get<Action::SetTargetedMovement>(action.m_command);
 					if (setMovement.m_path) continue;
 					if (!manager.hasComponent<ECS_Core::Components::C_TilePosition>(setMovement.m_mover)) continue;
 					if (!manager.hasComponent<ECS_Core::Components::C_MovingUnit>(setMovement.m_mover)) continue;
@@ -2741,9 +2778,9 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						manager.addTag<ECS_Core::Tags::T_Dead>(*setMovement.m_targetingIcon);
 					}
 				}
-				else if (std::holds_alternative<Action::CreateCaravan>(action))
+				else if (std::holds_alternative<Action::CreateCaravan>(action.m_command))
 				{
-					auto& createCaravan = std::get<Action::CreateCaravan>(action);
+					auto& createCaravan = std::get<Action::CreateCaravan>(action.m_command);
 					auto deliveryTileOpt = GetTile(createCaravan.m_deliveryPosition);
 					if (!deliveryTileOpt)
 					{
@@ -2847,12 +2884,12 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					moverInventory.m_collectedYields[ECS_Core::Components::Yields::FOOD] = 50;
 
 					std::map<f64, std::vector<ECS_Core::Components::YieldType>, std::greater<f64>> heldResources;
-					for (auto&& [resource, amount] : sourceInventory.m_collectedYields)
+					for (auto&&[resource, amount] : sourceInventory.m_collectedYields)
 					{
 						heldResources[amount].push_back(resource);
 					}
 					int resourcesMoved = 0;
-					for (auto&& [amount,heldResources] : heldResources)
+					for (auto&&[amount, heldResources] : heldResources)
 					{
 						s32 amountToMove = min<s32>(static_cast<s32>(amount), 100);
 						for (auto&& resource : heldResources)
@@ -2882,9 +2919,9 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						manager.addTag<ECS_Core::Tags::T_Dead>(*createCaravan.m_targetingIcon);
 					}
 				}
-				else if (std::holds_alternative<Action::SettleBuildingUnit>(action))
+				else if (std::holds_alternative<Action::SettleBuildingUnit>(action.m_command))
 				{
-					auto& settle = std::get<Action::SettleBuildingUnit>(action);
+					auto& settle = std::get<Action::SettleBuildingUnit>(action.m_command);
 					if (!manager.hasComponent<ECS_Core::Components::C_BuildingDescription>(settle.m_builderIndex)
 						|| !manager.hasComponent<ECS_Core::Components::C_TilePosition>(settle.m_builderIndex))
 					{
@@ -2913,11 +2950,29 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 			}
 			return ecs::IterationBehavior::CONTINUE;
 		});
-		break;
-	case GameLoopPhase::ACTION:
-	{
-		// Grow territories that are able to do so before taking any actions
-		GrowTerritories();
+
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CommandUnit>(
+			[this](
+				const ecs::EntityIndex& mI,
+				const ECS_Core::Components::C_TilePosition& tilePosition,
+				ECS_Core::Components::C_MovingUnit& mover,
+				const ECS_Core::Components::C_ResourceInventory&,
+				const ECS_Core::Components::C_Population&,
+				ECS_Core::Components::C_CommandMessage& command)
+		{
+			if (mover.m_currentMovement)
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+			if (!m_managerRef.hasComponent<ECS_Core::Components::C_TilePosition>(command.m_commandee))
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			mover.m_currentMovement = GetPath(tilePosition.m_position,
+				m_managerRef.getComponent<ECS_Core::Components::C_TilePosition>(command.m_commandee).m_position);
+			return ecs::IterationBehavior::CONTINUE;
+		});
 
 		auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(
 			m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>().front());
@@ -3076,30 +3131,30 @@ void WorldTile::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		{
 			for (auto&& action : actionPlan.m_plan)
 			{
-				if (std::holds_alternative<Action::LocalPlayer::SelectTile>(action))
+				if (std::holds_alternative<Action::LocalPlayer::SelectTile>(action.m_command))
 				{
 					ProcessSelectTile(
-						std::get<Action::LocalPlayer::SelectTile>(action),
+						std::get<Action::LocalPlayer::SelectTile>(action.m_command),
 						governorEntity);
 					continue;
 				}
-				else if (std::holds_alternative<Action::LocalPlayer::PlanTargetedMotion>(action))
+				else if (std::holds_alternative<Action::LocalPlayer::PlanTargetedMotion>(action.m_command))
 				{
 					ProcessPlanTargetedMotion(
-						std::get<Action::LocalPlayer::PlanTargetedMotion>(action),
+						std::get<Action::LocalPlayer::PlanTargetedMotion>(action.m_command),
 						governorEntity);
 				}
-				else if (std::holds_alternative<Action::LocalPlayer::PlanCaravan>(action))
+				else if (std::holds_alternative<Action::LocalPlayer::PlanCaravan>(action.m_command))
 				{
 					ProcessPlanCaravan(
-						std::get<Action::LocalPlayer::PlanCaravan>(action),
+						std::get<Action::LocalPlayer::PlanCaravan>(action.m_command),
 						governorEntity);
 				}
-				else if (std::holds_alternative<Action::LocalPlayer::PlanDirectionScout>(action))
+				else if (std::holds_alternative<Action::LocalPlayer::PlanDirectionScout>(action.m_command))
 				{
-					ProcessPlanDirectionScout(std::get<Action::LocalPlayer::PlanDirectionScout>(action), governorEntity);
+					ProcessPlanDirectionScout(std::get<Action::LocalPlayer::PlanDirectionScout>(action.m_command), governorEntity);
 				}
-				else if (std::holds_alternative<Action::LocalPlayer::CancelMovementPlan>(action))
+				else if (std::holds_alternative<Action::LocalPlayer::CancelMovementPlan>(action.m_command))
 				{
 					CancelMovementPlans();
 				}

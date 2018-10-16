@@ -90,9 +90,9 @@ void Time::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		{
 			for (auto&& action : plan.m_plan)
 			{
-				if (std::holds_alternative<Action::LocalPlayer::TimeManipulation>(action))
+				if (std::holds_alternative<Action::LocalPlayer::TimeManipulation>(action.m_command))
 				{
-					auto& timeManip = std::get<Action::LocalPlayer::TimeManipulation>(action);
+					auto& timeManip = std::get<Action::LocalPlayer::TimeManipulation>(action.m_command);
 					if (timeManip.m_gameSpeedAction)
 					{
 						switch (*timeManip.m_gameSpeedAction)

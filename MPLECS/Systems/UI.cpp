@@ -99,7 +99,7 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 									absoluteButtonPosition,
 									buttonBottomRight))
 							{
-								actions.m_plan.push_back(button.m_onClick(userEntity, entityIndex));
+								actions.m_plan.push_back({ button.m_onClick(userEntity, entityIndex) });
 								inputs.ProcessMouseUp(ECS_Core::Components::MouseButtons::LEFT);
 								return ecs::IterationBehavior::BREAK;
 							}
@@ -125,9 +125,9 @@ void UI::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		{
 			for (auto&& action : plan.m_plan)
 			{
-				if (std::holds_alternative<Action::LocalPlayer::CloseUIFrame>(action))
+				if (std::holds_alternative<Action::LocalPlayer::CloseUIFrame>(action.m_command))
 				{
-					auto& close = std::get<Action::LocalPlayer::CloseUIFrame>(action);					
+					auto& close = std::get<Action::LocalPlayer::CloseUIFrame>(action.m_command);
 					manager.delComponent<ECS_Core::Components::C_UIFrame>(close.m_frameIndex);
 					if (manager.hasComponent<ECS_Core::Components::C_SFMLDrawable>(close.m_frameIndex))
 					{

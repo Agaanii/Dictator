@@ -35,10 +35,10 @@ bool InputTranslation::CheckStartTargetedMovement(
 			const Components::C_MovementTarget& movement,
 			const Components::C_TilePosition& position)
 	{
-		actionPlan.m_plan.push_back(Action::SetTargetedMovement(
+		actionPlan.m_plan.push_back({ Action::SetTargetedMovement(
 			movement.m_moverHandle,
 			manager.getHandle(targetEntity),
-			position.m_position));
+			position.m_position) });
 		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
 		movementFound = true;
 		return ecs::IterationBehavior::BREAK;
@@ -54,12 +54,12 @@ bool InputTranslation::CheckStartTargetedMovement(
 			return ecs::IterationBehavior::CONTINUE;
 		}
 		auto& sourcePosition = manager.getComponent<Components::C_TilePosition>(movement.m_sourceBuildingHandle);
-		actionPlan.m_plan.push_back(Action::CreateCaravan(
+		actionPlan.m_plan.push_back({ Action::CreateCaravan(
 			position.m_position,
 			manager.getHandle(targetEntity),
 			sourcePosition.m_position,
 			manager.getEntityIndex(movement.m_sourceBuildingHandle),
-			5));
+			5) });
 		inputs.ProcessMouseDown(ECS_Core::Components::MouseButtons::LEFT);
 		movementFound = true;
 		return ecs::IterationBehavior::BREAK;
@@ -76,12 +76,12 @@ void InputTranslation::TranslateDownClicks(
 	{	
 		if (!CheckStartTargetedMovement(inputs, actionPlan))
 		{
-			actionPlan.m_plan.push_back(Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition));
+			actionPlan.m_plan.push_back({ Action::LocalPlayer::SelectTile(*inputs.m_currentMousePosition.m_tilePosition) });
 		}
 	}
 	if (inputs.m_unprocessedThisFrameDownMouseButtonFlags & (u8)ECS_Core::Components::MouseButtons::RIGHT)
 	{
-		actionPlan.m_plan.push_back(Action::LocalPlayer::CancelMovementPlan());
+		actionPlan.m_plan.push_back({ Action::LocalPlayer::CancelMovementPlan() });
 	}
 }
 
@@ -91,7 +91,7 @@ void InputTranslation::TogglePause(
 {
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_pauseAction = Action::LocalPlayer::PauseAction::TOGGLE_PAUSE;
-	actionPlan.m_plan.push_back(action);
+	actionPlan.m_plan.push_back({ action });
 }
 
 void InputTranslation::IncreaseGameSpeed(
@@ -100,7 +100,7 @@ void InputTranslation::IncreaseGameSpeed(
 {
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SPEED_UP;
-	actionPlan.m_plan.push_back(action);
+	actionPlan.m_plan.push_back({ action });
 }
 
 void InputTranslation::DecreaseGameSpeed(
@@ -109,14 +109,14 @@ void InputTranslation::DecreaseGameSpeed(
 {
 	Action::LocalPlayer::TimeManipulation action;
 	action.m_gameSpeedAction = Action::LocalPlayer::GameSpeedAction::SLOW_DOWN;
-	actionPlan.m_plan.push_back(action);
+	actionPlan.m_plan.push_back({ action });
 }
 
 void InputTranslation::CancelMovementPlan(
 	ECS_Core::Components::C_UserInputs& inputs,
 	ECS_Core::Components::C_ActionPlan& actionPlan)
 {
-	actionPlan.m_plan.push_back(Action::LocalPlayer::CancelMovementPlan());
+	actionPlan.m_plan.push_back({ Action::LocalPlayer::CancelMovementPlan() });
 }
 
 void InputTranslation::Operate(GameLoopPhase phase, const timeuS& frameDuration)

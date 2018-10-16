@@ -286,6 +286,40 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 	case GameLoopPhase::INPUT:
 		break;
 	case GameLoopPhase::ACTION:
+
+
+		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_CommandUnit>([this](
+			const ecs::EntityIndex& mI,
+			const ECS_Core::Components::C_TilePosition& tilePosition,
+			ECS_Core::Components::C_MovingUnit&,
+			ECS_Core::Components::C_ResourceInventory& inventory,
+			ECS_Core::Components::C_Population& population,
+			ECS_Core::Components::C_CommandMessage& command)
+		{
+			if (!m_managerRef.isHandleValid(command.m_commandee))
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			if (!m_managerRef.matchesSignature<ECS_Core::Signatures::S_CompleteBuilding>(m_managerRef.getEntityIndex(command.m_commandee)))
+			{
+				return ecs::IterationBehavior::CONTINUE;
+			}
+
+			if (tilePosition.m_position == m_managerRef.getComponent<ECS_Core::Components::C_TilePosition>(command.m_commandee).m_position
+				 && command.m_commands.empty())
+			{
+				MoveFullPopulation(population, m_managerRef.getComponent<ECS_Core::Components::C_Population>(command.m_commandee));
+				for (auto&&[resource, amount] : inventory.m_collectedYields)
+				{
+					m_managerRef.getComponent<ECS_Core::Components::C_ResourceInventory>(command.m_commandee).m_collectedYields[resource] += amount;
+				}
+				m_managerRef.addTag<ECS_Core::Tags::T_Dead>(mI);
+			}
+
+			return ecs::IterationBehavior::CONTINUE;
+		});
+
 		m_managerRef.forEntitiesMatching<ECS_Core::Signatures::S_WealthPlanner>(
 			[&manager = m_managerRef, this](
 				const ecs::EntityIndex& entityIndex,
@@ -293,13 +327,79 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 				ECS_Core::Components::C_Realm& realm) {
 			for (auto&& action : actionPlan.m_plan)
 			{
-				if (std::holds_alternative<Action::CreateBuildingUnit>(action))
+				if (std::holds_alternative<Action::CreateBuildingUnit>(action.m_command))
 				{
-					auto& builder = std::get<Action::CreateBuildingUnit>(action);
+					auto& builder = std::get<Action::CreateBuildingUnit>(action.m_command);
 					auto costIter = m_buildingCosts.find(builder.m_buildingTypeId);
 					if (costIter == m_buildingCosts.end())
 					{
 						continue;
+					}
+					if (builder.m_popSource && realm.m_capitol && !action.m_delivered)
+					{
+						// Check if we're in the building that's to create this unit
+						auto sourceHandle = manager.getHandle(*builder.m_popSource);
+						if (sourceHandle != *realm.m_capitol)
+						{
+							// Instead of creating the unit directly, send a dude with the command and the resources
+							// TODO: Make trades with a capitol and non-capitol do a full resource transfer except for food
+							if (manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol)
+								&& manager.hasComponent<ECS_Core::Components::C_Population>(*realm.m_capitol)
+								&& manager.hasComponent<ECS_Core::Components::C_TilePosition>(*realm.m_capitol))
+							{
+								auto& capitolInventory = manager.getComponent<ECS_Core::Components::C_ResourceInventory>(*realm.m_capitol);
+								bool hasResources = true;
+								for (auto&&[resource, cost] : costIter->second)
+								{
+									// Check to see that all resources required are available
+									auto inventoryStore = capitolInventory.m_collectedYields.find(resource);
+									if (inventoryStore == capitolInventory.m_collectedYields.end()
+										|| inventoryStore->second < cost)
+									{
+										hasResources = false;
+										break;
+									}
+								}
+								if (hasResources)
+								{
+									auto messengerHandle = manager.createHandle();
+									MovePopulations(
+										manager.getComponent<ECS_Core::Components::C_Population>(*realm.m_capitol),
+										manager.addComponent<ECS_Core::Components::C_Population>(messengerHandle),
+										2,
+										0);
+
+									auto& messengerInventory = manager.addComponent<ECS_Core::Components::C_ResourceInventory>(messengerHandle);
+									for (auto&&[resource, cost] : costIter->second)
+									{
+										messengerInventory.m_collectedYields[resource] += cost;
+										capitolInventory.m_collectedYields[resource] -= cost;
+									}
+
+									auto& command = manager.addComponent<ECS_Core::Components::C_CommandMessage>(messengerHandle);
+									command.m_commands.push_back(action);
+									command.m_commandee = sourceHandle;
+									command.m_governor = manager.getHandle(entityIndex);
+
+									manager.addComponent<ECS_Core::Components::C_TilePosition>(messengerHandle)
+										= manager.getComponent<ECS_Core::Components::C_TilePosition>(*realm.m_capitol);
+
+									manager.addComponent<ECS_Core::Components::C_PositionCartesian>(messengerHandle);
+									auto& movement = manager.addComponent<ECS_Core::Components::C_MovingUnit>(messengerHandle);
+									movement.m_movementPerDay = 5;
+									
+									auto& graphic = manager.addComponent<ECS_Core::Components::C_SFMLDrawable>(messengerHandle);
+									auto circle = std::make_shared<sf::CircleShape>(2.5f, 4);
+									circle->setFillColor({ 25,80,255 });
+									circle->setOutlineColor({ 255,80,25 });
+									circle->setOutlineThickness(-0.75f);
+									graphic.m_drawables[ECS_Core::Components::DrawLayer::UNIT][7].push_back({ circle, {} });
+
+									manager.addComponent<ECS_Core::Components::C_Vision>(messengerHandle);
+								}
+								continue;
+							}
+						}
 					}
 					if (builder.m_popSource && manager.hasComponent<ECS_Core::Components::C_ResourceInventory>(*builder.m_popSource))
 					{
@@ -413,7 +513,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 						}
 					}
 				}
-				else if (std::holds_alternative<Action::CreateExplorationUnit>(action))
+				else if (std::holds_alternative<Action::CreateExplorationUnit>(action.m_command))
 				{
 					auto timeEntities = m_managerRef.entitiesMatching<ECS_Core::Signatures::S_TimeTracker>();
 					if (timeEntities.size() == 0)
@@ -422,7 +522,7 @@ void Government::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 					}
 					const auto& time = m_managerRef.getComponent<ECS_Core::Components::C_TimeTracker>(timeEntities.front());
 
-					auto& createAction = std::get<Action::CreateExplorationUnit>(action);
+					auto& createAction = std::get<Action::CreateExplorationUnit>(action.m_command);
 					// Requires population of >5 Men and 1 food per planned day
 					if (!createAction.m_popSource
 						|| !m_managerRef.hasComponent<ECS_Core::Components::C_Population>(*createAction.m_popSource)

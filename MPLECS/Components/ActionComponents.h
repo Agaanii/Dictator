@@ -214,5 +214,14 @@ namespace Action
 		SettleBuildingUnit,
 		SetTargetedMovement
 	>;
-	using Plan = std::vector<Variant>;
+
+	struct Command
+	{
+		Command() {}
+		Command(const Variant& v) : m_command(v) {}
+		Command(const Variant& v, bool d) : m_command(v), m_delivered(d) {}
+		Variant m_command;
+		bool m_delivered{ false };
+	};
+	using Plan = std::vector<Command>;
 }

@@ -358,6 +358,7 @@ namespace ECS_Core
 		{
 			Action::Plan m_commands;
 			ecs::Impl::Handle m_commandee;
+			ecs::Impl::Handle m_governor;
 		};
 	}
 

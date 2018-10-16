@@ -487,9 +487,9 @@ void SFMLManager::Operate(GameLoopPhase phase, const timeuS& frameDuration)
 		{
 			for (auto&& action : plan.m_plan)
 			{
-				if (std::holds_alternative<Action::LocalPlayer::CenterCamera>(action))
+				if (std::holds_alternative<Action::LocalPlayer::CenterCamera>(action.m_command))
 				{
-					auto& centerCamera = std::get<Action::LocalPlayer::CenterCamera>(action);
+					auto& centerCamera = std::get<Action::LocalPlayer::CenterCamera>(action.m_command);
 					m_worldView.setCenter({ 1.f * centerCamera.m_worldPosition.m_x, 1.f * centerCamera.m_worldPosition.m_y });
 					m_worldView.setSize(160.f, 90.f);
 				}
